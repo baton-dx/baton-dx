@@ -17,9 +17,7 @@
       "types": "./dist/index.d.mts"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
