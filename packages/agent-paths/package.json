@@ -1,6 +1,6 @@
 {
   "name": "@baton-dx/agent-paths",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Path registry for 14+ AI tools - knows where each tool expects its configuration files",
   "type": "module",
   "main": "./dist/index.mjs",
@@ -12,7 +12,9 @@
       "types": "./dist/index.d.mts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
