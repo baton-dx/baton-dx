@@ -19,23 +19,23 @@ brew install baton-dx
 
 ```bash
 # bun (recommended)
-bun install -g baton-dx
+bun install -g @baton-dx/cli
 
 # npm
-npm install -g baton-dx
+npm install -g @baton-dx/cli
 
 # pnpm
-pnpm install -g baton-dx
+pnpm install -g @baton-dx/cli
 
 # yarn
-yarn global add baton-dx
+yarn global add @baton-dx/cli
 ```
 
 ## Run Without Installing
 
 ```bash
-npx baton-dx init
-bunx baton-dx init
+npx @baton-dx/cli init
+bunx @baton-dx/cli init
 ```
 
 ## Verify Installation
@@ -44,6 +44,8 @@ bunx baton-dx init
 baton --version
 baton --help
 ```
+
+> **Tip:** Baton is also available as `baton-dx` and `btx` — all three commands are identical aliases. Use whichever you prefer.
 
 ## First-Time Setup
 

@@ -5,7 +5,7 @@ Get Baton running in your project in under 5 minutes.
 ## Step 1: Install Baton
 
 ```bash
-bun install -g baton-dx
+bun install -g @baton-dx/cli
 # or: brew install baton-dx
 ```
 

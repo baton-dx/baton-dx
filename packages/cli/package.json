@@ -8,7 +8,8 @@
   "types": "./dist/index.d.mts",
   "bin": {
     "baton": "./dist/index.mjs",
-    "baton-dx": "./dist/index.mjs"
+    "baton-dx": "./dist/index.mjs",
+    "btx": "./dist/index.mjs"
   },
   "exports": {
     ".": {

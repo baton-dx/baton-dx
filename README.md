@@ -10,7 +10,7 @@
 
 ```bash
 # Install
-bun install -g baton-dx
+bun install -g @baton-dx/cli
 
 # Connect your team's source repository
 baton source connect github:your-org/dx-configs --name my-team
