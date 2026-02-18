@@ -251,7 +251,7 @@ metadata:
     await mkdir(profileDir, { recursive: true });
 
     // Copy minimal profile template
-    const profileTemplateDir = join(__dirname, "..", "src", "templates", "profile", "minimal");
+    const profileTemplateDir = join(__dirname, "templates", "profile", "minimal");
     await copyDirectory(profileTemplateDir, profileDir, { name: "default" });
   }
 
