@@ -22,7 +22,8 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "cp ../../README.md ."
   },
   "dependencies": {},
   "devDependencies": {
