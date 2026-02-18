@@ -9,6 +9,7 @@ describe("GitHub Resolver", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.GITHUB_TOKEN;
   });
 
   afterEach(() => {
@@ -16,14 +17,12 @@ describe("GitHub Resolver", () => {
     if (originalEnv !== undefined) {
       process.env.GITHUB_TOKEN = originalEnv;
     } else {
-      process.env.GITHUB_TOKEN = undefined;
+      delete process.env.GITHUB_TOKEN;
     }
   });
 
   describe("resolveGitHubSource", () => {
     it("should resolve GitHub source without token", async () => {
-      process.env.GITHUB_TOKEN = undefined;
-
       const source = parseSource("github:baton/example-profile");
       if (source.provider !== "github") throw new Error("Expected GitHub source");
 
@@ -236,8 +235,6 @@ describe("GitHub Resolver", () => {
     });
 
     it("should not modify URL when GITHUB_TOKEN is not set", async () => {
-      process.env.GITHUB_TOKEN = undefined;
-
       const source = parseSource("github:org/repo");
       if (source.provider !== "github") throw new Error("Expected GitHub source");
 
