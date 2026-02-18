@@ -11,6 +11,7 @@ export default defineConfig({
   banner: "#!/usr/bin/env node",
   copy: ["src/templates"],
   noExternal: [/@baton-dx\/.*/],
+  inlineOnly: false,
   alias: {
     "@baton-dx/core": resolve(dir, "../core/src/index.ts"),
     "@baton-dx/agent-paths": resolve(dir, "../agent-paths/src/index.ts"),
