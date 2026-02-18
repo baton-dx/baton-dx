@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.1.3
+
+### Patch Changes
+
+- [`97e9e8f`](https://github.com/baton-dx/baton-dx/commit/97e9e8f4d4b21b8f7f2b52374d4dcd64d97420a3) Thanks [@mantaray0](https://github.com/mantaray0)! - Include root README.md in published npm package via prepack script.
+
 ## 0.1.2
 
 ### Patch Changes
