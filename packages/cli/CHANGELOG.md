@@ -1,5 +1,15 @@
 # @baton-dx/cli
 
+## 0.1.4
+
+### Patch Changes
+
+- [#10](https://github.com/baton-dx/baton-dx/pull/10) [`de49425`](https://github.com/baton-dx/baton-dx/commit/de49425d690b3a496d4dd4202bd30d130799158e) Thanks [@mantaray0](https://github.com/mantaray0)! - Add explicit `permissions: contents: read` to CI workflow to satisfy GitHub security audit (least-privilege principle)
+
+- [#8](https://github.com/baton-dx/baton-dx/pull/8) [`50b6f1d`](https://github.com/baton-dx/baton-dx/commit/50b6f1d77293997c943b3b2c2297a6064374a5e1) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix template path resolution in bundled CLI for `source create` and `profile create` commands
+
+  Both commands referenced templates via `src/templates/` which doesn't exist in the published package. Templates are copied to `dist/templates/` by tsdown's `copy` config, so paths now resolve relative to `__dirname` (the `dist/` directory) instead of navigating up to a non-existent `src/` directory.
+
 ## 0.1.3
 
 ### Patch Changes
