@@ -1,0 +1,28 @@
+import type { ConfigType } from "@baton-dx/agent-paths";
+import { BaseAdapter } from "./base-adapter.js";
+import type { ValidationResult } from "./types.js";
+
+/**
+ * Codex CLI adapter.
+ *
+ * Uses AGENTS.md for memory. Custom validate() adds memory filename check.
+ * Settings use TOML format (config.toml), not JSON.
+ */
+export class CodexAdapter extends BaseAdapter {
+  readonly key = "codex";
+  readonly name = "Codex CLI";
+
+  override validate(type: ConfigType, file: unknown): ValidationResult {
+    const result = this.validateCommon(type, file);
+
+    if (type === "memory") {
+      const memory = file as { filename?: string };
+      if (memory.filename && memory.filename !== "AGENTS.md") {
+        result.errors.push("Memory file must be named AGENTS.md for Codex");
+        result.valid = false;
+      }
+    }
+
+    return result;
+  }
+}

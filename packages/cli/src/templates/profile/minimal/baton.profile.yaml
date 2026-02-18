@@ -1,0 +1,11 @@
+name: "{{name}}"
+version: "0.1.0"
+description: "Profile {{name}}"
+
+ai:
+  # Add profile-specific tools here
+  tools: []
+
+  memory:
+    - source: MEMORY.md
+      merge: "append"

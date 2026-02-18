@@ -1,0 +1,432 @@
+import type { AgentPathConfig } from "./types.js";
+
+/**
+ * Registry of all supported AI agents and their path configurations.
+ * Each agent defines where it expects skills, rules, agents, memory, settings, and commands.
+ */
+export const AGENT_PATHS: readonly AgentPathConfig[] = [
+  {
+    key: "claude-code",
+    name: "Claude Code",
+    skills: {
+      project: ".claude/skills/{name}",
+      global: "~/.claude/skills/{name}",
+    },
+    rules: {
+      project: ".claude/rules/{name}.md",
+      global: "~/.claude/rules/{name}.md",
+    },
+    agents: {
+      project: ".claude/agents/{name}.md",
+      global: "~/.claude/agents/{name}.md",
+    },
+    memory: {
+      project: "CLAUDE.md",
+      global: "~/.claude/CLAUDE.md",
+    },
+    settings: {
+      project: ".claude/settings.json",
+      global: "~/.claude/settings.json",
+    },
+    commands: {
+      project: ".claude/commands/{name}.md",
+      global: "~/.claude/commands/{name}.md",
+    },
+    detection: ["claude", "~/.claude/"],
+    legacy: {},
+  },
+  {
+    key: "cursor",
+    name: "Cursor",
+    skills: {
+      project: ".cursor/skills/{name}",
+      global: "~/.cursor/skills/{name}",
+    },
+    rules: {
+      project: ".cursor/rules/{name}.mdc",
+      global: "~/.cursor/rules/{name}.mdc",
+    },
+    agents: {
+      project: ".cursor/agents/{name}.md",
+      global: "~/.cursor/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.cursor/AGENTS.md",
+    },
+    settings: {
+      project: ".cursor/settings.json",
+      global: "~/.cursor/settings.json",
+    },
+    commands: {
+      project: ".cursor/commands/{name}.md",
+      global: "~/.cursor/commands/{name}.md",
+    },
+    detection: ["cursor", "~/.cursor/"],
+    legacy: {
+      rules: [".cursorrules"],
+    },
+  },
+  {
+    key: "windsurf",
+    name: "Windsurf",
+    skills: {
+      project: ".windsurf/skills/{name}",
+      global: "~/.codeium/windsurf/skills/{name}",
+    },
+    rules: {
+      project: ".windsurf/rules/{name}.md",
+      global: "~/.codeium/windsurf/rules/{name}.md",
+    },
+    agents: {
+      project: ".windsurf/agents/{name}.md",
+      global: "~/.codeium/windsurf/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.codeium/windsurf/AGENTS.md",
+    },
+    settings: {
+      project: ".windsurf/settings.json",
+      global: "~/.codeium/windsurf/settings.json",
+    },
+    commands: {
+      project: ".windsurf/workflows/{name}.md",
+      global: "~/.codeium/windsurf/workflows/{name}.md",
+    },
+    detection: ["windsurf", "~/.codeium/windsurf/"],
+    legacy: {
+      rules: [".windsurfrules"],
+    },
+  },
+  {
+    key: "antigravity",
+    name: "Antigravity",
+    skills: {
+      project: ".agent/skills/{name}",
+      global: "~/.gemini/antigravity/skills/{name}",
+    },
+    rules: {
+      project: ".agent/rules/{name}.md",
+      global: "~/.gemini/antigravity/rules/{name}.md",
+    },
+    agents: {
+      project: ".agent/agents/{name}.md",
+      global: "~/.gemini/antigravity/agents/{name}.md",
+    },
+    memory: {
+      project: "GEMINI.md",
+      global: "~/.gemini/antigravity/GEMINI.md",
+    },
+    settings: {
+      project: ".agent/settings.json",
+      global: "~/.gemini/antigravity/settings.json",
+    },
+    commands: {
+      project: ".agent/workflows/{name}.md",
+      global: "~/.gemini/antigravity/workflows/{name}.md",
+    },
+    detection: ["antigravity", "~/.gemini/antigravity/"],
+    legacy: {},
+  },
+  {
+    key: "codex",
+    name: "Codex CLI",
+    skills: {
+      project: ".codex/skills/{name}",
+      global: "~/.codex/skills/{name}",
+    },
+    rules: {
+      project: ".codex/rules/{name}.md",
+      global: "~/.codex/rules/{name}.md",
+    },
+    agents: {
+      project: ".codex/agents/{name}.md",
+      global: "~/.codex/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.codex/AGENTS.md",
+    },
+    settings: {
+      project: ".codex/config.toml",
+      global: "~/.codex/config.toml",
+    },
+    commands: {
+      project: ".codex/commands/{name}.md",
+      global: "~/.codex/commands/{name}.md",
+    },
+    detection: ["codex", "~/.codex/"],
+    legacy: {},
+  },
+  {
+    key: "github-copilot",
+    name: "GitHub Copilot",
+    skills: {
+      project: ".github/skills/{name}",
+      global: "~/.github/skills/{name}",
+    },
+    rules: {
+      project: ".github/copilot-instructions.md",
+      global: "~/.github/copilot-instructions.md",
+    },
+    agents: {
+      project: ".github/agents/{name}.md",
+      global: "~/.github/agents/{name}.md",
+    },
+    memory: {
+      project: ".github/copilot-instructions.md",
+      global: "~/.github/copilot-instructions.md",
+    },
+    settings: {
+      project: ".github/copilot/settings.json",
+      global: "~/.github/copilot/settings.json",
+    },
+    commands: {
+      project: ".github/copilot/commands/{name}.md",
+      global: "~/.github/copilot/commands/{name}.md",
+    },
+    detection: ["gh", "~/.github/"],
+    legacy: {},
+  },
+  {
+    key: "opencode",
+    name: "OpenCode",
+    skills: {
+      project: ".opencode/skills/{name}",
+      global: "~/.config/opencode/skills/{name}",
+    },
+    rules: {
+      project: ".opencode/rules/{name}.md",
+      global: "~/.config/opencode/rules/{name}.md",
+    },
+    agents: {
+      project: ".opencode/agents/{name}.md",
+      global: "~/.config/opencode/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.config/opencode/AGENTS.md",
+    },
+    settings: {
+      project: ".opencode/settings.json",
+      global: "~/.config/opencode/settings.json",
+    },
+    commands: {
+      project: ".opencode/commands/{name}.md",
+      global: "~/.config/opencode/commands/{name}.md",
+    },
+    detection: ["opencode", "~/.config/opencode/"],
+    legacy: {},
+  },
+  {
+    key: "amp",
+    name: "Amp",
+    skills: {
+      project: ".agents/skills/{name}",
+      global: "~/.config/agents/skills/{name}",
+    },
+    rules: {
+      project: ".agents/rules/{name}.md",
+      global: "~/.config/agents/rules/{name}.md",
+    },
+    agents: {
+      project: ".agents/agents/{name}.md",
+      global: "~/.config/agents/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.config/agents/AGENTS.md",
+    },
+    settings: {
+      project: ".agents/settings.json",
+      global: "~/.config/agents/settings.json",
+    },
+    commands: {
+      project: ".agents/commands/{name}.md",
+      global: "~/.config/agents/commands/{name}.md",
+    },
+    detection: ["amp", "~/.config/agents/"],
+    legacy: {},
+  },
+  {
+    key: "kiro",
+    name: "Kiro",
+    skills: {
+      project: ".kiro/skills/{name}",
+      global: "~/.kiro/skills/{name}",
+    },
+    rules: {
+      project: ".kiro/rules/{name}.md",
+      global: "~/.kiro/rules/{name}.md",
+    },
+    agents: {
+      project: ".kiro/agents/{name}.md",
+      global: "~/.kiro/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.kiro/AGENTS.md",
+    },
+    settings: {
+      project: ".kiro/settings.json",
+      global: "~/.kiro/settings.json",
+    },
+    commands: {
+      project: ".kiro/commands/{name}.md",
+      global: "~/.kiro/commands/{name}.md",
+    },
+    detection: ["kiro", "~/.kiro/"],
+    legacy: {},
+  },
+  {
+    key: "zed",
+    name: "Zed",
+    skills: {
+      project: ".zed/skills/{name}",
+      global: "~/.zed/skills/{name}",
+    },
+    rules: {
+      project: ".zed/rules/{name}.md",
+      global: "~/.zed/rules/{name}.md",
+    },
+    agents: {
+      project: ".zed/agents/{name}.md",
+      global: "~/.zed/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.zed/AGENTS.md",
+    },
+    settings: {
+      project: ".zed/settings.json",
+      global: "~/.zed/settings.json",
+    },
+    commands: {
+      project: ".zed/commands/{name}.md",
+      global: "~/.zed/commands/{name}.md",
+    },
+    detection: ["zed", "~/.zed/"],
+    legacy: {},
+  },
+  {
+    key: "cline",
+    name: "Cline",
+    skills: {
+      project: ".cline/skills/{name}",
+      global: "~/.cline/skills/{name}",
+    },
+    rules: {
+      project: ".cline/rules/{name}.md",
+      global: "~/.cline/rules/{name}.md",
+    },
+    agents: {
+      project: ".cline/agents/{name}.md",
+      global: "~/.cline/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.cline/AGENTS.md",
+    },
+    settings: {
+      project: ".cline/settings.json",
+      global: "~/.cline/settings.json",
+    },
+    commands: {
+      project: ".cline/commands/{name}.md",
+      global: "~/.cline/commands/{name}.md",
+    },
+    detection: ["cline", "~/.cline/"],
+    legacy: {},
+  },
+  {
+    key: "roo",
+    name: "Roo",
+    skills: {
+      project: ".roo/skills/{name}",
+      global: "~/.roo/skills/{name}",
+    },
+    rules: {
+      project: ".roo/rules/{name}.md",
+      global: "~/.roo/rules/{name}.md",
+    },
+    agents: {
+      project: ".roo/agents/{name}.md",
+      global: "~/.roo/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.roo/AGENTS.md",
+    },
+    settings: {
+      project: ".roo/settings.json",
+      global: "~/.roo/settings.json",
+    },
+    commands: {
+      project: ".roo/commands/{name}.md",
+      global: "~/.roo/commands/{name}.md",
+    },
+    detection: ["roo", "~/.roo/"],
+    legacy: {},
+  },
+  {
+    key: "junie",
+    name: "Junie",
+    skills: {
+      project: ".junie/skills/{name}",
+      global: "~/.junie/skills/{name}",
+    },
+    rules: {
+      project: ".junie/rules/{name}.md",
+      global: "~/.junie/rules/{name}.md",
+    },
+    agents: {
+      project: ".junie/agents/{name}.md",
+      global: "~/.junie/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.junie/AGENTS.md",
+    },
+    settings: {
+      project: ".junie/settings.json",
+      global: "~/.junie/settings.json",
+    },
+    commands: {
+      project: ".junie/commands/{name}.md",
+      global: "~/.junie/commands/{name}.md",
+    },
+    detection: ["junie", "~/.junie/"],
+    legacy: {},
+  },
+  {
+    key: "trae",
+    name: "Trae",
+    skills: {
+      project: ".trae/skills/{name}",
+      global: "~/.trae/skills/{name}",
+    },
+    rules: {
+      project: ".trae/rules/{name}.md",
+      global: "~/.trae/rules/{name}.md",
+    },
+    agents: {
+      project: ".trae/agents/{name}.md",
+      global: "~/.trae/agents/{name}.md",
+    },
+    memory: {
+      project: "AGENTS.md",
+      global: "~/.trae/AGENTS.md",
+    },
+    settings: {
+      project: ".trae/settings.json",
+      global: "~/.trae/settings.json",
+    },
+    commands: {
+      project: ".trae/commands/{name}.md",
+      global: "~/.trae/commands/{name}.md",
+    },
+    detection: ["trae", "~/.trae/"],
+    legacy: {},
+  },
+];

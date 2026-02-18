@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "forceLoginMethod": "claudeai",
+  "language": "English",
+  "respectGitignore": true,
+  "spinnerTipsEnabled": false,
+  "terminalProgressBarEnabled": true,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeCoAuthoredBy": false,
+  "defaultMode": "acceptEdits"
+}

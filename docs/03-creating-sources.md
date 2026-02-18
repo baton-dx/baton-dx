@@ -1,0 +1,293 @@
+# Creating Sources
+
+A **source repository** is the distribution unit for Baton configurations. It groups one or more **profiles** into a single, versioned package that teams can consume from GitHub, GitLab, npm, or a local filesystem. Think of a source as an npm package, and profiles as the modules it exports.
+
+---
+
+## What is a Source Repository
+
+A source repository is any directory (typically a Git repo) that contains a `baton.source.yaml` manifest at its root. The manifest declares metadata about the source -- its name, version, description, and the list of profiles it provides.
+
+Sources can be hosted on any supported transport:
+
+| Prefix     | Example                                  | Description                        |
+| ---------- | ---------------------------------------- | ---------------------------------- |
+| `github:`  | `github:my-org/dx-configs`               | GitHub repository                  |
+| `gitlab:`  | `gitlab:my-org/dx-configs`               | GitLab repository                  |
+| `git:`     | `git:https://git.internal.co/dx-configs` | Any Git remote                     |
+| `npm:`     | `npm:@my-org/dx-configs`                 | npm registry package               |
+| `file:`    | `file:../local-configs`                  | Local filesystem path              |
+
+When a consumer runs `baton sync`, Baton resolves the source URI, fetches the repository, reads `baton.source.yaml`, and extracts the requested profiles.
+
+---
+
+## Creating a Source
+
+The fastest way to scaffold a new source is with the `baton source create` command:
+
+```bash
+baton source create my-team-configs
+```
+
+This generates a ready-to-use directory with the manifest and an example profile. You can also pass options:
+
+```bash
+baton source create my-team-configs \
+  --description "Team DX standards" \
+  --profile frontend \
+  --profile backend
+```
+
+If you prefer to set things up manually, create a directory, add a `baton.source.yaml` file, and start adding profiles.
+
+---
+
+## Source Manifest (`baton.source.yaml`)
+
+The manifest is the single source of truth for the repository. It lives at the root of the source directory.
+
+### Example
+
+```yaml
+name: my-team-configs
+version: 1.0.0
+description: Team DX standards
+repository: github:my-org/dx-configs
+profiles:
+  - name: frontend
+    path: profiles/frontend
+  - name: backend
+    path: profiles/backend
+```
+
+### Field Reference
+
+| Field         | Type     | Required | Description                                                        |
+| ------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `name`        | string   | yes      | Unique name for the source. Used in source URIs.                   |
+| `version`     | string   | yes      | Semver version string (e.g. `1.0.0`).                             |
+| `description` | string   | no       | Human-readable description of the source.                          |
+| `repository`  | string   | no       | Canonical URI where the source is hosted.                          |
+| `profiles`    | array    | yes      | List of profile entries provided by this source.                   |
+
+Each entry in `profiles` has:
+
+| Field  | Type   | Required | Description                                          |
+| ------ | ------ | -------- | ---------------------------------------------------- |
+| `name` | string | yes      | Profile identifier. Must be unique within the source.|
+| `path` | string | yes      | Relative path from the source root to the profile.   |
+
+### Validation
+
+Baton validates the manifest on every operation. Common issues:
+
+- **Duplicate profile names** -- each `name` in `profiles` must be unique within the source.
+- **Missing paths** -- every `path` must point to a directory that contains a valid `baton.profile.yaml`.
+- **Invalid version** -- the `version` field must be a valid semver string.
+
+Run `baton source validate` to check your manifest without syncing.
+
+---
+
+## Directory Layout
+
+A well-organized source follows this conventional structure:
+
+```
+my-team-configs/
+├── baton.source.yaml
+├── profiles/
+│   ├── frontend/
+│   │   ├── baton.profile.yaml
+│   │   ├── ai/
+│   │   │   ├── skills/
+│   │   │   │   └── code-review/
+│   │   │   │       └── SKILL.md
+│   │   │   ├── rules/
+│   │   │   │   ├── coding-style.md
+│   │   │   │   └── testing.md
+│   │   │   ├── agents/
+│   │   │   │   └── reviewer.md
+│   │   │   ├── memory/
+│   │   │   │   └── MEMORY.md
+│   │   │   └── commands/
+│   │   │       └── deploy.md
+│   │   ├── files/
+│   │   │   ├── .editorconfig
+│   │   │   └── biome.json
+│   │   └── ide/
+│   │       └── vscode/
+│   │           ├── settings.json
+│   │           └── extensions.json
+│   └── backend/
+│       ├── baton.profile.yaml
+│       ├── ai/
+│       │   ├── skills/
+│       │   ├── rules/
+│       │   ├── agents/
+│       │   ├── memory/
+│       │   └── commands/
+│       ├── files/
+│       └── ide/
+└── README.md
+```
+
+### Key directories
+
+| Directory         | Purpose                                                              |
+| ----------------- | -------------------------------------------------------------------- |
+| `profiles/`       | Contains all profile directories.                                    |
+| `ai/skills/`      | Skill directories, each containing a `SKILL.md`.                    |
+| `ai/rules/`       | Rule files (`.md`). Can include universal and tool-specific rules.  |
+| `ai/agents/`      | Agent definitions (`.md` with frontmatter).                         |
+| `ai/memory/`      | Memory files (`MEMORY.md`) for persistent context.                  |
+| `ai/commands/`    | Command definitions (`.md`).                                        |
+| `files/`          | Static files to be placed in consumer projects.                      |
+| `ide/`            | IDE-specific settings (VS Code, JetBrains, etc.).                   |
+
+---
+
+## Adding Profiles to a Source
+
+Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./04-creating-profiles.md) for the full profile reference.
+
+To add a new profile to an existing source:
+
+1. Create the profile directory:
+
+   ```bash
+   mkdir -p profiles/my-new-profile/ai/{skills,rules,agents,memory,commands}
+   mkdir -p profiles/my-new-profile/{files,ide}
+   ```
+
+2. Create the profile manifest:
+
+   ```bash
+   touch profiles/my-new-profile/baton.profile.yaml
+   ```
+
+3. Register the profile in `baton.source.yaml`:
+
+   ```yaml
+   profiles:
+     - name: frontend
+       path: profiles/frontend
+     - name: backend
+       path: profiles/backend
+     - name: my-new-profile           # add this
+       path: profiles/my-new-profile  # add this
+   ```
+
+4. Validate:
+
+   ```bash
+   baton source validate
+   ```
+
+---
+
+## Publishing
+
+### GitHub
+
+The most common approach is to push the source to a GitHub repository:
+
+```bash
+git init
+git add .
+git commit -m "feat: initial source release"
+git remote add origin git@github.com:my-org/dx-configs.git
+git push -u origin main
+```
+
+Consumers reference it as:
+
+```yaml
+source: github:my-org/dx-configs/frontend
+```
+
+### GitLab
+
+Same workflow, different prefix:
+
+```yaml
+source: gitlab:my-org/dx-configs/frontend
+```
+
+### npm
+
+Package the source and publish to npm:
+
+```bash
+npm init --scope=@my-org
+npm publish
+```
+
+Consumers reference it as:
+
+```yaml
+source: npm:@my-org/dx-configs/frontend
+```
+
+### Local / File
+
+During development, use a local path:
+
+```yaml
+source: file:../dx-configs/frontend
+```
+
+This is especially useful for testing changes before publishing.
+
+---
+
+## Versioning
+
+Baton follows **semver** conventions for source versioning.
+
+### Version field
+
+Set the `version` field in `baton.source.yaml`:
+
+```yaml
+version: 1.2.0
+```
+
+### Git tags
+
+Tag releases with a `v` prefix to allow consumers to pin to specific versions:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Consumers can then reference a specific version:
+
+```yaml
+source: github:my-org/dx-configs@v1.2.0/frontend
+```
+
+### When to bump versions
+
+| Change type                        | Version bump |
+| ---------------------------------- | ------------ |
+| New profile added                  | minor        |
+| New rule/skill in existing profile | minor        |
+| Bug fix in a rule or config        | patch        |
+| Breaking rename or removal         | major        |
+
+### Best practices
+
+- Always tag releases in Git so consumers can pin versions.
+- Use a changelog to document what changed between versions.
+- Test profiles locally (`file:` source) before publishing.
+- Run `baton source validate` in CI to catch manifest issues early.
+
+---
+
+## Next Steps
+
+- [Creating Profiles](./04-creating-profiles.md) -- learn how to define profile manifests and configure AI tools.
+- [Using Profiles](./05-using-profiles.md) -- learn how to consume profiles in your projects.

@@ -1,0 +1,43 @@
+{
+  "name": "@baton-dx/cli",
+  "version": "0.1.0",
+  "description": "CLI for Baton - the package manager for Developer Experience & AI configuration",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "baton": "./dist/index.mjs",
+    "baton-dx": "./dist/index.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@baton-dx/agent-paths": "workspace:*",
+    "@baton-dx/core": "workspace:*",
+    "@clack/prompts": "^1.0.1",
+    "citty": "^0.1.0",
+    "handlebars": "^4.7.8",
+    "simple-git": "^3.30.0",
+    "yaml": "^2.8.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baton-dx/baton.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/baton-dx/baton#readme",
+  "bugs": {
+    "url": "https://github.com/baton-dx/baton/issues"
+  },
+  "license": "MIT"
+}

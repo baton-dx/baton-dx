@@ -1,0 +1,30 @@
+{
+  "name": "@baton-dx/agent-paths",
+  "version": "0.1.0",
+  "description": "Path registry for 14+ AI tools - knows where each tool expects its configuration files",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baton-dx/baton.git",
+    "directory": "packages/agent-paths"
+  },
+  "homepage": "https://github.com/baton-dx/baton#readme",
+  "bugs": {
+    "url": "https://github.com/baton-dx/baton/issues"
+  },
+  "license": "MIT"
+}

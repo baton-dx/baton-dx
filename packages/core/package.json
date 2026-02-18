@@ -1,0 +1,42 @@
+{
+  "name": "@baton-dx/core",
+  "version": "0.1.0",
+  "description": "Core logic for Baton - schemas, adapters, merge strategies, and Git source provider",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@baton-dx/agent-paths": "workspace:*",
+    "execa": "^9.6.1",
+    "handlebars": "^4.7.8",
+    "semver": "^7.7.4",
+    "simple-git": "^3.27.0",
+    "yaml": "^2.8.2",
+    "zod": "^3.24.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baton-dx/baton.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/baton-dx/baton#readme",
+  "bugs": {
+    "url": "https://github.com/baton-dx/baton/issues"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/semver": "^7.7.1"
+  }
+}

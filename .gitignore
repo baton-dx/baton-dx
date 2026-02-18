@@ -1,0 +1,45 @@
+# Dependencies & build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Tool state
+.worktrees/
+.playwright-mcp/
+.mcp.json
+
+# Local overrides (not committed)
+*.local.md
+*.local.json
+
+# Ralph agent runtime state (tracked: ralph.sh, prompt.md, CLAUDE.md)
+scripts/ralph/prd.json
+scripts/ralph/progress.txt
+scripts/ralph/archive/
+scripts/ralph/.last-branch
+
+# Temporary directories
+/tmp/
+
+# GSD
+/.planning/
+
+# Tasks (Ralph PRDs)
+/tasks/
+
+# Claude Code generated output
+.claude/reports/
+.claude/plans/
+.claude/commands/
+
+# Other AI tool dirs (not used in this project)
+.cline/
+.cursor/
+.cursorrules
+AGENTS.md
+
+# Safety: prevent accidental absolute-path output
+/Users/
