@@ -9,7 +9,7 @@ describe("GitHub Resolver", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.GITHUB_TOKEN;
+    process.env.GITHUB_TOKEN = undefined;
   });
 
   afterEach(() => {
@@ -17,7 +17,7 @@ describe("GitHub Resolver", () => {
     if (originalEnv !== undefined) {
       process.env.GITHUB_TOKEN = originalEnv;
     } else {
-      delete process.env.GITHUB_TOKEN;
+      process.env.GITHUB_TOKEN = undefined;
     }
   });
 
