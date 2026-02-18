@@ -62,6 +62,7 @@ jobs:
     if: needs.release.outputs.published == 'true'
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -97,11 +98,20 @@ jobs:
           sed -i "s|url \"https://registry.npmjs.org/@baton-dx/cli/-/cli-.*\.tgz\"|url \"https://registry.npmjs.org/@baton-dx/cli/-/cli-${VERSION}.tgz\"|" Formula/baton-dx.rb
           sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" Formula/baton-dx.rb
 
-      - name: Commit and push
+      - name: Create Homebrew PR
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="chore/homebrew-v${VERSION}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add Formula/baton-dx.rb
-          git diff --cached --quiet || (git commit -m "chore: bump homebrew formula to ${VERSION}" && git push origin main)
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: bump homebrew formula to v${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore: bump homebrew formula to v${VERSION}" \
+            --body "Auto-generated: updates Homebrew formula to v${VERSION}" \
+            --base main

@@ -12,7 +12,7 @@
     "dead-code": "knip",
     "dev": "tsx packages/cli/src/index.ts",
     "changeset": "changeset",
-    "ci:version": "changeset version && bun update",
+    "ci:version": "changeset version && bun run format && bun update",
     "ci:publish": "bun run build && bun run test && changeset publish"
   },
   "devDependencies": {
