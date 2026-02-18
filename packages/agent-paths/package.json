@@ -1,5 +1,6 @@
 {
   "name": "@baton-dx/agent-paths",
+  "private": true,
   "version": "0.1.1",
   "description": "Path registry for 14+ AI tools - knows where each tool expects its configuration files",
   "type": "module",

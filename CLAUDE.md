@@ -13,6 +13,8 @@ Baton is a CLI package manager for Developer Experience & AI configuration. It m
 
 **Dependency flow:** `agent-paths` has zero dependencies. `core` depends on `agent-paths`. `cli` depends on `core`.
 
+**Publishing:** Only `@baton-dx/cli` is published to npm. `core` and `agent-paths` are `"private": true` — they are bundled into the CLI build via tsdown's `noExternal` + `alias` config (see `packages/cli/tsdown.config.ts`). The published CLI package has zero runtime dependencies; everything is self-contained in `dist/index.mjs`.
+
 ## Packages
 
 ### @baton-dx/cli (`packages/cli/`)
@@ -142,12 +144,33 @@ Defined in `core/src/merge/strategies.ts`.
 ## Development Commands
 
 ```bash
-bun run build       # Build all packages (tsup)
+bun run build       # Build all packages (tsdown)
 bun run test        # Run tests (vitest)
 bun run lint        # Lint with Biome
 bun run typecheck   # TypeScript strict check
-bun run dead-code   # Find unused exports (ts-prune)
+bun run dead-code   # Find unused exports (knip)
 ```
+
+## Release Workflow
+
+Releases use [Changesets](https://github.com/changesets/changesets) + GitHub Actions.
+
+**Local steps (only these two):**
+```bash
+bun run changeset              # Create a changeset file (interactive)
+git add .changeset/ && git commit && git push
+```
+
+**Never run locally:** `changeset version`, `ci:version`, `ci:publish` — these are CI-only.
+
+**What happens on push to `main`:**
+1. Release workflow detects `.changeset/*.md` files
+2. Creates a "chore: release packages" PR with version bumps + CHANGELOGs
+3. You review and merge that PR
+4. Release workflow runs again → `changeset publish` → npm publish
+5. If published, Homebrew formula is auto-updated
+
+**CLI aliases:** After `npm install -g @baton-dx/cli`, three commands are available: `baton`, `baton-dx`, `btx`
 
 ## Development Conventions
 
