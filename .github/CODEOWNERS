@@ -1,0 +1,10 @@
+# Default: all PRs require review from maintainer
+* @mantaray0
+
+# Workflows require explicit approval
+.github/ @mantaray0
+
+# Package-specific ownership
+packages/cli/ @mantaray0
+packages/core/ @mantaray0
+packages/agent-paths/ @mantaray0

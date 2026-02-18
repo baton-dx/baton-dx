@@ -1,0 +1,16 @@
+# Source files
+src/
+*.test.ts
+*.spec.ts
+
+# Build artifacts
+tsconfig.json
+tsup.config.ts
+
+# Development files
+.DS_Store
+*.log
+*.map
+
+# Documentation
+README.dev.md

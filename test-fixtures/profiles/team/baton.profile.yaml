@@ -1,0 +1,72 @@
+name: team-dx-standards
+version: 2.1.0
+description: Comprehensive team DX standards with skills, rules, agents, memory, files, and IDE configs
+
+extends:
+  - github:baton-org/base-profile@v1.0
+
+variables:
+  TEAM_NAME: Engineering
+  REPO_URL: https://github.com/example/repo
+
+ai:
+  tools:
+    - claude-code
+    - cursor
+    - windsurf
+    - codex
+
+  skills:
+    - name: code-review
+      scope: project
+    - name: test-gen
+      scope: global
+
+  rules:
+    universal:
+      - coding-standards
+    cursor:
+      - react-patterns
+
+  agents:
+    - name: reviewer
+      scope: project
+    - name: test-helper
+      scope: global
+
+  memory:
+    - source: CLAUDE.md
+      merge: append
+    - source: AGENTS.md
+      merge: prepend
+    - source: CONTEXT.md
+      merge: replace
+
+  settings:
+    claude-code: claude-settings.json
+    cursor: cursor-config.json
+
+  commands:
+    - review
+    - test
+    - refactor
+
+files:
+  - source: .editorconfig
+    merge: replace
+  - source: biome.json
+    merge: deep
+  - source: .prettierrc
+    merge: replace
+
+ide:
+  vscode:
+    - settings.json
+    - extensions.json
+  jetbrains:
+    - inspections.xml
+    - codeStyles.xml
+
+hooks:
+  post-install: npm install
+  post-update: npm run build
