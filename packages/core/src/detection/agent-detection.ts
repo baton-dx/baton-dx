@@ -2,6 +2,7 @@ import { constants, access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { AGENT_PATHS } from "@baton-dx/agent-paths";
+import { evaluateDetection } from "./mechanisms.js";
 
 /**
  * Cache for detected agents (valid for process lifetime)
@@ -34,13 +35,20 @@ async function directoryExists(path: string): Promise<boolean> {
 }
 
 /**
- * Detect if a specific agent is installed
+ * Detect if a specific agent is installed.
+ * Uses detectionConfig (structured OR-of-ANDs) when present,
+ * otherwise falls back to legacy detection string array.
  */
 async function isAgentInstalled(agentKey: string): Promise<boolean> {
   const agentConfig = AGENT_PATHS.find((agent) => agent.key === agentKey);
   if (!agentConfig) return false;
 
-  // Check each detection method
+  // Prefer structured detectionConfig when available
+  if (agentConfig.detectionConfig) {
+    return evaluateDetection(agentConfig.detectionConfig);
+  }
+
+  // Legacy fallback: check each detection method
   for (const detection of agentConfig.detection) {
     // If detection string starts with ~/, it's a directory path
     if (detection.startsWith("~/")) {
