@@ -32,7 +32,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".claude/commands/{name}.md",
       global: "~/.claude/commands/{name}.md",
     },
-    detection: ["claude", "~/.claude/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "claude", versionPattern: /claude/i }],
@@ -68,7 +67,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".cursor/commands/{name}.md",
       global: "~/.cursor/commands/{name}.md",
     },
-    detection: ["cursor", "~/.cursor/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Cursor.app" }],
@@ -107,7 +105,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".windsurf/workflows/{name}.md",
       global: "~/.codeium/windsurf/workflows/{name}.md",
     },
-    detection: ["windsurf", "~/.codeium/windsurf/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Windsurf.app" }],
@@ -152,7 +149,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".agent/workflows/{name}.md",
       global: "~/.gemini/antigravity/workflows/{name}.md",
     },
-    detection: ["antigravity", "~/.gemini/antigravity/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Antigravity.app" }],
@@ -196,7 +192,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".codex/commands/{name}.md",
       global: "~/.codex/commands/{name}.md",
     },
-    detection: ["codex", "~/.codex/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "codex", versionPattern: /codex/i }],
@@ -232,7 +227,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".github/copilot/commands/{name}.md",
       global: "~/.github/copilot/commands/{name}.md",
     },
-    detection: ["gh", "~/.github/"],
     detectionConfig: {
       groups: [
         [
@@ -281,7 +275,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".opencode/commands/{name}.md",
       global: "~/.config/opencode/commands/{name}.md",
     },
-    detection: ["opencode", "~/.config/opencode/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "opencode", versionPattern: /opencode|sst/i }],
@@ -323,7 +316,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".agents/commands/{name}.md",
       global: "~/.config/agents/commands/{name}.md",
     },
-    detection: ["amp", "~/.config/agents/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "amp", versionPattern: /amp|sourcegraph/i }],
@@ -359,7 +351,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".kiro/commands/{name}.md",
       global: "~/.kiro/commands/{name}.md",
     },
-    detection: ["kiro", "~/.kiro/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Kiro.app" }],
@@ -396,7 +387,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".zed/commands/{name}.md",
       global: "~/.zed/commands/{name}.md",
     },
-    detection: ["zed", "~/.zed/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Zed.app" }],
@@ -439,7 +429,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".cline/commands/{name}.md",
       global: "~/.cline/commands/{name}.md",
     },
-    detection: ["cline", "~/.cline/"],
     detectionConfig: {
       groups: [
         [
@@ -487,7 +476,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".roo/commands/{name}.md",
       global: "~/.roo/commands/{name}.md",
     },
-    detection: ["roo", "~/.roo/"],
     detectionConfig: {
       groups: [
         [
@@ -529,7 +517,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".junie/commands/{name}.md",
       global: "~/.junie/commands/{name}.md",
     },
-    detection: ["junie", "~/.junie/"],
     detectionConfig: {
       groups: [
         [{ type: "jetbrains-plugin", pluginId: "junie" }],
@@ -571,7 +558,6 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".trae/commands/{name}.md",
       global: "~/.trae/commands/{name}.md",
     },
-    detection: ["trae", "~/.trae/"],
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Trae.app" }],
