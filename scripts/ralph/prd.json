@@ -1,262 +1,85 @@
 {
   "project": "Baton",
-  "branchName": "ralph/tool-selection",
-  "description": "Developer Tool & IDE Selection - Allow developers to choose which AI tools and IDEs Baton configures, both globally and per-project, with resolution chain: Detection → Global Config → Project Preferences",
+  "branchName": "ralph/file-cleanup",
+  "description": "File Cleanup Bugfix - Fix orphaned file/directory removal in sync, normalize lockfile paths to relative, and add placed-file cleanup to Remove Baton",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create preferences schema and types",
-      "description": "As a developer of Baton core, I need a Zod schema for .baton/preferences.yaml so that project preferences are validated consistently.",
+      "title": "Extract reusable cleanup function to core",
+      "description": "As a developer, I need a shared cleanup utility in @baton-dx/core so that both sync orphan removal and 'Remove Baton' use the same robust deletion logic for files and directories.",
       "acceptanceCriteria": [
-        "New file packages/core/src/preferences/preferences-schema.ts with projectPreferencesSchema",
-        "Schema validates: version: '1.0', ai: { useGlobal: boolean, tools: string[] }, ide: { useGlobal: boolean, platforms: string[] }",
-        "tools and platforms default to []",
-        "Invalid version values are rejected",
-        "Type ProjectPreferences exported via z.infer<typeof projectPreferencesSchema>",
-        "Unit tests in preferences-schema.test.ts cover valid, default, and invalid cases",
-        "Typecheck passes"
+        "New file packages/core/src/lockfile/cleanup.ts with removePlacedFiles(filePaths: string[], projectRoot: string): Promise<number>",
+        "Function resolves each path relative to projectRoot (handle both relative and absolute input paths)",
+        "Function uses stat() to check if each path is a file or directory",
+        "For files: use unlink() to remove",
+        "For directories: use rm(path, { recursive: true, force: true }) to remove",
+        "Already-deleted paths (ENOENT) are silently skipped — no errors thrown",
+        "After removing each file/dir, walk up parent directories and rmdir() empty ones up to (but not including) projectRoot",
+        "Function returns count of successfully removed items",
+        "Exported from packages/core/src/lockfile/index.ts and packages/core/src/index.ts",
+        "Unit tests in cleanup.test.ts covering: file removal, directory removal, already-gone paths, empty parent directory cleanup, mixed absolute/relative paths",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 1,
       "passes": true,
-      "notes": ""
+      "notes": "Extract the empty-parent-directory-cleanup pattern from cleanupOrphanedFiles() in packages/cli/src/commands/sync.ts lines 279-292. The lockfile index.ts barrel export is at packages/core/src/lockfile/index.ts. Core public API is at packages/core/src/index.ts."
     },
     {
       "id": "US-002",
-      "title": "Add read/write/delete for project preferences file",
-      "description": "As a developer of Baton core, I need I/O functions for .baton/preferences.yaml so that CLI commands can persist and retrieve project preferences.",
+      "title": "Normalize lockfile paths to relative",
+      "description": "As a developer, I need all lockfile integrity keys to use relative paths (relative to project root) so that orphan detection comparisons are consistent.",
       "acceptanceCriteria": [
-        "New file packages/core/src/preferences/preferences-io.ts",
-        "getPreferencesPath(projectRoot) returns path.join(projectRoot, '.baton', 'preferences.yaml')",
-        "readProjectPreferences(projectRoot) returns parsed ProjectPreferences or null if file doesn't exist",
-        "writeProjectPreferences(projectRoot, prefs) writes YAML, creates .baton/ directory if needed",
-        "deleteProjectPreferences(projectRoot) removes the file",
-        "All file operations use fs/promises",
-        "Unit tests in preferences-io.test.ts cover read (exists/missing), write (dir exists/missing), and delete",
-        "Typecheck passes"
+        "In packages/cli/src/commands/sync.ts, where placeFile() results are tracked, convert result.path to relative using relative(projectRoot, result.path) before storing in placedFiles",
+        "Skill paths (already relative like .cursor/skills/skill-a) are not double-converted — use isAbsolute() check or normalize safely",
+        "IDE config paths (already relative) are not double-converted",
+        "File config paths (fileEntry.target, already relative) are not changed",
+        "The cleanupOrphanedFiles() resolver (orphanedPath.startsWith('/')) continues to handle both absolute and relative formats for backward compatibility with old lockfiles",
+        "Existing lockfile tests pass without modification",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Follow the same YAML I/O pattern as loadGlobalConfig / saveGlobalConfig in core/src/config/global-config.ts"
+      "passes": false,
+      "notes": "relative() is already imported in sync.ts from node:path. Look for lines where result.path from placeFile() is stored — around lines 1039 and 1100. placeFile() returns absolute paths via resolveAbsolutePath() in packages/core/src/placement/engine.ts."
     },
     {
       "id": "US-003",
-      "title": "Implement preference resolution chain",
-      "description": "As a developer of Baton core, I need a resolver that merges project preferences with global config so that sync and other commands get the correct effective tool list.",
+      "title": "Refactor sync cleanup to use shared function",
+      "description": "As a developer, I need cleanupOrphanedFiles() to use the new shared removePlacedFiles() function from core, which fixes the directory removal bug (unlink fails on directories with EISDIR).",
       "acceptanceCriteria": [
-        "New file packages/core/src/preferences/preferences-resolver.ts",
-        "resolvePreferences(projectRoot) returns ResolvedPreferences with ai: { source, tools } and ide: { source, platforms }",
-        "When no preferences.yaml exists, source is 'global' and tools come from getGlobalAiTools()",
-        "When useGlobal: true, source is 'global' and tools come from global config",
-        "When useGlobal: false, source is 'project' and tools come from project preferences",
-        "Mixed configs work: AI from project + IDE from global (and vice versa)",
-        "Unit tests in preferences-resolver.test.ts cover all resolution paths",
+        "cleanupOrphanedFiles() in sync.ts calls removePlacedFiles() from @baton-dx/core instead of inline unlink() + rmdir() logic",
+        "Import removePlacedFiles from @baton-dx/core",
+        "Orphan detection logic (comparing previousPaths vs currentPaths using Set difference) stays in sync.ts — only the deletion step is delegated",
+        "User prompt flow (dry-run listing, --yes auto-confirm, interactive confirm) unchanged",
+        "Spinner and count reporting unchanged — use the count returned by removePlacedFiles()",
+        "The inline unlink/rmdir/parent-cleanup code (approximately lines 270-296) is replaced by a single removePlacedFiles() call",
+        "All existing tests pass",
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Uses getGlobalAiTools() and getGlobalIdePlatforms() from core/src/config/global-config.ts for the global fallback path"
+      "passes": false,
+      "notes": "This story depends on US-001 (removePlacedFiles must exist in core). The key change is replacing the try { unlink } catch block and the parent directory cleanup loop with a single removePlacedFiles(orphanedPaths, projectRoot) call. Must run bun run build before typecheck since CLI resolves core from dist/."
     },
     {
       "id": "US-004",
-      "title": "Create barrel export and register in core index",
-      "description": "As a developer, I need the preferences module exported from @baton-dx/core so CLI commands can import it.",
+      "title": "Add placed-file cleanup to Remove Baton",
+      "description": "As a user, I want 'Remove Baton' to offer cleaning up all placed files so my project is left clean after removal.",
       "acceptanceCriteria": [
-        "New file packages/core/src/preferences/index.ts with barrel exports",
-        "packages/core/src/index.ts re-exports: projectPreferencesSchema, ProjectPreferences, readProjectPreferences, writeProjectPreferences, deleteProjectPreferences, resolvePreferences, ResolvedPreferences",
-        "Typecheck passes"
+        "In handleRemoveBaton() in packages/cli/src/commands/manage.ts, read baton.lock using readLock() from @baton-dx/core before deleting it",
+        "Extract all file paths from lockfile integrity entries — iterate lockfile.packages[*].integrity keys to collect all tracked paths",
+        "If lockfile exists and has placed files: show user the list of files that would be removed using p.log.info()",
+        "Ask 'Also remove N placed file(s)?' using p.confirm() — default false for safety",
+        "If confirmed: call removePlacedFiles() from @baton-dx/core to delete all placed files and report count",
+        "Then delete baton.yaml, baton.lock, and .baton/preferences.yaml (if exists) as before",
+        "If lockfile doesn't exist, is invalid, or has no integrity entries: skip cleanup step and only delete config files",
+        "Non-interactive mode (--yes flag): auto-confirm placed file removal",
+        "Typecheck passes",
+        "Tests pass"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": ""
-    },
-    {
-      "id": "US-005",
-      "title": "Integrate preferences into sync command",
-      "description": "As a user, I want baton sync to use my project preferences so that only my selected tools are synced.",
-      "acceptanceCriteria": [
-        "In packages/cli/src/commands/sync.ts, replace getGlobalAiTools() and getGlobalIdePlatforms() with resolvePreferences(projectRoot)",
-        "syncedAiTools sourced from prefs.ai.tools, syncedIdePlatforms from prefs.ide.platforms",
-        "When --verbose: log source attribution, e.g. 'AI tools: claude-code, cursor (from project preferences)'",
-        "Existing sync tests continue to pass (no preferences file = global fallback = same behavior)",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Replace direct getGlobalAiTools()/getGlobalIdePlatforms() calls (~line 608-609) with resolvePreferences()"
-    },
-    {
-      "id": "US-006",
-      "title": "Enhanced multiselect in baton ai-tools scan",
-      "description": "As a user, I want to choose which detected AI tools to save during scan so I don't save tools I don't actively use.",
-      "acceptanceCriteria": [
-        "After detection, show @clack/prompts multiselect instead of confirm",
-        "Detected tools are pre-selected; all 14 tools listed with non-detected tools unselected",
-        "Each option shows detection status: 'Claude Code (detected)' vs 'GitHub Copilot'",
-        "Selected tools saved via setGlobalAiTools(selectedKeys)",
-        "--yes flag skips multiselect and saves only detected tools (preserves current behavior)",
-        "Typecheck passes"
-      ],
-      "priority": 6,
-      "passes": true,
-      "notes": "Use getAllAdapters() from core/src/adapters/registry.ts for the full list of 14 tools"
-    },
-    {
-      "id": "US-007",
-      "title": "Enhanced multiselect in baton ides scan",
-      "description": "As a user, I want to choose which detected IDEs to save during scan so I control my IDE config.",
-      "acceptanceCriteria": [
-        "Same multiselect pattern as US-006 but for IDE platforms",
-        "All 6 IDE platforms listed; detected ones pre-selected",
-        "Each option shows detection status",
-        "--yes saves only detected (current behavior preserved)",
-        "Typecheck passes"
-      ],
-      "priority": 7,
-      "passes": true,
-      "notes": "Use getRegisteredIdePlatforms() from core/src/ide/platform-registry.ts for the full list of 6 IDEs"
-    },
-    {
-      "id": "US-008",
-      "title": "Add baton ai-tools configure command (global mode)",
-      "description": "As a user, I want to manually configure my global AI tools without re-scanning so I can add or remove tools at will.",
-      "acceptanceCriteria": [
-        "New file packages/cli/src/commands/ai-tools/configure.ts",
-        "Shows multiselect of all 14 tools; currently-saved tools pre-selected with '(currently saved)' label",
-        "Saves selection to global config via setGlobalAiTools()",
-        "Registered as subcommand in packages/cli/src/commands/ai-tools/index.ts",
-        "--yes is a no-op (keeps current selection unchanged)",
-        "Typecheck passes"
-      ],
-      "priority": 8,
-      "passes": true,
-      "notes": "This story covers only global mode. The --project flag is added in US-010 after the preferences module is wired."
-    },
-    {
-      "id": "US-009",
-      "title": "Add baton ides configure command (global mode)",
-      "description": "As a user, I want to manually configure my global IDE platforms without re-scanning.",
-      "acceptanceCriteria": [
-        "New file packages/cli/src/commands/ides/configure.ts",
-        "Same multiselect pattern as US-008 but for IDE platforms (6 platforms)",
-        "Saves to global config via setGlobalIdePlatforms()",
-        "Registered as subcommand in packages/cli/src/commands/ides/index.ts",
-        "--yes is a no-op (keeps current selection unchanged)",
-        "Typecheck passes"
-      ],
-      "priority": 9,
-      "passes": true,
-      "notes": "Mirror of US-008 for IDEs. --project flag added later."
-    },
-    {
-      "id": "US-010",
-      "title": "Add --project flag to ai-tools configure command",
-      "description": "As a user, I want to configure AI tools at the project level so I can customize which tools are used per-project.",
-      "acceptanceCriteria": [
-        "Add --project flag to packages/cli/src/commands/ai-tools/configure.ts",
-        "--project shows project-level multiselect with context (global config + detected tools listed)",
-        "--project includes follow-up: 'Use selection above' vs 'Use global config' — writes .baton/preferences.yaml accordingly",
-        "--project without a baton.yaml in current directory shows error",
-        "--yes with --project writes useGlobal: true",
-        "Typecheck passes"
-      ],
-      "priority": 10,
-      "passes": true,
-      "notes": "Depends on US-004 (preferences module) and US-008 (base configure command)"
-    },
-    {
-      "id": "US-011",
-      "title": "Add --project flag to ides configure command",
-      "description": "As a user, I want to configure IDE platforms at the project level.",
-      "acceptanceCriteria": [
-        "Add --project flag to packages/cli/src/commands/ides/configure.ts",
-        "Same --project flow as US-010 but for IDE platforms",
-        "--project without a baton.yaml shows error",
-        "--yes with --project writes useGlobal: true",
-        "Typecheck passes"
-      ],
-      "priority": 11,
-      "passes": true,
-      "notes": "Mirror of US-010 for IDEs"
-    },
-    {
-      "id": "US-012",
-      "title": "Add first-run preferences prompt to init command",
-      "description": "As a user running baton init, I want to be asked once about project-level tool preferences so the file is created and I'm never prompted again.",
-      "acceptanceCriteria": [
-        "In packages/cli/src/commands/init.ts, after auto-scan and profile selection but before sync",
-        "Only triggers when .baton/preferences.yaml does not exist",
-        "Shows: 'How do you want to configure AI tools for this project?' with options: 'Use global config' (default) / 'Customize for this project'",
-        "Same question for IDEs",
-        "'Customize' opens multiselect (global tools pre-selected + detected tools available)",
-        "Writes .baton/preferences.yaml with appropriate useGlobal values",
-        "--yes writes preferences.yaml with useGlobal: true for both categories silently",
-        "Preferences file only needs to exist to suppress future prompts",
-        "Typecheck passes"
-      ],
-      "priority": 12,
-      "passes": true,
-      "notes": "Depends on US-004 (preferences module). The preferences prompt is new UI; keep it lightweight."
-    },
-    {
-      "id": "US-013",
-      "title": "Add first-run preferences prompt to sync command",
-      "description": "As a user running baton sync for the first time, I want the same preferences prompt so my preferences are captured.",
-      "acceptanceCriteria": [
-        "In packages/cli/src/commands/sync.ts, before the resolve step, check for .baton/preferences.yaml",
-        "If missing, show same prompt as US-012",
-        "--yes writes useGlobal: true silently",
-        "If preferences already exist, no prompt",
-        "Typecheck passes"
-      ],
-      "priority": 13,
-      "passes": true,
-      "notes": "Extract the shared first-run prompt logic from US-012 into a reusable helper so both init and sync use it"
-    },
-    {
-      "id": "US-014",
-      "title": "Add project preference options to baton manage wizard",
-      "description": "As a user, I want to configure project tools from the manage wizard so I don't have to remember separate commands.",
-      "acceptanceCriteria": [
-        "Add three new options to the manage wizard select in packages/cli/src/commands/manage.ts:",
-        "Option 'Configure AI tools for this project' opens same multiselect as configure --project",
-        "Option 'Configure IDEs for this project' does same for IDEs",
-        "Option 'Reset project preferences to global' sets useGlobal: true for both categories",
-        "Options appear after existing options but before 'Remove Baton' and 'Quit'",
-        "Typecheck passes"
-      ],
-      "priority": 14,
-      "passes": true,
-      "notes": "Reuse logic from configure --project (US-010/US-011)"
-    },
-    {
-      "id": "US-015",
-      "title": "Show resolved preferences in baton config dashboard",
-      "description": "As a user, I want baton config to show where my tool configuration comes from so I understand the resolution chain.",
-      "acceptanceCriteria": [
-        "In the 'Developer Tools' section of showDashboard() in packages/cli/src/commands/config.ts, show source attribution",
-        "Format: 'AI Tools: claude-code, cursor (from project preferences)' or 'AI Tools: claude-code, cursor, windsurf (from global config)'",
-        "Same for IDE platforms",
-        "When in a project directory with preferences, calls resolvePreferences() to get source info",
-        "When not in a project (no baton.yaml), shows global config only (current behavior)",
-        "Typecheck passes"
-      ],
-      "priority": 15,
-      "passes": true,
-      "notes": ""
-    },
-    {
-      "id": "US-016",
-      "title": "Auto-gitignore .baton/preferences.yaml",
-      "description": "As a user, I want preferences.yaml to be automatically gitignored so my personal tool choices don't affect teammates.",
-      "acceptanceCriteria": [
-        "Verify that existing baton init .baton/ gitignore entry covers preferences.yaml",
-        "If writeProjectPreferences() is called outside of init (e.g., from configure --project) and .baton/ is not gitignored, call updateGitignore() to add it",
-        "Add updateGitignore() call to writeProjectPreferences() in preferences-io.ts or to configure --project commands",
-        "Typecheck passes"
-      ],
-      "priority": 16,
-      "passes": true,
-      "notes": "Existing updateGitignore() utility in @baton-dx/core handles .gitignore updates — reuse it"
+      "passes": false,
+      "notes": "This story depends on US-001 (removePlacedFiles). Use readLock() from packages/core/src/lockfile/manager.ts — it returns a parsed lockfile object. The lockfile schema is at packages/core/src/schemas/lockfile.ts. handleRemoveBaton() is at approximately line 234 in manage.ts. The existing function only does: unlink baton.yaml, unlink baton.lock. Add the cleanup BEFORE deleting baton.lock (since we need to read it first)."
     }
   ]
 }
