@@ -1,0 +1,317 @@
+{
+  "project": "Baton",
+  "branchName": "ralph/detection-system-redesign",
+  "description": "Redesign the detection system for AI tools and IDEs to eliminate false positives. Introduces typed DetectionConfig with OR-of-ANDs evaluation, 5 detection mechanisms (binary, directory, app bundle, VS Code extension, JetBrains plugin), and removes the legacy detection field.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add detection type definitions to agent-paths",
+      "description": "As a developer, I need typed detection check interfaces so that detection configs are type-safe and self-documenting.",
+      "acceptanceCriteria": [
+        "Add Platform type ('darwin' | 'linux' | 'win32') to packages/agent-paths/src/types.ts",
+        "Add DetectionCheck union type covering all 5 check types: BinaryCheck | DirectoryCheck | AppBundleCheck | VscodeExtensionCheck | JetbrainsPluginCheck",
+        "Add BinaryCheck interface with fields: type 'binary', name string, optional versionFlag string, optional versionPattern RegExp, optional platforms readonly Platform[]",
+        "Add DirectoryCheck interface with fields: type 'directory', path string, optional markerFile string, optional platforms readonly Platform[]",
+        "Add AppBundleCheck interface with fields: type 'app', name string, optional searchPaths readonly string[]",
+        "Add VscodeExtensionCheck interface with fields: type 'vscode-extension', extensionId string, optional editors readonly ('vscode' | 'cursor' | 'windsurf')[]",
+        "Add JetbrainsPluginCheck interface with fields: type 'jetbrains-plugin', pluginId string",
+        "Add DetectionConfig interface with field: groups readonly (readonly DetectionCheck[])[]",
+        "All interface properties use readonly modifier",
+        "Export all new types from packages/agent-paths/src/index.ts",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Add detectionConfig field to config interfaces",
+      "description": "As a developer, I need detectionConfig as an optional field on AgentPathConfig and IdePlatformEntry so that registry entries can declare structured detection.",
+      "acceptanceCriteria": [
+        "Add optional detectionConfig?: DetectionConfig to AgentPathConfig in packages/agent-paths/src/types.ts",
+        "Add optional detectionConfig?: DetectionConfig to IdePlatformEntry in packages/core/src/ide/platform-registry.ts (import DetectionConfig from @baton-dx/agent-paths)",
+        "Both fields are optional so this is a non-breaking change",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Implement binary check mechanism",
+      "description": "As a developer, I need a checkBinary() function that looks up a binary in PATH and optionally verifies its identity via version output to prevent binary name collisions.",
+      "acceptanceCriteria": [
+        "Create new file packages/core/src/detection/mechanisms.ts",
+        "Implement and export checkBinary(check: BinaryCheck): Promise<boolean>",
+        "Uses 'which' command on darwin/linux, 'where' command on win32 for binary lookup",
+        "If platforms is specified and process.platform is not in the list, returns false",
+        "If binary not found in PATH, returns false",
+        "If no versionPattern provided, returns true when binary exists",
+        "If versionPattern provided, runs '<name> <versionFlag>' (default '--version') with 5-second timeout",
+        "Returns true only if version output matches versionPattern regex",
+        "Handles command timeout gracefully by returning false without throwing",
+        "Unit tests in packages/core/src/detection/mechanisms.test.ts covering: binary exists no pattern (true), binary not found (false), version matches (true), version mismatch/collision (false), platform mismatch (false), win32 uses 'where', timeout returns false",
+        "All child_process and fs calls are mocked in tests (no real I/O)",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Implement directory check mechanism",
+      "description": "As a developer, I need a checkDirectory() function that verifies a directory exists and optionally contains a marker file, preventing false positives from leftover empty directories.",
+      "acceptanceCriteria": [
+        "Implement and export checkDirectory(check: DirectoryCheck): Promise<boolean> in packages/core/src/detection/mechanisms.ts",
+        "Expands ~ to os.homedir() in the path",
+        "If platforms is specified and process.platform is not in the list, returns false",
+        "Checks directory existence with fs.access(path, fs.constants.R_OK)",
+        "If no markerFile specified, returns true when directory exists",
+        "If markerFile specified, checks that the file or subdirectory exists inside the directory using fs.access(path.join(dir, markerFile))",
+        "Returns false when directory exists but marker file is missing (leftover directory detection)",
+        "Unit tests covering: dir exists no marker (true), dir not found (false), dir + marker exist (true), dir exists marker missing (false), platform mismatch (false), tilde expansion works",
+        "All fs calls are mocked in tests",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Implement app bundle check mechanism",
+      "description": "As a developer, I need a checkAppBundle() function that checks for macOS .app bundles in /Applications and ~/Applications.",
+      "acceptanceCriteria": [
+        "Implement and export checkAppBundle(check: AppBundleCheck): Promise<boolean> in packages/core/src/detection/mechanisms.ts",
+        "Returns false immediately when process.platform is not 'darwin'",
+        "Checks /Applications/<name> and ~/Applications/<name> by default",
+        "Supports custom searchPaths override from the check config",
+        "Returns true if .app bundle directory found in any search path (using fs.access)",
+        "Unit tests covering: app found in /Applications on darwin (true), non-darwin platform (false), app found in ~/Applications (true), app not found anywhere (false)",
+        "All fs calls are mocked in tests",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Implement VS Code extension check mechanism",
+      "description": "As a developer, I need a checkVscodeExtension() function that checks for installed extensions in VS Code, Cursor, and Windsurf extension directories.",
+      "acceptanceCriteria": [
+        "Implement and export checkVscodeExtension(check: VscodeExtensionCheck): Promise<boolean> in packages/core/src/detection/mechanisms.ts",
+        "Maps editor names to extension directories: vscode -> ~/.vscode/extensions/, cursor -> ~/.cursor/extensions/, windsurf -> ~/.windsurf/extensions/",
+        "Defaults to ['vscode'] if editors not specified in the check",
+        "Reads directory listing with fs.readdir and looks for entries starting with extensionId (case-insensitive comparison)",
+        "Returns true on first match across any editor's extension directory",
+        "Handles missing extension directories gracefully (ENOENT -> skip, not throw)",
+        "Unit tests covering: extension found by prefix match (true), extension not installed (false), checks multiple editors finds in second (true), extension directory missing (false without error)",
+        "All fs calls are mocked in tests",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Implement JetBrains plugin check mechanism",
+      "description": "As a developer, I need a checkJetbrainsPlugin() function that scans JetBrains IDE config directories for installed plugins.",
+      "acceptanceCriteria": [
+        "Implement and export checkJetbrainsPlugin(check: JetbrainsPluginCheck): Promise<boolean> in packages/core/src/detection/mechanisms.ts",
+        "Locates JetBrains config base per platform: macOS ~/Library/Application Support/JetBrains/, Linux ~/.config/JetBrains/, Windows process.env.APPDATA + /JetBrains/",
+        "Reads the base directory to get IDE version directories (e.g. IntelliJIdea2025.1)",
+        "For each version directory, checks <version>/plugins/ for a subdirectory matching pluginId",
+        "Returns true on first match across any IDE version",
+        "Handles missing JetBrains config base directory gracefully (returns false, no throw)",
+        "Unit tests covering: plugin found across versions (true), no JetBrains config (false), config exists but plugin not installed (false)",
+        "All fs calls are mocked in tests",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Implement detection evaluation engine",
+      "description": "As a developer, I need an evaluateDetection() function that evaluates a DetectionConfig using OR-of-ANDs logic so that detection groups are composable.",
+      "acceptanceCriteria": [
+        "Implement and export evaluateDetection(config: DetectionConfig): Promise<boolean> in packages/core/src/detection/mechanisms.ts",
+        "Implement internal runCheck(check: DetectionCheck): Promise<boolean> dispatcher that routes to checkBinary, checkDirectory, checkAppBundle, checkVscodeExtension, or checkJetbrainsPlugin based on check.type",
+        "All groups evaluated in parallel using Promise.all",
+        "Within each group, ALL checks must pass (AND logic via results.every(Boolean))",
+        "ANY group passing means installed (OR logic via groupResults.some(Boolean))",
+        "Unit tests covering: single group single check passes (true), single group fails (false), multiple groups any passes (true/OR), no groups pass (false), group with multiple checks all pass (true/AND), group with multiple checks one fails (false/AND), mixed groups (true)",
+        "Tests mock the individual check functions rather than filesystem calls",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Wire up agent detection to use detectionConfig",
+      "description": "As a developer, I need isAgentInstalled() to use detectionConfig when present so the new detection logic is activated for agents.",
+      "acceptanceCriteria": [
+        "Update isAgentInstalled() in packages/core/src/detection/agent-detection.ts",
+        "When detectionConfig is present on an agent config, call evaluateDetection(detectionConfig) instead of legacy detection",
+        "When detectionConfig is absent, fall back to existing legacy detection array logic",
+        "Import evaluateDetection from ./mechanisms",
+        "Public API unchanged: detectInstalledAgents(), clearAgentCache(), setDetectedAgents() signatures and behavior preserved",
+        "Existing tests in agent-detection.test.ts continue to pass without modification",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Wire up IDE detection to use detectionConfig",
+      "description": "As a developer, I need isIdeInstalled() to use detectionConfig when present so the new detection logic is activated for IDEs.",
+      "acceptanceCriteria": [
+        "Update isIdeInstalled() in packages/core/src/ide/detection.ts",
+        "When detectionConfig is present on an IDE platform entry, call evaluateDetection(detectionConfig)",
+        "When detectionConfig is absent, fall back to existing legacy detection logic",
+        "Import evaluateDetection from ../detection/mechanisms",
+        "Public API unchanged: detectInstalledIdes(), clearIdeCache(), setDetectedIdes() signatures and behavior preserved",
+        "Existing tests continue to pass without modification",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Populate detectionConfig for CLI tool agents (7 tools)",
+      "description": "As a developer, I need detectionConfig populated on CLI-based agent entries in the registry so they use the new detection system.",
+      "acceptanceCriteria": [
+        "Add detectionConfig to these 7 entries in packages/agent-paths/src/registry.ts:",
+        "Claude Code: groups with binary 'claude' (versionPattern /claude/i) OR directory ~/.claude/ (marker settings.json)",
+        "Codex CLI: groups with binary 'codex' (versionPattern /codex/i) OR directory ~/.codex/ (marker config.toml)",
+        "OpenCode: groups with binary 'opencode' (versionPattern /opencode|sst/i) OR directory ~/.config/opencode/ (marker config.yaml)",
+        "Amp: groups with binary 'amp' (versionPattern /amp|sourcegraph/i) OR directory ~/.ampcache/",
+        "Cursor: groups with app Cursor.app OR binary 'cursor' OR directory ~/.cursor/ (marker extensions)",
+        "Windsurf: groups with app Windsurf.app OR binary 'windsurf' OR directory ~/.codeium/windsurf/ (marker settings.json)",
+        "Antigravity: groups with app Antigravity.app OR binary 'agy' OR binary 'antigravity' (linux only) OR directory ~/.gemini/antigravity/ (marker settings.json)",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "OpenCode versionPattern and Amp config directory may need adjustment based on research findings from US-000."
+    },
+    {
+      "id": "US-012",
+      "title": "Populate detectionConfig for remaining agents (7 tools)",
+      "description": "As a developer, I need detectionConfig populated on the remaining agent entries (IDE-based, extension-based, and plugin-based tools).",
+      "acceptanceCriteria": [
+        "Add detectionConfig to these 7 entries in packages/agent-paths/src/registry.ts:",
+        "Kiro: groups with app Kiro.app OR binary 'kiro' OR directory ~/.kiro/ (marker settings.json)",
+        "Zed: groups with app Zed.app OR binary 'zed' OR directory ~/.config/zed/ (marker settings.json)",
+        "Trae: groups with app Trae.app OR directory ~/.trae/ (marker settings.json)",
+        "GitHub Copilot: groups with binary 'copilot' (versionPattern /copilot|github/i) OR vscode-extension GitHub.copilot (editors vscode, cursor) OR directory ~/.github/copilot/. CRITICAL: 'gh' must NOT be included",
+        "Cline: groups with vscode-extension saoudrizwan.claude-dev (editors vscode, cursor, windsurf) OR directory ~/.cline/ (marker settings.json)",
+        "Roo: groups with vscode-extension RooVeterinaryInc.roo-cline (editors vscode, cursor, windsurf) OR directory ~/.roo/ (marker settings.json)",
+        "Junie: groups with jetbrains-plugin 'junie' OR directory ~/.junie/ (marker settings.json)",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Kiro app bundle name may need adjustment based on research. Trae may not support Linux."
+    },
+    {
+      "id": "US-013",
+      "title": "Populate detectionConfig for all 6 IDE platforms",
+      "description": "As a developer, I need detectionConfig populated on all 6 IDE platform entries so IDE detection uses the new system.",
+      "acceptanceCriteria": [
+        "Add detectionConfig to all 6 entries in packages/core/src/ide/platform-registry.ts:",
+        "VS Code: groups with binary 'code' OR app 'Visual Studio Code.app' OR directory ~/.vscode/ (marker extensions)",
+        "JetBrains: groups with binary 'idea' OR directory ~/.config/JetBrains/ (platforms linux) OR directory ~/Library/Application Support/JetBrains/ (platforms darwin)",
+        "Cursor: groups with binary 'cursor' OR app Cursor.app OR directory ~/.cursor/ (marker extensions)",
+        "Windsurf: groups with binary 'windsurf' OR app Windsurf.app OR directory ~/.windsurf/ (marker extensions)",
+        "Antigravity: groups with binary 'agy' OR binary 'antigravity' OR app Antigravity.app",
+        "Zed: groups with binary 'zed' OR app Zed.app OR directory ~/.config/zed/ (marker settings.json)",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Remove legacy detection field from agent-paths",
+      "description": "As a developer, I want to remove the legacy detection: string[] field from AgentPathConfig and all registry entries now that all entries use detectionConfig.",
+      "acceptanceCriteria": [
+        "Remove detection: string[] from AgentPathConfig interface in packages/agent-paths/src/types.ts",
+        "Remove detection: string[] from all 14 entries in packages/agent-paths/src/registry.ts",
+        "Update any code in agent-paths that references the detection field",
+        "Fix any resulting TypeScript errors in dependent packages",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Remove legacy detection from IDE platform registry and detection code",
+      "description": "As a developer, I want to remove the legacy detection: string[] field from IdePlatformEntry and remove fallback code paths in both agent and IDE detection.",
+      "acceptanceCriteria": [
+        "Remove detection: string[] from IdePlatformEntry interface in packages/core/src/ide/platform-registry.ts",
+        "Remove detection: string[] from all 6 IDE entries in platform-registry.ts",
+        "Remove legacy fallback code path in isAgentInstalled() (agent-detection.ts) that used the old detection array",
+        "Remove legacy fallback code path in isIdeInstalled() (ide/detection.ts) that used the old detection array",
+        "Remove any now-unused helper functions (old commandExists, directoryExists if fully replaced)",
+        "Update any tests that reference the removed detection field",
+        "All existing tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Consolidate shared detection helpers into mechanisms.ts",
+      "description": "As a developer, I want duplicated detection utilities extracted into mechanisms.ts so agent and IDE detection share a single implementation.",
+      "acceptanceCriteria": [
+        "Identify any remaining duplicated helper functions between agent-detection.ts and ide/detection.ts (e.g. commandExists, directoryExists, expandHome)",
+        "Move shared helpers into packages/core/src/detection/mechanisms.ts as named exports",
+        "Update agent-detection.ts and ide/detection.ts to import from ./mechanisms or ../detection/mechanisms",
+        "Remove all duplicated implementations from both files",
+        "No change to external behavior or public API",
+        "All tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Consolidation was completed by US-014 (removed helpers from agent-detection.ts) and US-015 (removed helpers from ide/detection.ts). Verified: zero duplicated helpers remain between agent-detection.ts and ide/detection.ts — both now import only evaluateDetection from mechanisms.ts."
+    },
+    {
+      "id": "US-017",
+      "title": "Add false positive regression tests",
+      "description": "As a developer, I need explicit regression tests that verify the 5 documented false positives no longer occur, permanently guarding against these scenarios.",
+      "acceptanceCriteria": [
+        "Add regression tests in packages/core/src/detection/mechanisms.test.ts (or a dedicated detection-regression.test.ts)",
+        "Test: GitHub Copilot NOT detected when only gh CLI is installed (no copilot binary, no VS Code extension, no ~/.github/copilot/ directory)",
+        "Test: OpenCode NOT detected when Litestar's opencode is installed (binary exists but version output does not match SST pattern)",
+        "Test: Cline NOT detected from empty leftover ~/.cline/ directory (no settings.json marker)",
+        "Test: Windsurf NOT detected from leftover ~/.codeium/windsurf/ without settings.json",
+        "Test: Codex NOT detected from leftover ~/.codex/ without config.toml",
+        "Test: Trae NOT detected from leftover ~/.trae/ without settings.json",
+        "All tests use mocked filesystem (no real I/O)",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

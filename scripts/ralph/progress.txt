@@ -1,0 +1,261 @@
+## Codebase Patterns
+- Detection types live in `packages/agent-paths/src/types.ts` and are re-exported from `index.ts`
+- All agent-paths types use `readonly` modifier on interface properties
+- Barrel exports in `index.ts` use `export type {}` syntax for type-only exports
+- `IdePlatformEntry` in `packages/core/src/ide/platform-registry.ts` imports types from `@baton-dx/agent-paths` using `import type`
+- When adding types to agent-paths that core needs, build must run before typecheck (project references resolve against `.d.ts` files)
+- Detection mechanism functions live in `packages/core/src/detection/mechanisms.ts`
+- Mock `node:child_process` with `vi.mock("node:child_process", () => ({ execFile: vi.fn() }))` — mock must be before the import
+- For `execFile` mocks, the callback is always the 4th arg: `(cmd, args, opts, cb)` — use `mockImplementationOnce` for sequential calls
+- Use `Object.defineProperty(process, "platform", { value: "win32" })` to mock platform in tests (restore in afterEach)
+- Mock `node:fs/promises` with `vi.mock("node:fs/promises", () => ({ access: vi.fn(), constants: { R_OK: 4 }, readdir: vi.fn() }))` — must include `constants` and `readdir` in the mock factory
+- Mock `node:os` with `vi.mock("node:os", () => ({ homedir: vi.fn(() => "/home/testuser") }))` for tilde expansion testing
+- For `fs.access` mocks: `mockResolvedValueOnce(undefined)` for success, `mockRejectedValueOnce(new Error("ENOENT"))` for missing
+- Biome flags `continue` in catch blocks as `noUnnecessaryContinue` — use empty catch with comment instead
+- For `readdir` mocks: `mockResolvedValueOnce(["entry-1.0.0", "other-2.0.0"])` returns an array of directory entry names
+- `EDITOR_EXTENSION_DIRS` maps editor names to `~/.<editor>/extensions/` — used by `checkVscodeExtension`
+- Extension directory entries follow the pattern `<extensionId>-<version>` — match by case-insensitive prefix
+- JetBrains config base is platform-specific: macOS `~/Library/Application Support/JetBrains/`, Linux `~/.config/JetBrains/`, Windows `%APPDATA%/JetBrains/`
+- JetBrains plugin directories are at `<config-base>/<IDE-version>/plugins/<plugin-id>/` — scan across all IDE version dirs
+- For `readdir` chains (list dirs then list subdirs), use sequential `mockResolvedValueOnce` calls — they are consumed in order
+- To mock `process.env.APPDATA` in tests: save original, set value, restore in cleanup (no `Object.defineProperty` needed for env vars)
+- ESM modules don't allow `vi.spyOn` to intercept intra-module function calls — spy on an exported dispatch object (`checkHandlers`) instead
+- `checkHandlers` in `mechanisms.ts` maps check types to their handler functions — `runCheck` dispatches through it so tests can `vi.spyOn(mechanisms.checkHandlers, "binary")`
+- For `evaluateDetection` tests, spy on `mechanisms.checkHandlers` properties, NOT on `mechanisms.checkBinary` etc.
+- IDE platform entries use different detection directories than agent entries for the same tool (e.g., Windsurf IDE uses `~/.windsurf/`, agent uses `~/.codeium/windsurf/`)
+- IDE detection uses `extensions` as marker directory for VS Code-family IDEs (vscode, cursor, windsurf) to confirm actual IDE usage
+- `AgentPathConfig` no longer has `detection: string[]` — all agents use `detectionConfig` exclusively
+- `isAgentInstalled()` in `agent-detection.ts` only uses `evaluateDetection(detectionConfig)` — no legacy fallback
+- `IdePlatformEntry` no longer has `detection: string[]` — `detectionConfig` is now required (non-optional)
+- `isIdeInstalled()` in `ide/detection.ts` only uses `evaluateDetection(detectionConfig)` — no legacy fallback, mirrors agent-detection.ts pattern
+
+# Ralph Progress Log
+Started: Thu Feb 19 09:05:55 CET 2026
+---
+
+## 2026-02-19 - US-002
+- Added optional `detectionConfig?: DetectionConfig` to `AgentPathConfig` in `packages/agent-paths/src/types.ts`
+- Added optional `detectionConfig?: DetectionConfig` to `IdePlatformEntry` in `packages/core/src/ide/platform-registry.ts` (with `import type` from `@baton-dx/agent-paths`)
+- Files changed: `packages/agent-paths/src/types.ts`, `packages/core/src/ide/platform-registry.ts`
+- **Learnings for future iterations:**
+  - `IdePlatformEntry` had no imports before — this was its first cross-package type import
+  - `tsc -b` (project references) resolves against built `.d.ts` files, not source — must run `bun run build` before typecheck when adding new exports from agent-paths that core consumes
+  - Both fields are optional so this is fully non-breaking — existing registry entries don't need changes
+---
+
+## 2026-02-19 - US-001
+- Added Platform type, 5 detection check interfaces (BinaryCheck, DirectoryCheck, AppBundleCheck, VscodeExtensionCheck, JetbrainsPluginCheck), DetectionCheck union, and DetectionConfig interface
+- Files changed: `packages/agent-paths/src/types.ts`, `packages/agent-paths/src/index.ts`
+- **Learnings for future iterations:**
+  - The `types.ts` file has a clear structure: simple types first, then error classes, then the main config interface
+  - All new types were inserted between `Scope` and `AgentNotFoundError` to maintain logical grouping
+  - `index.ts` exports are alphabetically sorted
+---
+
+## 2026-02-19 - US-003
+- Created `packages/core/src/detection/mechanisms.ts` with `checkBinary()` function
+- Created `packages/core/src/detection/mechanisms.test.ts` with 8 unit tests
+- Implementation uses `node:child_process` `execFile` with manual promise wrapper for clean mocking
+- Uses `which` on darwin/linux, `where` on win32 for binary lookup
+- Optional version verification via `<binary> <versionFlag>` with 5-second timeout
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - `execFile` callback mocking requires careful handling — always 4 args `(cmd, args, opts, cb)` when using the `execAsync` wrapper
+  - Biome formatter inlines short callback type aliases and function signatures — write them inline to avoid lint fixes
+  - `Object.defineProperty(process, "platform", ...)` is the reliable way to mock `process.platform` in vitest
+  - Don't import types you don't use in test files — Biome catches unused imports as errors
+---
+
+## 2026-02-19 - US-004
+- Added `checkDirectory()` function to `packages/core/src/detection/mechanisms.ts`
+- Added 6 unit tests for checkDirectory to `packages/core/src/detection/mechanisms.test.ts`
+- Implementation: platform gate → tilde expansion → `fs.access(path, R_OK)` → optional marker file check
+- Uses `node:fs/promises` `access` with `constants.R_OK` for directory existence, and bare `access` for marker file
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - Biome sorts import specifiers alphabetically within braces — `{ constants, access }` not `{ access, constants }`
+  - When adding new mocks (`node:fs/promises`, `node:os`) to an existing test file, all `vi.mock()` calls must be at the top before any imports
+  - `fs.access` resolves to `undefined` on success (not a boolean) — mock accordingly
+  - Marker file check uses bare `access()` (no `R_OK` flag) since we just need existence, not readability
+---
+
+## 2026-02-19 - US-005
+- Added `checkAppBundle()` function to `packages/core/src/detection/mechanisms.ts`
+- Added 5 unit tests for checkAppBundle to `packages/core/src/detection/mechanisms.test.ts`
+- Implementation: platform gate (darwin only) → default search paths `/Applications` and `~/Applications` → `fs.access(join(dir, name))` for each path
+- Supports custom `searchPaths` override from the check config
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - Biome flags `continue` in catch blocks as `noUnnecessaryContinue` — use an empty catch with a comment instead
+  - `AppBundleCheck` has no `platforms` field since it's inherently macOS-only — the function hard-gates on `process.platform !== "darwin"`
+  - The `mockAccess` pattern of `mockRejectedValueOnce` + `mockResolvedValueOnce` works well for testing sequential search path checks
+---
+
+## 2026-02-19 - US-006
+- Added `checkVscodeExtension()` function to `packages/core/src/detection/mechanisms.ts`
+- Added 4 unit tests for checkVscodeExtension to `packages/core/src/detection/mechanisms.test.ts`
+- Implementation: default editors to `['vscode']` → map editor names to extension dirs → `readdir` each dir → case-insensitive prefix match on entries
+- Added `readdir` import from `node:fs/promises` and `VscodeExtensionCheck` type import
+- `EDITOR_EXTENSION_DIRS` constant maps editor names (`vscode`, `cursor`, `windsurf`) to their `~/.<editor>/extensions/` paths
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - Biome sorts import specifiers alphabetically — `{ constants, access, readdir }` not `{ access, constants, readdir }`. Always let Biome auto-fix or follow its ordering.
+  - `readdir` mock needs to be in the `vi.mock("node:fs/promises")` factory alongside `access` and `constants`
+  - Extension directories are named `<extensionId>-<version>` so prefix match (case-insensitive) is the correct approach
+  - The `if (!extDir) { // skip } else { ... }` pattern avoids Biome's `noUnnecessaryContinue` rule when skipping unknown editors in a loop
+---
+
+## 2026-02-19 - US-007
+- Added `checkJetbrainsPlugin()` function to `packages/core/src/detection/mechanisms.ts`
+- Added `getJetbrainsConfigBase()` private helper that maps platform to JetBrains config directory
+- Added 6 unit tests for checkJetbrainsPlugin covering: plugin found across versions, no config dir, plugin not installed, Linux path, Windows path (APPDATA), missing plugins dir graceful handling
+- Implementation: get config base per platform → readdir for IDE version dirs → readdir each `<version>/plugins/` → case-insensitive match on pluginId
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - JetBrains config paths differ significantly per platform — use a `switch (process.platform)` helper for clean mapping
+  - Windows JetBrains path uses `process.env.APPDATA` which may be undefined — return `undefined` from helper to signal "unsupported"
+  - The `readdir` chain pattern (list parent, then list children) requires careful mock ordering — each `mockResolvedValueOnce` is consumed in sequence
+  - Plugin directories under JetBrains are exact names (not versioned like VS Code extensions), so use exact case-insensitive equality, not prefix match
+---
+
+## 2026-02-19 - US-008
+- Fixed `evaluateDetection()` and `runCheck()` which were already implemented but had broken tests (all 8 evaluateDetection tests failing)
+- Root cause: `vi.spyOn(mechanisms, "checkBinary")` doesn't intercept intra-module calls in ESM — `runCheck` called `checkBinary` directly via local binding, bypassing the spy
+- Fix: introduced exported `checkHandlers` dispatch object in `mechanisms.ts` — `runCheck` now calls `checkHandlers.binary(check)` etc. instead of `checkBinary(check)` directly
+- Updated tests to spy on `mechanisms.checkHandlers.binary` instead of `mechanisms.checkBinary`
+- All 37 mechanism tests pass, full suite of 1034 tests green
+- Files changed: `packages/core/src/detection/mechanisms.ts`, `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - `vi.spyOn(module, "export")` only replaces the property on the module namespace object — internal calls within the same ESM module use local function bindings and are NOT intercepted
+  - The fix: route dispatch through an exported object (`checkHandlers`) where property lookups happen at call time, so spies work
+  - This is a common ESM testing gotcha — always use an exported dispatch object when you need to spy on functions called by other functions in the same module
+---
+
+## 2026-02-19 - US-009
+- Updated `isAgentInstalled()` in `packages/core/src/detection/agent-detection.ts` to use `evaluateDetection(detectionConfig)` when `detectionConfig` is present on an agent config
+- Falls back to existing legacy detection array logic when `detectionConfig` is absent
+- Added import of `evaluateDetection` from `./mechanisms.js`
+- Public API unchanged: `detectInstalledAgents()`, `clearAgentCache()`, `setDetectedAgents()` signatures and behavior preserved
+- All 4 existing agent-detection tests pass without modification, full suite of 1034 tests green
+- Files changed: `packages/core/src/detection/agent-detection.ts`
+- **Learnings for future iterations:**
+  - The change is minimal (5 lines added) because `evaluateDetection()` already encapsulates all OR-of-ANDs logic — the wiring is just a conditional dispatch
+  - Existing tests use `setDetectedAgents()` which bypasses `isAgentInstalled()` entirely — they test the caching/override layer, not detection, so they pass unchanged
+  - The legacy `commandExists` and `directoryExists` helpers remain in agent-detection.ts for the fallback path — they will be removed in US-015 when legacy detection is deleted
+---
+
+## 2026-02-19 - US-010
+- Updated `isIdeInstalled()` in `packages/core/src/ide/detection.ts` to use `evaluateDetection(detectionConfig)` when `detectionConfig` is present on an IDE platform entry
+- Falls back to existing legacy detection string array logic when `detectionConfig` is absent
+- Added import of `evaluateDetection` from `../detection/mechanisms.js`
+- Public API unchanged: `detectInstalledIdes()`, `clearIdeCache()`, `setDetectedIdes()` signatures and behavior preserved
+- All 6 existing IDE detection tests pass without modification, full suite of 1034 tests green
+- Files changed: `packages/core/src/ide/detection.ts`
+- **Learnings for future iterations:**
+  - The IDE detection wiring is an exact mirror of the agent detection wiring (US-009) — same 5-line conditional pattern
+  - Existing IDE tests use `setDetectedIdes()` which sets the cache directly, bypassing `isIdeInstalled()` — they test the caching/override layer, not detection, so they pass unchanged
+  - The legacy `commandExists` and `directoryExists` helpers remain in ide/detection.ts for the fallback path — they will be removed in US-015
+---
+
+## 2026-02-19 - US-011
+- Added `detectionConfig` to 7 CLI-based agent entries in `packages/agent-paths/src/registry.ts`
+- Claude Code: binary 'claude' (versionPattern /claude/i) OR directory ~/.claude/ (marker settings.json)
+- Codex CLI: binary 'codex' (versionPattern /codex/i) OR directory ~/.codex/ (marker config.toml)
+- OpenCode: binary 'opencode' (versionPattern /opencode|sst/i) OR directory ~/.config/opencode/ (marker config.yaml)
+- Amp: binary 'amp' (versionPattern /amp|sourcegraph/i) OR directory ~/.ampcache/
+- Cursor: app Cursor.app OR binary 'cursor' OR directory ~/.cursor/ (marker extensions)
+- Windsurf: app Windsurf.app OR binary 'windsurf' OR directory ~/.codeium/windsurf/ (marker settings.json)
+- Antigravity: app Antigravity.app OR binary 'agy' OR binary 'antigravity' (linux only) OR directory ~/.gemini/antigravity/ (marker settings.json)
+- Files changed: `packages/agent-paths/src/registry.ts`
+- **Learnings for future iterations:**
+  - `DetectionConfig` import is not needed in registry.ts — the objects are typed through `AgentPathConfig` which already has `detectionConfig?: DetectionConfig`
+  - Each detectionConfig group is a single-element array (no AND combos needed for these tools) — the OR-of-ANDs structure simplifies to plain OR across independent detection methods
+  - Marker files are critical for preventing false positives: `settings.json` for most tools, `config.toml` for Codex, `config.yaml` for OpenCode, `extensions` directory for Cursor
+  - Antigravity has platform-specific binary detection: `agy` is cross-platform, `antigravity` is linux-only (via `platforms: ["linux"]`)
+  - Amp uses `~/.ampcache/` (no marker) — different from its config path `~/.config/agents/` used in the registry's settings paths
+- Extension-based tools (Cline, Roo, GitHub Copilot) use `vscode-extension` checks — specify `editors` array for which VS Code forks to scan
+- GitHub Copilot detection deliberately excludes `gh` CLI to avoid false positives — uses `copilot` binary, VS Code extension, and `~/.github/copilot/` directory
+- Trae has no known CLI binary — detected only via app bundle and config directory
+- Junie uses `jetbrains-plugin` check type — the only agent using this mechanism
+---
+
+## 2026-02-19 - US-012
+- Added `detectionConfig` to 7 remaining agent entries in `packages/agent-paths/src/registry.ts`
+- Kiro: app Kiro.app OR binary 'kiro' OR directory ~/.kiro/ (marker settings.json)
+- Zed: app Zed.app OR binary 'zed' OR directory ~/.config/zed/ (marker settings.json)
+- Trae: app Trae.app OR directory ~/.trae/ (marker settings.json)
+- GitHub Copilot: binary 'copilot' (versionPattern /copilot|github/i) OR vscode-extension GitHub.copilot (editors vscode, cursor) OR directory ~/.github/copilot/
+- Cline: vscode-extension saoudrizwan.claude-dev (editors vscode, cursor, windsurf) OR directory ~/.cline/ (marker settings.json)
+- Roo: vscode-extension RooVeterinaryInc.roo-cline (editors vscode, cursor, windsurf) OR directory ~/.roo/ (marker settings.json)
+- Junie: jetbrains-plugin 'junie' OR directory ~/.junie/ (marker settings.json)
+- Files changed: `packages/agent-paths/src/registry.ts`
+- **Learnings for future iterations:**
+  - Zed's agent-paths config uses `~/.zed/` for global paths, but detection uses `~/.config/zed/` — these are different concerns (config placement vs existence detection)
+  - GitHub Copilot is the most complex detection: 3 groups spanning binary, extension, and directory checks — CRITICAL that 'gh' is excluded as it causes false positives
+  - Cline's VS Code extension ID is `saoudrizwan.claude-dev` (historical naming) — not `cline` or similar
+  - Roo's VS Code extension ID is `RooVeterinaryInc.roo-cline` — includes the publisher prefix
+  - Trae is the only agent with NO binary check — it's app-bundle + directory only
+  - All 14 agents now have `detectionConfig` populated, completing the registry migration
+---
+
+## 2026-02-19 - US-013
+- Added `detectionConfig` to all 6 IDE platform entries in `packages/core/src/ide/platform-registry.ts`
+- VS Code: binary 'code' OR app 'Visual Studio Code.app' OR directory ~/.vscode/ (marker extensions)
+- JetBrains: binary 'idea' OR directory ~/.config/JetBrains/ (linux) OR directory ~/Library/Application Support/JetBrains/ (darwin)
+- Cursor: binary 'cursor' OR app Cursor.app OR directory ~/.cursor/ (marker extensions)
+- Windsurf: binary 'windsurf' OR app Windsurf.app OR directory ~/.windsurf/ (marker extensions)
+- Antigravity: binary 'agy' OR binary 'antigravity' OR app Antigravity.app
+- Zed: binary 'zed' OR app Zed.app OR directory ~/.config/zed/ (marker settings.json)
+- Files changed: `packages/core/src/ide/platform-registry.ts`
+- **Learnings for future iterations:**
+  - IDE platform entries use `~/.windsurf/` (not `~/.codeium/windsurf/`) for detection — the IDE settings dir differs from the agent config dir
+  - JetBrains IDE detection needs platform-specific directory checks because macOS uses `~/Library/Application Support/JetBrains/` while Linux uses `~/.config/JetBrains/`
+  - Antigravity IDE entry has no directory check — only binary and app bundle detection, since leftover directories could cause false positives
+  - VS Code's app bundle name includes spaces: `Visual Studio Code.app` — must match exactly
+  - IDE `extensions` marker directory is used for VS Code, Cursor, and Windsurf to confirm the IDE was actually used (not just an empty leftover directory)
+---
+
+## 2026-02-19 - US-014
+- Removed `detection: string[]` field from `AgentPathConfig` interface in `packages/agent-paths/src/types.ts`
+- Removed `detection: [...]` from all 14 entries in `packages/agent-paths/src/registry.ts`
+- Simplified `isAgentInstalled()` in `packages/core/src/detection/agent-detection.ts`: removed legacy fallback code path, now uses only `evaluateDetection(detectionConfig)`, removed unused `commandExists`/`directoryExists` helpers and their imports
+- Updated `registry.test.ts`: replaced 3 legacy detection tests with 2 detectionConfig tests, removed `detection` from required properties check
+- Files changed: `packages/agent-paths/src/types.ts`, `packages/agent-paths/src/registry.ts`, `packages/agent-paths/src/registry.test.ts`, `packages/core/src/detection/agent-detection.ts`
+- **Learnings for future iterations:**
+  - Removing a field from a cross-package type causes TS errors in all consumers — must fix downstream code in the same commit
+  - When all registry entries have `detectionConfig`, the legacy fallback in `isAgentInstalled()` is unreachable — safe to remove entirely
+  - The `commandExists` and `directoryExists` helpers in agent-detection.ts are now dead code — they were only used by the legacy fallback. They still exist in `ide/detection.ts` for US-015 to clean up
+  - Test count dropped from 1034 to 1033: 3 old detection tests replaced by 2 new detectionConfig tests (more concise validation)
+  - The IDE `platform-registry.ts` still has its own `detection: string[]` field on `IdePlatformEntry` — that's a separate interface, not affected by this change (US-015 scope)
+---
+
+## 2026-02-19 - US-015
+- Removed `detection: string[]` from `IdePlatformEntry` interface in `packages/core/src/ide/platform-registry.ts`
+- Made `detectionConfig` required (non-optional) on `IdePlatformEntry` since all 6 entries already have it
+- Removed `detection: [...]` arrays from all 6 IDE platform entries (vscode, jetbrains, cursor, windsurf, antigravity, zed)
+- Removed legacy fallback code path in `isIdeInstalled()`: deleted the `for (const detection of ideConfig.detection)` loop and all string-based dispatch logic
+- Removed unused `commandExists()` and `directoryExists()` helpers from `ide/detection.ts`
+- Removed unused imports (`constants`, `access` from `node:fs/promises`, `homedir` from `node:os`, `join` from `node:path`)
+- Updated `platform-registry.test.ts`: replaced legacy `detection` array test with `detectionConfig` groups test
+- `isAgentInstalled()` was already cleaned up in US-014 — no further changes needed
+- Files changed: `packages/core/src/ide/platform-registry.ts`, `packages/core/src/ide/detection.ts`, `packages/core/src/ide/platform-registry.test.ts`
+- **Learnings for future iterations:**
+  - Making `detectionConfig` required (removing `?`) is the right move when all entries have been populated — provides better type safety and eliminates null-check boilerplate
+  - The IDE detection cleanup mirrors the agent detection cleanup from US-014 exactly — same pattern of removing field, fallback code, and unused helpers
+  - The old `commandExists()` in ide/detection.ts used `execa` (dynamic import) while agent-detection.ts used `node:child_process` directly — both are now replaced by `evaluateDetection()` which uses `node:child_process`
+  - Test count stays at 1033 — the test was replaced 1:1 (detection array → detectionConfig groups)
+---
+
+## 2026-02-19 - US-016
+- Verified consolidation of shared detection helpers is complete — zero duplicated helper functions remain between `agent-detection.ts` and `ide/detection.ts`
+- `agent-detection.ts` imports only `evaluateDetection` from `./mechanisms.js` — no filesystem, child_process, or utility helpers
+- `ide/detection.ts` imports only `evaluateDetection` from `../detection/mechanisms.js` — no filesystem, child_process, or utility helpers
+- All shared detection logic lives in `mechanisms.ts`: `checkBinary`, `checkDirectory`, `checkAppBundle`, `checkVscodeExtension`, `checkJetbrainsPlugin`, `evaluateDetection`, plus internal helpers (`execAsync`, `getJetbrainsConfigBase`, `EDITOR_EXTENSION_DIRS`)
+- The consolidation was effectively achieved by US-014 (removed `commandExists`/`directoryExists` from agent-detection.ts) and US-015 (removed `commandExists`/`directoryExists` + imports from ide/detection.ts)
+- No code changes needed — verified all quality checks pass: 1033 tests, typecheck, lint
+- Files changed: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - When a refactoring story's work is already done by prior stories, still verify thoroughly and document the verification
+  - The prior `commandExists()` implementations differed: agent-detection.ts used `node:child_process` directly, while ide/detection.ts used `execa` (dynamic import) — the new `mechanisms.ts` standardized on `node:child_process`
+  - Both detection files now follow the exact same pattern: cache + isInstalled (calls evaluateDetection) + detectAll + clearCache + setOverride
+---
