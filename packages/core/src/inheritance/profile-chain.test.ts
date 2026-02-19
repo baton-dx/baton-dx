@@ -393,5 +393,54 @@ extends:
       expect(chain[1].name).toBe("middle");
       expect(chain[2].name).toBe("top");
     });
+
+    it("populates localPath for inherited profiles", async () => {
+      // Create base profile
+      const basePath = join(profilesDir, "base");
+      await mkdir(basePath, { recursive: true });
+      await writeFile(
+        join(basePath, "baton.profile.yaml"),
+        `
+name: base-profile
+version: 1.0.0
+description: Base profile
+`,
+        "utf-8",
+      );
+
+      // Create child profile that extends base
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        `
+name: child-profile
+version: 1.0.0
+description: Child profile
+extends:
+  - ./profiles/base
+`,
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        description: "Child profile",
+        extends: ["./profiles/base"],
+      };
+
+      const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
+
+      expect(chain).toHaveLength(2);
+
+      // Inherited base profile should have localPath resolved
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[0].localPath).toBe(basePath);
+
+      // Root profile (not loaded via loadProfileFromSource) has no localPath
+      expect(chain[1].name).toBe("child-profile");
+      expect(chain[1].localPath).toBeUndefined();
+    });
   });
 });
