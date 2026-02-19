@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.1.5
+
+### Patch Changes
+
+- [#13](https://github.com/baton-dx/baton-dx/pull/13) [`cce3c61`](https://github.com/baton-dx/baton-dx/commit/cce3c61c986d3c8e33b7419eddb4f1505ad946d7) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix profile inheritance (extends) not working during sync — parent profile content (memory, rules, skills, files, commands) was silently skipped because inherited profiles were not registered in the local path map
+
 ## 0.1.4
 
 ### Patch Changes
