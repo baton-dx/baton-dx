@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseSource } from "../utils/source-parser.js";
-import { resolveNpmSource } from "./npm-resolver.js";
+import { resolveNpmSource, validateNpmPackageName } from "./npm-resolver.js";
 
 describe("npm-resolver", () => {
   let testDir: string;
@@ -170,21 +170,12 @@ describe("npm-resolver", () => {
   });
 
   describe("package name validation", () => {
-    it("accepts valid unscoped package names", async () => {
-      const source = parseSource("npm:my-package");
-      if (source.provider !== "npm") throw new Error("Expected npm provider");
-      // Valid name should not throw validation error (will fail on network instead)
-      await expect(resolveNpmSource({ source, basePath: testDir })).rejects.not.toThrow(
-        "Invalid npm package name",
-      );
+    it("accepts valid unscoped package names", () => {
+      expect(() => validateNpmPackageName("my-package")).not.toThrow();
     });
 
-    it("accepts valid scoped package names", async () => {
-      const source = parseSource("npm:@baton-dx/core");
-      if (source.provider !== "npm") throw new Error("Expected npm provider");
-      await expect(resolveNpmSource({ source, basePath: testDir })).rejects.not.toThrow(
-        "Invalid npm package name",
-      );
+    it("accepts valid scoped package names", () => {
+      expect(() => validateNpmPackageName("@baton-dx/core")).not.toThrow();
     });
 
     it("rejects package names with shell metacharacters", async () => {
@@ -217,14 +208,8 @@ describe("npm-resolver", () => {
       ).rejects.toThrow("Invalid npm package name");
     });
 
-    it("accepts package names with version specifier", async () => {
-      const source = {
-        provider: "npm" as const,
-        package: "my-package@1.2.3",
-      };
-      await expect(resolveNpmSource({ source, basePath: testDir })).rejects.not.toThrow(
-        "Invalid npm package name",
-      );
+    it("accepts package names with version specifier", () => {
+      expect(() => validateNpmPackageName("my-package@1.2.3")).not.toThrow();
     });
   });
 
