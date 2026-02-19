@@ -116,13 +116,51 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
     return;
   }
 
+  const existing = await readProjectPreferences(projectRoot);
   const globalTools = await getGlobalAiTools();
-  const allAdapters = getAllAdapters();
 
-  // Show context
+  // Show current state
   if (globalTools.length > 0) {
     p.log.info(`Global AI tools: ${globalTools.join(", ")}`);
   }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve AI tools?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global AI tools setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific tools for this project",
+      },
+    ],
+    initialValue: existing?.ai.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.outro("No changes made.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(projectRoot, {
+      version: "1.0",
+      ai: { useGlobal: true, tools: [] },
+      ide: existing?.ide ?? { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global AI tools.");
+    p.outro("Configuration complete.");
+    return;
+  }
+
+  // Customize: show multiselect
+  const allAdapters = getAllAdapters();
+  const currentProjectTools = existing?.ai.useGlobal === false ? existing.ai.tools : globalTools;
 
   const options = allAdapters.map((adapter) => {
     const isGlobal = globalTools.includes(adapter.key);
@@ -135,7 +173,7 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
   const selected = await p.multiselect({
     message: "Select AI tools for this project:",
     options,
-    initialValues: globalTools,
+    initialValues: currentProjectTools,
   });
 
   if (p.isCancel(selected)) {
@@ -145,37 +183,11 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
 
   const selectedKeys = selected as string[];
 
-  // Follow-up: use selection or fall back to global?
-  const mode = await p.select({
-    message: "How should this project resolve AI tools?",
-    options: [
-      { value: "project", label: "Use selection above" },
-      { value: "global", label: "Use global config" },
-    ],
+  await writeProjectPreferences(projectRoot, {
+    version: "1.0",
+    ai: { useGlobal: false, tools: selectedKeys },
+    ide: existing?.ide ?? { useGlobal: true, platforms: [] },
   });
-
-  if (p.isCancel(mode)) {
-    p.outro("No changes made.");
-    return;
-  }
-
-  const existing = await readProjectPreferences(projectRoot);
-
-  if (mode === "project") {
-    await writeProjectPreferences(projectRoot, {
-      version: "1.0",
-      ai: { useGlobal: false, tools: selectedKeys },
-      ide: existing?.ide ?? { useGlobal: true, platforms: [] },
-    });
-    p.log.success(`Project configured with ${selectedKeys.length} AI tool(s).`);
-  } else {
-    await writeProjectPreferences(projectRoot, {
-      version: "1.0",
-      ai: { useGlobal: true, tools: [] },
-      ide: existing?.ide ?? { useGlobal: true, platforms: [] },
-    });
-    p.log.success("Project configured to use global AI tools.");
-  }
-
+  p.log.success(`Project configured with ${selectedKeys.length} AI tool(s).`);
   p.outro("Configuration complete.");
 }

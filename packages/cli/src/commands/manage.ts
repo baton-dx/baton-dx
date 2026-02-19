@@ -275,8 +275,49 @@ function formatIdeName(ideKey: string): string {
 }
 
 async function handleConfigureAiTools(cwd: string): Promise<void> {
+  const existing = await readProjectPreferences(cwd);
   const globalTools = await getGlobalAiTools();
+
+  if (globalTools.length > 0) {
+    p.log.info(`Global AI tools: ${globalTools.join(", ")}`);
+  }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve AI tools?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global AI tools setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific tools for this project",
+      },
+    ],
+    initialValue: existing?.ai.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(cwd, {
+      version: "1.0",
+      ai: { useGlobal: true, tools: [] },
+      ide: existing?.ide ?? { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global AI tools.");
+    return;
+  }
+
+  // Customize: show multiselect
   const allAdapters = getAllAdapters();
+  const currentProjectTools = existing?.ai.useGlobal === false ? existing.ai.tools : globalTools;
 
   const options = allAdapters.map((adapter) => ({
     value: adapter.key,
@@ -286,7 +327,7 @@ async function handleConfigureAiTools(cwd: string): Promise<void> {
   const selected = await p.multiselect({
     message: "Select AI tools for this project:",
     options,
-    initialValues: globalTools,
+    initialValues: currentProjectTools,
   });
 
   if (p.isCancel(selected)) {
@@ -295,7 +336,6 @@ async function handleConfigureAiTools(cwd: string): Promise<void> {
   }
 
   const selectedKeys = selected as string[];
-  const existing = await readProjectPreferences(cwd);
 
   await writeProjectPreferences(cwd, {
     version: "1.0",
@@ -307,8 +347,50 @@ async function handleConfigureAiTools(cwd: string): Promise<void> {
 }
 
 async function handleConfigureIdes(cwd: string): Promise<void> {
+  const existing = await readProjectPreferences(cwd);
   const globalPlatforms = await getGlobalIdePlatforms();
+
+  if (globalPlatforms.length > 0) {
+    p.log.info(`Global IDE platforms: ${globalPlatforms.join(", ")}`);
+  }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve IDE platforms?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global IDE platforms setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific IDEs for this project",
+      },
+    ],
+    initialValue: existing?.ide.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(cwd, {
+      version: "1.0",
+      ai: existing?.ai ?? { useGlobal: true, tools: [] },
+      ide: { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global IDE platforms.");
+    return;
+  }
+
+  // Customize: show multiselect
   const allIdeKeys = getRegisteredIdePlatforms();
+  const currentProjectPlatforms =
+    existing?.ide.useGlobal === false ? existing.ide.platforms : globalPlatforms;
 
   const options = allIdeKeys.map((ideKey) => ({
     value: ideKey,
@@ -320,7 +402,7 @@ async function handleConfigureIdes(cwd: string): Promise<void> {
   const selected = await p.multiselect({
     message: "Select IDE platforms for this project:",
     options,
-    initialValues: globalPlatforms,
+    initialValues: currentProjectPlatforms,
   });
 
   if (p.isCancel(selected)) {
@@ -329,7 +411,6 @@ async function handleConfigureIdes(cwd: string): Promise<void> {
   }
 
   const selectedKeys = selected as string[];
-  const existing = await readProjectPreferences(cwd);
 
   await writeProjectPreferences(cwd, {
     version: "1.0",
@@ -338,18 +419,6 @@ async function handleConfigureIdes(cwd: string): Promise<void> {
   });
 
   p.log.success(`Project configured with ${selectedKeys.length} IDE platform(s).`);
-}
-
-async function handleResetPreferences(cwd: string): Promise<void> {
-  const existing = await readProjectPreferences(cwd);
-
-  await writeProjectPreferences(cwd, {
-    version: "1.0",
-    ai: { useGlobal: true, tools: existing?.ai.tools ?? [] },
-    ide: { useGlobal: true, platforms: existing?.ide.platforms ?? [] },
-  });
-
-  p.log.success("Project preferences reset to use global config.");
 }
 
 export const manageCommand = defineCommand({
@@ -388,11 +457,6 @@ export const manageCommand = defineCommand({
             label: "Configure IDEs for this project",
             hint: "Choose which IDEs to sync",
           },
-          {
-            value: "reset-prefs",
-            label: "Reset project preferences to global",
-            hint: "Use global config for both AI and IDEs",
-          },
           { value: "remove-baton", label: "Remove Baton", hint: "Remove Baton from this project" },
           { value: "quit", label: "Quit" },
         ],
@@ -422,10 +486,6 @@ export const manageCommand = defineCommand({
       } else if (action === "configure-ides") {
         console.log("");
         await handleConfigureIdes(cwd);
-        console.log("");
-      } else if (action === "reset-prefs") {
-        console.log("");
-        await handleResetPreferences(cwd);
         console.log("");
       } else if (action === "remove-baton") {
         console.log("");

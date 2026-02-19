@@ -87,12 +87,14 @@ async function showDashboard(): Promise<void> {
             return key;
           }
         });
-        p.log.info(`  AI Tools: ${toolNames.join(", ")} (from ${prefs.ai.source} preferences)`);
+        const aiSourceLabel =
+          prefs.ai.source === "project" ? "project preferences" : "global config";
+        p.log.info(`  AI Tools: ${toolNames.join(", ")} (from ${aiSourceLabel})`);
       }
       if (resolvedIdePlatforms.length > 0) {
-        p.log.info(
-          `  IDE Platforms: ${resolvedIdePlatforms.join(", ")} (from ${prefs.ide.source} preferences)`,
-        );
+        const ideSourceLabel =
+          prefs.ide.source === "project" ? "project preferences" : "global config";
+        p.log.info(`  IDE Platforms: ${resolvedIdePlatforms.join(", ")} (from ${ideSourceLabel})`);
       }
     }
   } else {

@@ -117,13 +117,52 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
     return;
   }
 
+  const existing = await readProjectPreferences(projectRoot);
   const globalPlatforms = await getGlobalIdePlatforms();
-  const allIdeKeys = getRegisteredIdePlatforms();
 
-  // Show context
+  // Show current state
   if (globalPlatforms.length > 0) {
     p.log.info(`Global IDE platforms: ${globalPlatforms.join(", ")}`);
   }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve IDE platforms?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global IDE platforms setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific IDEs for this project",
+      },
+    ],
+    initialValue: existing?.ide.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.outro("No changes made.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(projectRoot, {
+      version: "1.0",
+      ai: existing?.ai ?? { useGlobal: true, tools: [] },
+      ide: { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global IDE platforms.");
+    p.outro("Configuration complete.");
+    return;
+  }
+
+  // Customize: show multiselect
+  const allIdeKeys = getRegisteredIdePlatforms();
+  const currentProjectPlatforms =
+    existing?.ide.useGlobal === false ? existing.ide.platforms : globalPlatforms;
 
   const options = allIdeKeys.map((ideKey) => {
     const isGlobal = globalPlatforms.includes(ideKey);
@@ -136,7 +175,7 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
   const selected = await p.multiselect({
     message: "Select IDE platforms for this project:",
     options,
-    initialValues: globalPlatforms,
+    initialValues: currentProjectPlatforms,
   });
 
   if (p.isCancel(selected)) {
@@ -146,37 +185,11 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
 
   const selectedKeys = selected as string[];
 
-  // Follow-up: use selection or fall back to global?
-  const mode = await p.select({
-    message: "How should this project resolve IDE platforms?",
-    options: [
-      { value: "project", label: "Use selection above" },
-      { value: "global", label: "Use global config" },
-    ],
+  await writeProjectPreferences(projectRoot, {
+    version: "1.0",
+    ai: existing?.ai ?? { useGlobal: true, tools: [] },
+    ide: { useGlobal: false, platforms: selectedKeys },
   });
-
-  if (p.isCancel(mode)) {
-    p.outro("No changes made.");
-    return;
-  }
-
-  const existing = await readProjectPreferences(projectRoot);
-
-  if (mode === "project") {
-    await writeProjectPreferences(projectRoot, {
-      version: "1.0",
-      ai: existing?.ai ?? { useGlobal: true, tools: [] },
-      ide: { useGlobal: false, platforms: selectedKeys },
-    });
-    p.log.success(`Project configured with ${selectedKeys.length} IDE platform(s).`);
-  } else {
-    await writeProjectPreferences(projectRoot, {
-      version: "1.0",
-      ai: existing?.ai ?? { useGlobal: true, tools: [] },
-      ide: { useGlobal: true, platforms: [] },
-    });
-    p.log.success("Project configured to use global IDE platforms.");
-  }
-
+  p.log.success(`Project configured with ${selectedKeys.length} IDE platform(s).`);
   p.outro("Configuration complete.");
 }
