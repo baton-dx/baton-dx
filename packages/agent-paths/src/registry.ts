@@ -33,6 +33,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.claude/commands/{name}.md",
     },
     detection: ["claude", "~/.claude/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "claude", versionPattern: /claude/i }],
+        [{ type: "directory", path: "~/.claude/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -63,6 +69,13 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.cursor/commands/{name}.md",
     },
     detection: ["cursor", "~/.cursor/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Cursor.app" }],
+        [{ type: "binary", name: "cursor" }],
+        [{ type: "directory", path: "~/.cursor/", markerFile: "extensions" }],
+      ],
+    },
     legacy: {
       rules: [".cursorrules"],
     },
@@ -95,6 +108,19 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.codeium/windsurf/workflows/{name}.md",
     },
     detection: ["windsurf", "~/.codeium/windsurf/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Windsurf.app" }],
+        [{ type: "binary", name: "windsurf" }],
+        [
+          {
+            type: "directory",
+            path: "~/.codeium/windsurf/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {
       rules: [".windsurfrules"],
     },
@@ -127,6 +153,20 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.gemini/antigravity/workflows/{name}.md",
     },
     detection: ["antigravity", "~/.gemini/antigravity/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Antigravity.app" }],
+        [{ type: "binary", name: "agy" }],
+        [{ type: "binary", name: "antigravity", platforms: ["linux"] }],
+        [
+          {
+            type: "directory",
+            path: "~/.gemini/antigravity/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -157,6 +197,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.codex/commands/{name}.md",
     },
     detection: ["codex", "~/.codex/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "codex", versionPattern: /codex/i }],
+        [{ type: "directory", path: "~/.codex/", markerFile: "config.toml" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -217,6 +263,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.config/opencode/commands/{name}.md",
     },
     detection: ["opencode", "~/.config/opencode/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "opencode", versionPattern: /opencode|sst/i }],
+        [
+          {
+            type: "directory",
+            path: "~/.config/opencode/",
+            markerFile: "config.yaml",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -247,6 +305,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.config/agents/commands/{name}.md",
     },
     detection: ["amp", "~/.config/agents/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "amp", versionPattern: /amp|sourcegraph/i }],
+        [{ type: "directory", path: "~/.ampcache/" }],
+      ],
+    },
     legacy: {},
   },
   {
