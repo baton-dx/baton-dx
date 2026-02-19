@@ -1,10 +1,11 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { getAgentConfig } from "@baton-dx/agent-paths";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
+  getBatonHome,
   getGlobalAiTools,
+  getGlobalConfigPath,
   getGlobalIdePlatforms,
   getGlobalSources,
   loadProjectManifest,
@@ -23,23 +24,23 @@ interface BatonConfig {
   "default-tools"?: string[];
 }
 
-const CONFIG_FILE = join(homedir(), ".baton", "config.yaml");
 const VALID_KEYS = ["cache-dir", "default-scope", "symlink-mode", "default-tools"] as const;
 
 async function loadConfig(): Promise<BatonConfig> {
+  const configFile = getGlobalConfigPath();
   try {
-    await access(CONFIG_FILE);
+    await access(configFile);
   } catch {
     return {};
   }
-  const content = await readFile(CONFIG_FILE, "utf-8");
+  const content = await readFile(configFile, "utf-8");
   return parse(content) as BatonConfig;
 }
 
 async function saveConfig(config: BatonConfig): Promise<void> {
-  const configDir = dirname(CONFIG_FILE);
-  await mkdir(configDir, { recursive: true });
-  await writeFile(CONFIG_FILE, stringify(config), "utf-8");
+  const configFile = getGlobalConfigPath();
+  await mkdir(getBatonHome(), { recursive: true });
+  await writeFile(configFile, stringify(config), "utf-8");
 }
 
 async function showDashboard(): Promise<void> {

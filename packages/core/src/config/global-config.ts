@@ -10,12 +10,24 @@ import {
 } from "../schemas/global-config.js";
 
 /**
+ * Returns the Baton home directory path.
+ *
+ * Respects the `BATON_HOME` environment variable for testing and custom locations.
+ * Falls back to `~/.baton` when not set.
+ *
+ * @returns Absolute path to the Baton home directory
+ */
+export function getBatonHome(): string {
+  return process.env.BATON_HOME ?? join(homedir(), ".baton");
+}
+
+/**
  * Returns the path to the global Baton configuration file.
  *
- * @returns Absolute path to ~/.baton/config.yaml
+ * @returns Absolute path to ~/.baton/config.yaml (or $BATON_HOME/config.yaml)
  */
 export function getGlobalConfigPath(): string {
-  return join(homedir(), ".baton", "config.yaml");
+  return join(getBatonHome(), "config.yaml");
 }
 
 /**
@@ -64,7 +76,7 @@ export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
   const validated = globalConfigSchema.parse(config);
 
   const configPath = getGlobalConfigPath();
-  const configDir = join(homedir(), ".baton");
+  const configDir = getBatonHome();
 
   // Ensure directory exists
   await mkdir(configDir, { recursive: true });
