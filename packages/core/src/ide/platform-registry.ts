@@ -9,10 +9,8 @@ import type { DetectionConfig } from "@baton-dx/agent-paths";
 
 export interface IdePlatformEntry {
   targetDir: string;
-  /** Detection methods: CLI binary names or home-relative paths (~/... or .xxx) */
-  detection: string[];
   /** Structured detection configuration using OR-of-ANDs logic */
-  detectionConfig?: DetectionConfig;
+  detectionConfig: DetectionConfig;
 }
 
 /**
@@ -24,7 +22,6 @@ export interface IdePlatformEntry {
 export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   vscode: {
     targetDir: ".vscode",
-    detection: ["code", "~/.vscode/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "code" }],
@@ -35,7 +32,6 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   },
   jetbrains: {
     targetDir: ".idea",
-    detection: ["idea", "~/.config/JetBrains/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "idea" }],
@@ -58,7 +54,6 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   },
   cursor: {
     targetDir: ".cursor",
-    detection: ["cursor", "~/.cursor/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "cursor" }],
@@ -69,7 +64,6 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   },
   windsurf: {
     targetDir: ".windsurf",
-    detection: ["windsurf", "~/.windsurf/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "windsurf" }],
@@ -86,7 +80,6 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   },
   antigravity: {
     targetDir: ".antigravity",
-    detection: ["antigravity", "~/.antigravity/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "agy" }],
@@ -97,7 +90,6 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
   },
   zed: {
     targetDir: ".config/zed",
-    detection: ["zed", "~/.config/zed/"],
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "zed" }],
