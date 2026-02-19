@@ -20,6 +20,8 @@ export interface ResolvedProfile {
   source: string;
   /** Profile name */
   name: string;
+  /** Resolved local directory path (set for local/file/cloned-git sources) */
+  localPath?: string;
 }
 
 /**
@@ -54,6 +56,7 @@ export async function resolveProfileChain(
  * @param chain - Accumulator for resolved profiles
  * @param visited - Set of visited sources (for circular detection)
  * @param path - Current path (for error messages)
+ * @param localPath - Resolved local directory path for this profile
  */
 async function resolveChainRecursive(
   manifest: ProfileManifest,
@@ -62,6 +65,7 @@ async function resolveChainRecursive(
   chain: ResolvedProfile[],
   visited: Set<string>,
   path: string[],
+  localPath?: string,
 ): Promise<void> {
   // Check for maximum depth
   if (path.length >= MAX_CHAIN_DEPTH) {
@@ -86,12 +90,19 @@ async function resolveChainRecursive(
     for (const extendSource of manifest.extends) {
       try {
         // Load parent profile
-        const parentManifest = await loadProfileFromSource(extendSource, baseDir);
+        const { manifest: parentManifest, localPath: parentLocalPath } =
+          await loadProfileFromSource(extendSource, baseDir);
 
         // Recursively resolve parent chain with current visited set
-        await resolveChainRecursive(parentManifest, extendSource, baseDir, chain, currentVisited, [
-          ...path,
-        ]);
+        await resolveChainRecursive(
+          parentManifest,
+          extendSource,
+          baseDir,
+          chain,
+          currentVisited,
+          [...path],
+          parentLocalPath,
+        );
       } catch (error) {
         // Re-throw critical errors that should not be swallowed
         if (error instanceof CircularInheritanceError) {
@@ -110,6 +121,7 @@ async function resolveChainRecursive(
     manifest,
     source,
     name: manifest.name,
+    localPath,
   });
 
   // Remove from path for sibling processing
@@ -121,9 +133,12 @@ async function resolveChainRecursive(
  *
  * @param source - Source URL or path
  * @param baseDir - Base directory for resolving relative paths
- * @returns Loaded profile manifest
+ * @returns Loaded profile manifest and resolved local directory path
  */
-async function loadProfileFromSource(source: string, baseDir: string): Promise<ProfileManifest> {
+async function loadProfileFromSource(
+  source: string,
+  baseDir: string,
+): Promise<{ manifest: ProfileManifest; localPath: string }> {
   const parsed = parseSource(source);
 
   if (parsed.provider === "local") {
@@ -131,7 +146,7 @@ async function loadProfileFromSource(source: string, baseDir: string): Promise<P
     const absolutePath = resolve(baseDir, parsed.path);
     const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
-    return await loadProfileManifest(manifestPath);
+    return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
   }
 
   if (parsed.provider === "file") {
@@ -139,7 +154,7 @@ async function loadProfileFromSource(source: string, baseDir: string): Promise<P
     const absolutePath = parsed.path.startsWith("/") ? parsed.path : resolve(baseDir, parsed.path);
     const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
-    return await loadProfileManifest(manifestPath);
+    return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
   }
 
   if (parsed.provider === "npm") {
@@ -156,5 +171,5 @@ async function loadProfileFromSource(source: string, baseDir: string): Promise<P
   });
 
   const manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
-  return await loadProfileManifest(manifestPath);
+  return { manifest: await loadProfileManifest(manifestPath), localPath: cloned.localPath };
 }

@@ -759,6 +759,14 @@ export const syncCommand = defineCommand({
         }
       }
 
+      // Register local paths for inherited profiles (from extends chains)
+      // These profiles are not in baton.yaml but were resolved via resolveProfileChain
+      for (const prof of allProfiles) {
+        if (!profileLocalPaths.has(prof.name) && prof.localPath) {
+          profileLocalPaths.set(prof.name, prof.localPath);
+        }
+      }
+
       // Content accumulator for files that may receive content from multiple categories
       // (e.g., GitHub Copilot uses .github/copilot-instructions.md for both memory AND rules)
       // Key: absolute target path, Value: { parts, adapter, profiles }
