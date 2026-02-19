@@ -7,6 +7,7 @@ Started: Thu Feb 19 17:08:21 CET 2026
 - Tests use real temp directories (`mkdtemp`) with `beforeEach`/`afterEach` cleanup — no fs mocking
 - Biome enforces single-line formatting for short function signatures and ternaries — don't multi-line them
 - Import `.js` extensions required in all source files (ESM convention)
+- `placeFile()` returns absolute paths — always normalize with `relative(projectRoot, result.path)` before storing as lockfile keys
 
 ---
 
@@ -27,4 +28,21 @@ Started: Thu Feb 19 17:08:21 CET 2026
   - The existing `cleanupOrphanedFiles()` in `sync.ts` (lines 270-296) only uses `unlink()` which fails on directories — that's the bug
   - `core/src/index.ts` imports lockfile functions directly from `./lockfile/manager.js` — the new barrel doesn't change this to avoid churn; new exports use `./lockfile/cleanup.js`
   - Run `bun run lint` to check Biome formatting — it's strict about line length and ternary formatting
+---
+
+## 2026-02-19T17:14 - US-002
+- Normalized lockfile integrity keys to use relative paths in `packages/cli/src/commands/sync.ts`
+- Two locations where `placeFile()` returns absolute `result.path` are now converted to relative using `isAbsolute()` check + `relative(projectRoot, result.path)`
+  - Content accumulator flush (memory+rules) — around line 1039
+  - Command placement — around line 1100
+- Other path sources (skills, files, IDE configs) already stored relative paths — no changes needed
+- `cleanupOrphanedFiles()` resolver already handles both absolute and relative via `startsWith("/")` check — backward compat preserved
+- Added `isAbsolute` and `relative` to the `node:path` import (line 2)
+- Files changed:
+  - `packages/cli/src/commands/sync.ts` (modified — 2 path normalization sites)
+  - `scripts/ralph/prd.json` (US-002 passes: true)
+- **Learnings for future iterations:**
+  - `placeFile()` in `packages/core/src/placement/engine.ts` always returns absolute paths via `resolveAbsolutePath()` — any code storing `result.path` as a lockfile key must normalize to relative
+  - Five path-storage sites in sync.ts: skills (line 906, already relative), content accumulator (line 1039, now fixed), commands (line 1100, now fixed), files (line 1153, already relative), IDE (line 1209, already relative)
+  - The `relative()` function from `node:path` was already imported in the original code but not used — the import line just needed `isAbsolute` added
 ---

@@ -1,5 +1,5 @@
 import { mkdir, readFile, readdir, rmdir, stat, unlink, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { IntersectionResult } from "@baton-dx/core";
 import {
   FileNotFoundError,
@@ -1033,10 +1033,13 @@ export const syncCommand = defineCommand({
               stats.created++;
             }
 
-            // Track content for lockfile integrity
+            // Track content for lockfile integrity (normalize to relative path)
+            const relPath = isAbsolute(result.path)
+              ? relative(projectRoot, result.path)
+              : result.path;
             for (const profileName of entry.profiles) {
               const pf = getOrCreatePlacedFiles(placedFiles, profileName);
-              pf[result.path] = {
+              pf[relPath] = {
                 content: combinedContent,
                 tool: entry.adapter.key,
                 category: "ai",
@@ -1095,9 +1098,12 @@ export const syncCommand = defineCommand({
                   stats.created++;
                 }
 
-                // Track content for lockfile integrity
+                // Track content for lockfile integrity (normalize to relative path)
+                const cmdRelPath = isAbsolute(result.path)
+                  ? relative(projectRoot, result.path)
+                  : result.path;
                 const pf = getOrCreatePlacedFiles(placedFiles, profile.name);
-                pf[result.path] = { content, tool: adapter.key, category: "ai" };
+                pf[cmdRelPath] = { content, tool: adapter.key, category: "ai" };
 
                 if (verbose) {
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;

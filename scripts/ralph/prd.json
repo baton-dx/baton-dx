@@ -40,7 +40,7 @@
         "Tests pass"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "relative() is already imported in sync.ts from node:path. Look for lines where result.path from placeFile() is stored — around lines 1039 and 1100. placeFile() returns absolute paths via resolveAbsolutePath() in packages/core/src/placement/engine.ts."
     },
     {
