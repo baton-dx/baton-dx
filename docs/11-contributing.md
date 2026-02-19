@@ -103,6 +103,29 @@ Open a PR against `main` with:
 - Related issue numbers
 - Testing performed
 
+## AI-Assisted Development
+
+Baton provides an official **maintainer profile** via [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) that gives your AI tools full context about this monorepo's architecture, coding conventions, and development workflows.
+
+```bash
+baton init --profile github:baton-dx/baton-dx-source/maintainer
+baton sync
+```
+
+### What the maintainer profile includes
+
+The maintainer profile includes:
+
+- **Memory** — Full monorepo architecture (agent-paths → core → cli), adapter pattern, CLI commands, release workflow
+- **8 Skills** — `add-adapter`, `add-ide-platform`, `review-code`, `find-dead-code`, `find-redundancy`, `create-pr`, `run-release`, `run-review`
+- **2 Agents** — `code-quality-auditor` (deep analysis), `consolidation-scout` (redundancy detection)
+- **3 Rules** — `general` (commits, testing, async I/O), `coding-style` (TypeScript strict, Biome), `api-conventions` (citty, clack, Zod)
+- **3 Commands** — `/build`, `/quality`, `/verify`
+
+All configurations are automatically transformed and placed for whichever AI tools you use (Claude Code, Cursor, Windsurf, etc.).
+
+---
+
 ## Common Contribution Tasks
 
 ### Adding a New AI Tool Adapter

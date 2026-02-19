@@ -19,6 +19,14 @@ baton source connect github:your-org/dx-configs --name my-team
 
 > **Don't have a source yet?** Create one with `baton source create my-configs`.
 > See [Creating Sources](./03-creating-sources.md) for details.
+>
+> **Want AI-assisted Baton usage?** Connect the official Baton source and sync the `consumer` profile:
+>
+> ```bash
+> baton init --profile github:baton-dx/baton-dx-source/consumer
+> ```
+>
+> This gives your AI tools full context about Baton's CLI, sync workflows, and project management.
 
 ## Step 3: Initialize Your Project
 

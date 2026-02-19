@@ -339,6 +339,8 @@ profiles/
     └── baton.profile.yaml
 ```
 
+> **Real-world example:** Baton's own [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) uses this pattern extensively. A `base` profile (weight 0) contains shared knowledge about Baton's 14 AI tools, merge strategies, and terminology. Three specialized profiles — `maintainer`, `creator`, and `consumer` — each extend `base` and add audience-specific skills, rules, agents, and memory files. This avoids duplicating ~120 lines of shared context across profiles.
+
 ---
 
 ## Weight
