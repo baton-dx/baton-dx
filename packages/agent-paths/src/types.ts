@@ -144,6 +144,8 @@ export interface AgentPathConfig {
   };
   /** Detection methods for checking if this agent is installed */
   detection: string[];
+  /** Structured detection configuration using OR-of-ANDs logic */
+  detectionConfig?: DetectionConfig;
   /** Legacy paths for backward compatibility (e.g., .cursorrules, .windsurfrules) */
   legacy: {
     /** Legacy rules paths */

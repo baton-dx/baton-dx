@@ -5,10 +5,14 @@
  * to their target directories in the project root.
  */
 
+import type { DetectionConfig } from "@baton-dx/agent-paths";
+
 export interface IdePlatformEntry {
   targetDir: string;
   /** Detection methods: CLI binary names or home-relative paths (~/... or .xxx) */
   detection: string[];
+  /** Structured detection configuration using OR-of-ANDs logic */
+  detectionConfig?: DetectionConfig;
 }
 
 /**
