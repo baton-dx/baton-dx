@@ -1,4 +1,6 @@
-import { rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ManifestValidationError } from "../errors.js";
 import {
@@ -20,24 +22,23 @@ import {
 } from "./global-config.js";
 
 describe("Global Config", () => {
-  const configPath = getGlobalConfigPath();
+  let originalBatonHome: string | undefined;
+  let tempDir: string;
 
   beforeEach(async () => {
-    // Cleanup: Remove config file before each test
-    try {
-      await rm(configPath, { force: true });
-    } catch {
-      // Ignore if file doesn't exist
-    }
+    originalBatonHome = process.env.BATON_HOME;
+    tempDir = await mkdtemp(join(tmpdir(), "baton-test-"));
+    process.env.BATON_HOME = tempDir;
   });
 
   afterEach(async () => {
-    // Cleanup: Remove config file after each test
-    try {
-      await rm(configPath, { force: true });
-    } catch {
-      // Ignore if file doesn't exist
+    if (originalBatonHome !== undefined) {
+      process.env.BATON_HOME = originalBatonHome;
+    } else {
+      // biome-ignore lint/performance/noDelete: required to properly unset env vars in Node.js
+      delete process.env.BATON_HOME;
     }
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   describe("loadGlobalConfig", () => {
@@ -70,14 +71,18 @@ describe("Global Config", () => {
 
     it("should throw on invalid YAML", async () => {
       // Write invalid YAML manually
-      await writeFile(configPath, "invalid: yaml: content: ::::", "utf-8");
+      await writeFile(getGlobalConfigPath(), "invalid: yaml: content: ::::", "utf-8");
 
       await expect(loadGlobalConfig()).rejects.toThrow(ManifestValidationError);
     });
 
     it("should throw on invalid schema", async () => {
       // Write valid YAML but invalid schema
-      await writeFile(configPath, "version: 1.0\nsources:\n  - invalid_key: value", "utf-8");
+      await writeFile(
+        getGlobalConfigPath(),
+        "version: 1.0\nsources:\n  - invalid_key: value",
+        "utf-8",
+      );
 
       await expect(loadGlobalConfig()).rejects.toThrow(ManifestValidationError);
     });

@@ -264,6 +264,7 @@ export {
   removeGlobalSource,
   getGlobalSources,
   getDefaultGlobalSource,
+  getBatonHome,
   getGlobalConfigPath,
   getGlobalAiTools,
   setGlobalAiTools,
