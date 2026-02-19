@@ -58,7 +58,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "This story depends on US-001 (removePlacedFiles must exist in core). The key change is replacing the try { unlink } catch block and the parent directory cleanup loop with a single removePlacedFiles(orphanedPaths, projectRoot) call. Must run bun run build before typecheck since CLI resolves core from dist/."
     },
     {

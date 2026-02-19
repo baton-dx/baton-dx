@@ -46,3 +46,18 @@ Started: Thu Feb 19 17:08:21 CET 2026
   - Five path-storage sites in sync.ts: skills (line 906, already relative), content accumulator (line 1039, now fixed), commands (line 1100, now fixed), files (line 1153, already relative), IDE (line 1209, already relative)
   - The `relative()` function from `node:path` was already imported in the original code but not used — the import line just needed `isAbsolute` added
 ---
+
+## 2026-02-19T17:17 - US-003
+- Refactored `cleanupOrphanedFiles()` in `packages/cli/src/commands/sync.ts` to use `removePlacedFiles()` from `@baton-dx/core`
+- Replaced inline `unlink()` + `rmdir()` + parent-directory-cleanup loop (old lines 270-296) with a single `removePlacedFiles(orphanedPaths, projectRoot)` call
+- Removed unused imports: `unlink` and `rmdir` from `node:fs/promises`
+- Added `removePlacedFiles` to the `@baton-dx/core` import block
+- Orphan detection logic (Set difference), user prompt flow, spinner, and count reporting all unchanged
+- Files changed:
+  - `packages/cli/src/commands/sync.ts` (modified — replaced inline deletion with shared function)
+  - `scripts/ralph/prd.json` (US-003 passes: true)
+- **Learnings for future iterations:**
+  - When removing inline code that used fs imports, always check if those imports are still needed elsewhere in the file before removing them — `readdir` and `stat` were still used, `unlink` and `rmdir` were not
+  - The refactored cleanup function went from 30 lines to 3 lines — the shared `removePlacedFiles()` handles path resolution, stat-based file/dir detection, ENOENT skipping, and empty parent cleanup
+  - Must run `bun run build` before `bun run typecheck` — the CLI resolves `@baton-dx/core` from its built `dist/` output
+---
