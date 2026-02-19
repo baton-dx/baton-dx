@@ -39,12 +39,12 @@ describe("AGENT_PATHS registry", () => {
         it("should have required metadata fields", () => {
           expect(agent.key).toBeTruthy();
           expect(agent.name).toBeTruthy();
-          expect(agent.detection).toBeDefined();
           expect(agent.legacy).toBeDefined();
         });
 
-        it("should have at least one detection method", () => {
-          expect(agent.detection.length).toBeGreaterThan(0);
+        it("should have detectionConfig with at least one group", () => {
+          expect(agent.detectionConfig).toBeDefined();
+          expect(agent.detectionConfig?.groups.length).toBeGreaterThan(0);
         });
 
         for (const configType of configTypes) {
@@ -269,40 +269,18 @@ describe("AGENT_PATHS registry", () => {
   });
 
   describe("Detection configuration", () => {
-    it("should have exactly 2 detection methods per agent", () => {
+    it("should have detectionConfig for all agents", () => {
       for (const agent of AGENT_PATHS) {
-        expect(agent.detection).toHaveLength(2);
+        expect(agent.detectionConfig).toBeDefined();
+        expect(agent.detectionConfig?.groups.length).toBeGreaterThan(0);
       }
     });
 
-    it("should include binary names in detection for most agents", () => {
-      const expectedBinaries = {
-        "claude-code": "claude",
-        cursor: "cursor",
-        windsurf: "windsurf",
-        antigravity: "antigravity",
-        codex: "codex",
-        "github-copilot": "gh",
-        opencode: "opencode",
-        amp: "amp",
-        kiro: "kiro",
-        zed: "zed",
-        cline: "cline",
-        roo: "roo",
-        junie: "junie",
-        trae: "trae",
-      };
-
-      for (const [key, binary] of Object.entries(expectedBinaries)) {
-        const agent = AGENT_PATHS.find((a) => a.key === key);
-        expect(agent?.detection[0]).toBe(binary);
-      }
-    });
-
-    it("should include home directory paths in detection", () => {
+    it("each detectionConfig group should have at least one check", () => {
       for (const agent of AGENT_PATHS) {
-        const secondDetection = agent.detection[1];
-        expect(secondDetection).toMatch(/^~/);
+        for (const group of agent.detectionConfig?.groups ?? []) {
+          expect(group.length).toBeGreaterThan(0);
+        }
       }
     });
   });
@@ -325,7 +303,6 @@ describe("AGENT_PATHS registry", () => {
         "memory",
         "settings",
         "commands",
-        "detection",
         "legacy",
       ];
       for (const agent of AGENT_PATHS) {

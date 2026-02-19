@@ -32,7 +32,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".claude/commands/{name}.md",
       global: "~/.claude/commands/{name}.md",
     },
-    detection: ["claude", "~/.claude/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "claude", versionPattern: /claude/i }],
+        [{ type: "directory", path: "~/.claude/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -62,7 +67,13 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".cursor/commands/{name}.md",
       global: "~/.cursor/commands/{name}.md",
     },
-    detection: ["cursor", "~/.cursor/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Cursor.app" }],
+        [{ type: "binary", name: "cursor" }],
+        [{ type: "directory", path: "~/.cursor/", markerFile: "extensions" }],
+      ],
+    },
     legacy: {
       rules: [".cursorrules"],
     },
@@ -94,7 +105,19 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".windsurf/workflows/{name}.md",
       global: "~/.codeium/windsurf/workflows/{name}.md",
     },
-    detection: ["windsurf", "~/.codeium/windsurf/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Windsurf.app" }],
+        [{ type: "binary", name: "windsurf" }],
+        [
+          {
+            type: "directory",
+            path: "~/.codeium/windsurf/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {
       rules: [".windsurfrules"],
     },
@@ -126,7 +149,20 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".agent/workflows/{name}.md",
       global: "~/.gemini/antigravity/workflows/{name}.md",
     },
-    detection: ["antigravity", "~/.gemini/antigravity/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Antigravity.app" }],
+        [{ type: "binary", name: "agy" }],
+        [{ type: "binary", name: "antigravity", platforms: ["linux"] }],
+        [
+          {
+            type: "directory",
+            path: "~/.gemini/antigravity/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -156,7 +192,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".codex/commands/{name}.md",
       global: "~/.codex/commands/{name}.md",
     },
-    detection: ["codex", "~/.codex/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "codex", versionPattern: /codex/i }],
+        [{ type: "directory", path: "~/.codex/", markerFile: "config.toml" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -186,7 +227,25 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".github/copilot/commands/{name}.md",
       global: "~/.github/copilot/commands/{name}.md",
     },
-    detection: ["gh", "~/.github/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "binary",
+            name: "copilot",
+            versionPattern: /copilot|github/i,
+          },
+        ],
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "GitHub.copilot",
+            editors: ["vscode", "cursor"],
+          },
+        ],
+        [{ type: "directory", path: "~/.github/copilot/" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -216,7 +275,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".opencode/commands/{name}.md",
       global: "~/.config/opencode/commands/{name}.md",
     },
-    detection: ["opencode", "~/.config/opencode/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "opencode", versionPattern: /opencode|sst/i }],
+        [
+          {
+            type: "directory",
+            path: "~/.config/opencode/",
+            markerFile: "config.yaml",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -246,7 +316,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".agents/commands/{name}.md",
       global: "~/.config/agents/commands/{name}.md",
     },
-    detection: ["amp", "~/.config/agents/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "binary", name: "amp", versionPattern: /amp|sourcegraph/i }],
+        [{ type: "directory", path: "~/.ampcache/" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -276,7 +351,13 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".kiro/commands/{name}.md",
       global: "~/.kiro/commands/{name}.md",
     },
-    detection: ["kiro", "~/.kiro/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Kiro.app" }],
+        [{ type: "binary", name: "kiro" }],
+        [{ type: "directory", path: "~/.kiro/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -306,7 +387,19 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".zed/commands/{name}.md",
       global: "~/.zed/commands/{name}.md",
     },
-    detection: ["zed", "~/.zed/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Zed.app" }],
+        [{ type: "binary", name: "zed" }],
+        [
+          {
+            type: "directory",
+            path: "~/.config/zed/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -336,7 +429,24 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".cline/commands/{name}.md",
       global: "~/.cline/commands/{name}.md",
     },
-    detection: ["cline", "~/.cline/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "saoudrizwan.claude-dev",
+            editors: ["vscode", "cursor", "windsurf"],
+          },
+        ],
+        [
+          {
+            type: "directory",
+            path: "~/.cline/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -366,7 +476,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".roo/commands/{name}.md",
       global: "~/.roo/commands/{name}.md",
     },
-    detection: ["roo", "~/.roo/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "RooVeterinaryInc.roo-cline",
+            editors: ["vscode", "cursor", "windsurf"],
+          },
+        ],
+        [{ type: "directory", path: "~/.roo/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -396,7 +517,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".junie/commands/{name}.md",
       global: "~/.junie/commands/{name}.md",
     },
-    detection: ["junie", "~/.junie/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "jetbrains-plugin", pluginId: "junie" }],
+        [
+          {
+            type: "directory",
+            path: "~/.junie/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -426,7 +558,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       project: ".trae/commands/{name}.md",
       global: "~/.trae/commands/{name}.md",
     },
-    detection: ["trae", "~/.trae/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Trae.app" }],
+        [{ type: "directory", path: "~/.trae/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
 ];

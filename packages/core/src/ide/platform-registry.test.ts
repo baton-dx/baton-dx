@@ -26,11 +26,10 @@ describe("platform-registry", () => {
       }
     });
 
-    it("each platform has detection methods", () => {
+    it("each platform has detectionConfig with at least one group", () => {
       for (const [_key, entry] of Object.entries(idePlatformRegistry)) {
-        expect(entry.detection).toBeDefined();
-        expect(Array.isArray(entry.detection)).toBe(true);
-        expect(entry.detection.length).toBeGreaterThan(0);
+        expect(entry.detectionConfig).toBeDefined();
+        expect(entry.detectionConfig.groups.length).toBeGreaterThan(0);
       }
     });
   });
