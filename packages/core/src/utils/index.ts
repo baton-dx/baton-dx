@@ -4,6 +4,7 @@ export { parseFrontmatter, type ParsedFrontmatter } from "./frontmatter.js";
 export {
   collectProfileSupportPatterns,
   collectSyncedPatterns,
+  ensureBatonDirGitignored,
   updateGitignore,
   type CollectProfileSupportPatternsOptions,
   type CollectSyncedPatternsOptions,

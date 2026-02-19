@@ -17,8 +17,6 @@ import {
   detectLegacyPaths,
   generateLock,
   getAdaptersForKeys,
-  getGlobalAiTools,
-  getGlobalIdePlatforms,
   getIdePlatformTargetDir,
   getProfileWeight,
   isKnownIdePlatform,
@@ -33,6 +31,7 @@ import {
   parseSource,
   placeFile,
   readLock,
+  resolvePreferences,
   resolveProfileChain,
   sortProfilesByWeight,
   updateGitignore,
@@ -42,6 +41,7 @@ import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
+import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
 
 type SyncCategory = "ai" | "files" | "ide";
@@ -375,6 +375,9 @@ export const syncCommand = defineCommand({
         process.exit(1);
       }
 
+      // Step 0a: First-run preferences check
+      await promptFirstRunPreferences(projectRoot, !!args.yes);
+
       // Step 0b: Read existing lockfile to detect orphaned files later
       const previousPaths = new Set<string>();
       try {
@@ -605,9 +608,17 @@ export const syncCommand = defineCommand({
       // Step 3: Determine which AI tools and IDE platforms to sync (intersection-based)
       spinner.start("Computing tool intersection...");
 
-      const globalAiTools = await getGlobalAiTools();
-      const globalIdePlatforms = await getGlobalIdePlatforms();
+      const prefs = await resolvePreferences(projectRoot);
       const detectedAgents = await detectInstalledAgents();
+
+      if (verbose) {
+        p.log.info(
+          `AI tools: ${prefs.ai.tools.join(", ") || "(none)"} (from ${prefs.ai.source} preferences)`,
+        );
+        p.log.info(
+          `IDE platforms: ${prefs.ide.platforms.join(", ") || "(none)"} (from ${prefs.ide.source} preferences)`,
+        );
+      }
 
       // Compute aggregated intersection across all profiles
       // A tool/platform is "synced" if the developer has it AND at least one profile supports it
@@ -615,8 +626,8 @@ export const syncCommand = defineCommand({
       let syncedIdePlatforms: string[] | null = null;
       let allIntersections: Map<string, import("@baton-dx/core").IntersectionResult> | null = null;
 
-      if (globalAiTools.length > 0) {
-        const developerTools = { aiTools: globalAiTools, idePlatforms: globalIdePlatforms };
+      if (prefs.ai.tools.length > 0) {
+        const developerTools = { aiTools: prefs.ai.tools, idePlatforms: prefs.ide.platforms };
         const aggregatedSyncedAi = new Set<string>();
         const aggregatedSyncedIde = new Set<string>();
         allIntersections = new Map();

@@ -2,11 +2,15 @@ import { access, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
+  getAllAdapters,
   getDefaultGlobalSource,
   getGlobalAiTools,
   getGlobalIdePlatforms,
   getGlobalSources,
+  getRegisteredIdePlatforms,
   loadProjectManifest,
+  readProjectPreferences,
+  writeProjectPreferences,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -258,6 +262,165 @@ async function handleRemoveBaton(cwd: string): Promise<boolean> {
   return true;
 }
 
+function formatIdeName(ideKey: string): string {
+  const names: Record<string, string> = {
+    vscode: "VS Code",
+    jetbrains: "JetBrains",
+    cursor: "Cursor",
+    windsurf: "Windsurf",
+    antigravity: "Antigravity",
+    zed: "Zed",
+  };
+  return names[ideKey] ?? ideKey;
+}
+
+async function handleConfigureAiTools(cwd: string): Promise<void> {
+  const existing = await readProjectPreferences(cwd);
+  const globalTools = await getGlobalAiTools();
+
+  if (globalTools.length > 0) {
+    p.log.info(`Global AI tools: ${globalTools.join(", ")}`);
+  }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve AI tools?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global AI tools setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific tools for this project",
+      },
+    ],
+    initialValue: existing?.ai.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(cwd, {
+      version: "1.0",
+      ai: { useGlobal: true, tools: [] },
+      ide: existing?.ide ?? { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global AI tools.");
+    return;
+  }
+
+  // Customize: show multiselect
+  const allAdapters = getAllAdapters();
+  const currentProjectTools = existing?.ai.useGlobal === false ? existing.ai.tools : globalTools;
+
+  const options = allAdapters.map((adapter) => ({
+    value: adapter.key,
+    label: globalTools.includes(adapter.key) ? `${adapter.name} (in global config)` : adapter.name,
+  }));
+
+  const selected = await p.multiselect({
+    message: "Select AI tools for this project:",
+    options,
+    initialValues: currentProjectTools,
+  });
+
+  if (p.isCancel(selected)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  const selectedKeys = selected as string[];
+
+  await writeProjectPreferences(cwd, {
+    version: "1.0",
+    ai: { useGlobal: false, tools: selectedKeys },
+    ide: existing?.ide ?? { useGlobal: true, platforms: [] },
+  });
+
+  p.log.success(`Project configured with ${selectedKeys.length} AI tool(s).`);
+}
+
+async function handleConfigureIdes(cwd: string): Promise<void> {
+  const existing = await readProjectPreferences(cwd);
+  const globalPlatforms = await getGlobalIdePlatforms();
+
+  if (globalPlatforms.length > 0) {
+    p.log.info(`Global IDE platforms: ${globalPlatforms.join(", ")}`);
+  }
+
+  // Ask useGlobal first
+  const mode = await p.select({
+    message: "How should this project resolve IDE platforms?",
+    options: [
+      {
+        value: "global",
+        label: "Use global config",
+        hint: "always follows your global IDE platforms setting",
+      },
+      {
+        value: "project",
+        label: "Customize for this project",
+        hint: "choose specific IDEs for this project",
+      },
+    ],
+    initialValue: existing?.ide.useGlobal === false ? "project" : "global",
+  });
+
+  if (p.isCancel(mode)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  if (mode === "global") {
+    await writeProjectPreferences(cwd, {
+      version: "1.0",
+      ai: existing?.ai ?? { useGlobal: true, tools: [] },
+      ide: { useGlobal: true, platforms: [] },
+    });
+    p.log.success("Project configured to use global IDE platforms.");
+    return;
+  }
+
+  // Customize: show multiselect
+  const allIdeKeys = getRegisteredIdePlatforms();
+  const currentProjectPlatforms =
+    existing?.ide.useGlobal === false ? existing.ide.platforms : globalPlatforms;
+
+  const options = allIdeKeys.map((ideKey) => ({
+    value: ideKey,
+    label: globalPlatforms.includes(ideKey)
+      ? `${formatIdeName(ideKey)} (in global config)`
+      : formatIdeName(ideKey),
+  }));
+
+  const selected = await p.multiselect({
+    message: "Select IDE platforms for this project:",
+    options,
+    initialValues: currentProjectPlatforms,
+  });
+
+  if (p.isCancel(selected)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  const selectedKeys = selected as string[];
+
+  await writeProjectPreferences(cwd, {
+    version: "1.0",
+    ai: existing?.ai ?? { useGlobal: true, tools: [] },
+    ide: { useGlobal: false, platforms: selectedKeys },
+  });
+
+  p.log.success(`Project configured with ${selectedKeys.length} IDE platform(s).`);
+}
+
 export const manageCommand = defineCommand({
   meta: {
     name: "manage",
@@ -284,6 +447,16 @@ export const manageCommand = defineCommand({
           { value: "overview", label: "Overview", hint: "Show project configuration" },
           { value: "add-profile", label: "Add profile", hint: "Add a profile from a source" },
           { value: "remove-profile", label: "Remove profile", hint: "Remove an installed profile" },
+          {
+            value: "configure-ai",
+            label: "Configure AI tools for this project",
+            hint: "Choose which AI tools to sync",
+          },
+          {
+            value: "configure-ides",
+            label: "Configure IDEs for this project",
+            hint: "Choose which IDEs to sync",
+          },
           { value: "remove-baton", label: "Remove Baton", hint: "Remove Baton from this project" },
           { value: "quit", label: "Quit" },
         ],
@@ -305,6 +478,14 @@ export const manageCommand = defineCommand({
       } else if (action === "remove-profile") {
         console.log("");
         await handleRemoveProfile(cwd);
+        console.log("");
+      } else if (action === "configure-ai") {
+        console.log("");
+        await handleConfigureAiTools(cwd);
+        console.log("");
+      } else if (action === "configure-ides") {
+        console.log("");
+        await handleConfigureIdes(cwd);
         console.log("");
       } else if (action === "remove-baton") {
         console.log("");

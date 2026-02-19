@@ -1,7 +1,7 @@
-import { getAgentConfig, getAllAgentKeys } from "@baton-dx/agent-paths";
 import {
   clearAgentCache,
   detectInstalledAgents,
+  getAllAdapters,
   getGlobalAiTools,
   setGlobalAiTools,
 } from "@baton-dx/core";
@@ -30,77 +30,67 @@ export const aiToolsScanCommand = defineCommand({
     clearAgentCache();
 
     const detectedAgents = await detectInstalledAgents();
-    const allAgentKeys = getAllAgentKeys();
+    const allAdapters = getAllAdapters();
     const currentTools = await getGlobalAiTools();
 
     spinner.stop("Scan complete.");
 
-    // Categorize agents
-    const installed: { key: string; name: string }[] = [];
-    const notInstalled: { key: string; name: string }[] = [];
-
-    for (const agentKey of allAgentKeys) {
-      const config = getAgentConfig(agentKey);
-      const entry = { key: agentKey, name: config.name };
-
-      if (detectedAgents.includes(agentKey)) {
-        installed.push(entry);
-      } else {
-        notInstalled.push(entry);
-      }
-    }
-
-    // Display results
-    if (installed.length > 0) {
-      p.log.success(`Found ${installed.length} AI tool${installed.length !== 1 ? "s" : ""}:`);
-      for (const agent of installed) {
-        const alreadySaved = currentTools.includes(agent.key);
-        const badge = alreadySaved ? " (saved)" : " (new)";
-        console.log(`  \x1b[32m✓\x1b[0m ${agent.name}${badge}`);
-      }
+    if (detectedAgents.length > 0) {
+      p.log.success(
+        `Found ${detectedAgents.length} AI tool${detectedAgents.length !== 1 ? "s" : ""} on your system.`,
+      );
     } else {
       p.log.warn("No AI tools detected on your system.");
+    }
+
+    // --yes flag: save only detected tools (preserves current behavior)
+    if (args.yes) {
+      const detectedKeys = detectedAgents;
+      const hasChanges =
+        detectedKeys.length !== currentTools.length ||
+        detectedKeys.some((key) => !currentTools.includes(key));
+
+      if (hasChanges) {
+        await setGlobalAiTools(detectedKeys);
+        p.log.success(`Saved ${detectedKeys.length} detected tool(s) to global config.`);
+      } else {
+        p.log.info("Global config is already up to date.");
+      }
+
       p.outro("Scan finished.");
       return;
     }
 
-    if (notInstalled.length > 0) {
-      console.log("");
-      p.log.info(`Not detected (${notInstalled.length}):`);
-      for (const agent of notInstalled) {
-        console.log(`  \x1b[90m✗ ${agent.name}\x1b[0m`);
-      }
+    // Interactive: show multiselect with all 14 tools
+    const options = allAdapters.map((adapter) => {
+      const isDetected = detectedAgents.includes(adapter.key);
+      return {
+        value: adapter.key,
+        label: isDetected ? `${adapter.name} (detected)` : adapter.name,
+      };
+    });
+
+    const selected = await p.multiselect({
+      message: "Select which AI tools to save:",
+      options,
+      initialValues: detectedAgents,
+    });
+
+    if (p.isCancel(selected)) {
+      p.outro("Scan finished (not saved).");
+      return;
     }
 
-    // Save detected tools to global config
-    const detectedKeys = installed.map((a) => a.key);
+    const selectedKeys = selected as string[];
+
     const hasChanges =
-      detectedKeys.length !== currentTools.length ||
-      detectedKeys.some((key) => !currentTools.includes(key));
+      selectedKeys.length !== currentTools.length ||
+      selectedKeys.some((key) => !currentTools.includes(key));
 
     if (hasChanges) {
-      console.log("");
-      let shouldSave = args.yes;
-
-      if (!shouldSave) {
-        const confirm = await p.confirm({
-          message: "Save detected tools to global config (~/.baton/config.yaml)?",
-        });
-
-        if (p.isCancel(confirm)) {
-          p.outro("Scan finished (not saved).");
-          return;
-        }
-
-        shouldSave = confirm;
-      }
-
-      if (shouldSave) {
-        await setGlobalAiTools(detectedKeys);
-        p.log.success("Tools saved to global config.");
-      }
+      await setGlobalAiTools(selectedKeys);
+      p.log.success(`Saved ${selectedKeys.length} tool(s) to global config.`);
     } else {
-      console.log("");
       p.log.info("Global config is already up to date.");
     }
 

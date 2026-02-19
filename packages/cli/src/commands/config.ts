@@ -8,6 +8,7 @@ import {
   getGlobalIdePlatforms,
   getGlobalSources,
   loadProjectManifest,
+  resolvePreferences,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -68,21 +69,51 @@ async function showDashboard(): Promise<void> {
   // --- Developer Tools ---
   console.log("");
   p.log.step("Developer Tools");
-  if (aiTools.length === 0 && idePlatforms.length === 0) {
-    p.log.info("  No tools configured. Run: baton ai-tools scan && baton ides scan");
-  } else {
-    if (aiTools.length > 0) {
-      const toolNames = aiTools.map((key) => {
-        try {
-          return getAgentConfig(key).name;
-        } catch {
-          return key;
-        }
-      });
-      p.log.info(`  AI Tools: ${toolNames.join(", ")}`);
+
+  // Use resolved preferences if in a project directory, otherwise show global config
+  if (projectManifest) {
+    const prefs = await resolvePreferences(process.cwd());
+    const resolvedAiTools = prefs.ai.tools;
+    const resolvedIdePlatforms = prefs.ide.platforms;
+
+    if (resolvedAiTools.length === 0 && resolvedIdePlatforms.length === 0) {
+      p.log.info("  No tools configured. Run: baton ai-tools scan && baton ides scan");
+    } else {
+      if (resolvedAiTools.length > 0) {
+        const toolNames = resolvedAiTools.map((key) => {
+          try {
+            return getAgentConfig(key).name;
+          } catch {
+            return key;
+          }
+        });
+        const aiSourceLabel =
+          prefs.ai.source === "project" ? "project preferences" : "global config";
+        p.log.info(`  AI Tools: ${toolNames.join(", ")} (from ${aiSourceLabel})`);
+      }
+      if (resolvedIdePlatforms.length > 0) {
+        const ideSourceLabel =
+          prefs.ide.source === "project" ? "project preferences" : "global config";
+        p.log.info(`  IDE Platforms: ${resolvedIdePlatforms.join(", ")} (from ${ideSourceLabel})`);
+      }
     }
-    if (idePlatforms.length > 0) {
-      p.log.info(`  IDE Platforms: ${idePlatforms.join(", ")}`);
+  } else {
+    if (aiTools.length === 0 && idePlatforms.length === 0) {
+      p.log.info("  No tools configured. Run: baton ai-tools scan && baton ides scan");
+    } else {
+      if (aiTools.length > 0) {
+        const toolNames = aiTools.map((key) => {
+          try {
+            return getAgentConfig(key).name;
+          } catch {
+            return key;
+          }
+        });
+        p.log.info(`  AI Tools: ${toolNames.join(", ")} (from global config)`);
+      }
+      if (idePlatforms.length > 0) {
+        p.log.info(`  IDE Platforms: ${idePlatforms.join(", ")} (from global config)`);
+      }
     }
   }
 

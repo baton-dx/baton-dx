@@ -297,3 +297,15 @@ export {
   type DimensionIntersection,
   type IntersectionResult,
 } from "./intersection/compute.js";
+
+// Export project preferences
+export {
+  projectPreferencesSchema,
+  type ProjectPreferences,
+  getPreferencesPath,
+  readProjectPreferences,
+  writeProjectPreferences,
+  deleteProjectPreferences,
+  resolvePreferences,
+  type ResolvedPreferences,
+} from "./preferences/index.js";

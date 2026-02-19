@@ -23,6 +23,7 @@ import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { stringify } from "yaml";
 import { findSourceRoot } from "../utils/context-detection.js";
+import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection } from "../utils/intersection-display.js";
 import { selectMultipleProfilesFromSource } from "../utils/profile-selection.js";
 import { runBatonSync } from "../utils/run-baton-sync.js";
@@ -177,7 +178,10 @@ export const initCommand = defineCommand({
       spinner.stop("✅ .baton directory already exists");
     }
 
-    // 8. Offer to sync profiles
+    // 8. First-run preferences prompt
+    await promptFirstRunPreferences(cwd, !isInteractive);
+
+    // 9. Offer to sync profiles
     if (profileSources.length > 0) {
       const shouldSync = isInteractive
         ? await p.confirm({
@@ -193,7 +197,7 @@ export const initCommand = defineCommand({
       }
     }
 
-    // 9. Summary
+    // 10. Summary
     p.outro("Baton initialized successfully!");
   },
 });
