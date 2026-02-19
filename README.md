@@ -44,6 +44,16 @@ baton sync
 | GitHub Copilot | `github-copilot` | Roo | `roo` |
 | Junie | `junie` | Trae | `trae` |
 
+## Official Source Repository
+
+Baton's own configurations are published as [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) — a real-world example of sources and profiles in action:
+
+| Profile | Command | Audience |
+| ------- | ------- | -------- |
+| **maintainer** | `baton init --profile github:baton-dx/baton-dx-source/maintainer` | Contributors to this repo |
+| **creator** | `baton init --profile github:baton-dx/baton-dx-source/creator` | Developers building their own sources and profiles |
+| **consumer** | `baton init --profile github:baton-dx/baton-dx-source/consumer` | Developers using Baton in their projects |
+
 ## Documentation
 
 - [Installation](docs/01-installation.md) — Prerequisites and install methods

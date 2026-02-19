@@ -287,6 +287,42 @@ source: github:my-org/dx-configs@v1.2.0/frontend
 
 ---
 
+## Real-World Example: `baton-dx-source`
+
+Baton's own official source repository [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) is a complete, production-grade example of everything described in this guide. It demonstrates:
+
+- **Multi-audience profiles** — three specialized profiles (`maintainer`, `creator`, `consumer`) plus a shared `base` profile
+- **Profile inheritance** — all three profiles extend `base` via `extends: ["../base"]` to share common Baton knowledge without duplication
+- **Weight-based layering** — `base` at weight 0, child profiles at weight 10
+- **Full AI configuration** — skills, rules, agents, memory, and commands targeting all 14 AI tools
+- **Conventional directory layout** — `profiles/<name>/ai/{skills,rules,agents,memory,commands}/`
+
+```yaml
+# baton.source.yaml (simplified)
+name: baton-dx-source
+version: 0.1.0
+profiles:
+  - name: base
+    path: profiles/base
+  - name: maintainer
+    path: profiles/maintainer
+  - name: creator
+    path: profiles/creator
+  - name: consumer
+    path: profiles/consumer
+```
+
+The `creator` profile is specifically designed for developers building their own sources and profiles. To get AI-assisted guidance while creating your own source:
+
+```bash
+baton init --profile github:baton-dx/baton-dx-source/creator
+baton sync
+```
+
+This gives your AI tools context about profile schemas, merge strategies, tool transformations, and publishing workflows.
+
+---
+
 ## Next Steps
 
 - [Creating Profiles](./04-creating-profiles.md) -- learn how to define profile manifests and configure AI tools.

@@ -286,6 +286,27 @@ Overrides are applied after all profiles have been merged, giving the project th
 
 ---
 
+## Official Baton Profiles
+
+Baton provides official profiles via [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) to help you get started:
+
+| Profile | Audience | What you get |
+| ------- | -------- | ------------ |
+| `consumer` | Project developers | CLI reference, sync workflows, troubleshooting skills, project conventions |
+| `creator` | Source/profile authors | Profile schemas, merge strategies, tool transformations, publishing guides |
+| `maintainer` | Baton contributors | Monorepo architecture, adapter development, code quality, release workflows |
+
+To add Baton's consumer profile to your project for AI-assisted guidance on using Baton:
+
+```bash
+baton init --profile github:baton-dx/baton-dx-source/consumer
+baton sync
+```
+
+This gives your AI tools full context about `baton init`, `baton sync`, `baton update`, `baton diff`, and other CLI commands — so they can help you manage your Baton configuration effectively.
+
+---
+
 ## Next Steps
 
 - [Creating Sources](./03-creating-sources.md) -- learn how to build and publish your own source repositories.
