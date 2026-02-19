@@ -28,6 +28,7 @@
 - `isAgentInstalled()` in `agent-detection.ts` only uses `evaluateDetection(detectionConfig)` — no legacy fallback
 - `IdePlatformEntry` no longer has `detection: string[]` — `detectionConfig` is now required (non-optional)
 - `isIdeInstalled()` in `ide/detection.ts` only uses `evaluateDetection(detectionConfig)` — no legacy fallback, mirrors agent-detection.ts pattern
+- For regression tests against real registry configs, import `AGENT_PATHS` from `@baton-dx/agent-paths` and use `mockImplementation` (argument-based dispatch) instead of `mockImplementationOnce` (order-dependent)
 
 # Ralph Progress Log
 Started: Thu Feb 19 09:05:55 CET 2026
@@ -258,4 +259,22 @@ Started: Thu Feb 19 09:05:55 CET 2026
   - When a refactoring story's work is already done by prior stories, still verify thoroughly and document the verification
   - The prior `commandExists()` implementations differed: agent-detection.ts used `node:child_process` directly, while ide/detection.ts used `execa` (dynamic import) — the new `mechanisms.ts` standardized on `node:child_process`
   - Both detection files now follow the exact same pattern: cache + isInstalled (calls evaluateDetection) + detectAll + clearCache + setOverride
+---
+
+## 2026-02-19 - US-017
+- Added 6 false positive regression tests to `packages/core/src/detection/mechanisms.test.ts`
+- Tests import actual `AGENT_PATHS` registry configs and use `evaluateDetection()` with mocked I/O to exercise the full detection pipeline
+- GitHub Copilot: verifies `gh` CLI presence alone doesn't trigger detection (config checks `copilot` binary, not `gh`)
+- OpenCode: verifies Litestar's `opencode` binary with non-matching version output doesn't trigger detection (versionPattern `/opencode|sst/i` rejects "litestar framework v2.0")
+- Cline: verifies leftover `~/.cline/` directory without `settings.json` marker doesn't trigger detection
+- Windsurf: verifies leftover `~/.codeium/windsurf/` without `settings.json` marker doesn't trigger detection
+- Codex: verifies leftover `~/.codex/` without `config.toml` marker doesn't trigger detection
+- Trae: verifies leftover `~/.trae/` without `settings.json` marker doesn't trigger detection
+- Test count: 1033 → 1039 (+6 regression tests)
+- Files changed: `packages/core/src/detection/mechanisms.test.ts`
+- **Learnings for future iterations:**
+  - Regression tests should use actual registry configs (imported from `AGENT_PATHS`) rather than reconstructed configs — this catches if someone changes the config and breaks the false positive protection
+  - Use argument-based mock dispatch (`mockImplementation` with path matching) instead of sequential `mockImplementationOnce` when testing `evaluateDetection` with real configs — groups run in parallel via `Promise.all` so call order is deterministic but fragile to reason about
+  - For "leftover directory" tests, the mock pattern is: `mockAccess` resolves for the exact directory path but rejects for everything else (including the marker file path) — simple and readable
+  - The Litestar collision test relies on the version output "litestar framework v2.0" NOT containing "opencode" or "sst" — the regex `/opencode|sst/i` correctly rejects this foreign tool's output
 ---

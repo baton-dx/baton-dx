@@ -16,6 +16,7 @@ vi.mock("node:os", () => ({
 
 import { execFile } from "node:child_process";
 import { access, readdir } from "node:fs/promises";
+import { AGENT_PATHS } from "@baton-dx/agent-paths";
 import * as mechanisms from "./mechanisms.js";
 
 const {
@@ -655,5 +656,125 @@ describe("evaluateDetection", () => {
       type: "jetbrains-plugin",
       pluginId: "junie",
     });
+  });
+});
+
+describe("false positive regression tests", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(process, "platform", { value: "darwin" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+  });
+
+  function getDetectionConfig(key: string) {
+    const entry = AGENT_PATHS.find((a) => a.key === key);
+    if (!entry?.detectionConfig) {
+      throw new Error(`No detectionConfig for agent: ${key}`);
+    }
+    return entry.detectionConfig;
+  }
+
+  it("GitHub Copilot NOT detected when only gh CLI is installed", async () => {
+    // Config checks 'copilot' binary, NOT 'gh' — gh being installed is irrelevant
+    mockExecFile.mockImplementation(
+      (_cmd: string, _args: string[], _opts: object, cb: ExecCallback) => {
+        cb(new Error("not found"), "", "");
+        return {};
+      },
+    );
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+    mockAccess.mockRejectedValue(new Error("ENOENT"));
+
+    const result = await evaluateDetection(getDetectionConfig("github-copilot"));
+    expect(result).toBe(false);
+  });
+
+  it("OpenCode NOT detected when Litestar's opencode binary is installed", async () => {
+    // Binary exists but version output is from Litestar, not SST/OpenCode
+    mockExecFile.mockImplementation(
+      (cmd: string, args: string[], _opts: object, cb: ExecCallback) => {
+        if (cmd === "which" && args[0] === "opencode") {
+          cb(null, "/usr/bin/opencode", "");
+        } else if (cmd === "opencode") {
+          // Litestar output — does NOT match /opencode|sst/i
+          cb(null, "litestar framework v2.0", "");
+        } else {
+          cb(new Error("not found"), "", "");
+        }
+        return {};
+      },
+    );
+    mockAccess.mockRejectedValue(new Error("ENOENT"));
+
+    const result = await evaluateDetection(getDetectionConfig("opencode"));
+    expect(result).toBe(false);
+  });
+
+  it("Cline NOT detected from empty leftover ~/.cline/ directory", async () => {
+    // No VS Code extension installed, directory exists but settings.json missing
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+    mockAccess.mockImplementation((filePath: string) => {
+      if (filePath === "/home/testuser/.cline") {
+        return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error("ENOENT"));
+    });
+
+    const result = await evaluateDetection(getDetectionConfig("cline"));
+    expect(result).toBe(false);
+  });
+
+  it("Windsurf NOT detected from leftover ~/.codeium/windsurf/ without settings.json", async () => {
+    // No app bundle, no binary, directory exists but settings.json missing
+    mockExecFile.mockImplementation(
+      (_cmd: string, _args: string[], _opts: object, cb: ExecCallback) => {
+        cb(new Error("not found"), "", "");
+        return {};
+      },
+    );
+    mockAccess.mockImplementation((filePath: string) => {
+      if (filePath === "/home/testuser/.codeium/windsurf") {
+        return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error("ENOENT"));
+    });
+
+    const result = await evaluateDetection(getDetectionConfig("windsurf"));
+    expect(result).toBe(false);
+  });
+
+  it("Codex NOT detected from leftover ~/.codex/ without config.toml", async () => {
+    // No binary, directory exists but config.toml missing
+    mockExecFile.mockImplementation(
+      (_cmd: string, _args: string[], _opts: object, cb: ExecCallback) => {
+        cb(new Error("not found"), "", "");
+        return {};
+      },
+    );
+    mockAccess.mockImplementation((filePath: string) => {
+      if (filePath === "/home/testuser/.codex") {
+        return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error("ENOENT"));
+    });
+
+    const result = await evaluateDetection(getDetectionConfig("codex"));
+    expect(result).toBe(false);
+  });
+
+  it("Trae NOT detected from leftover ~/.trae/ without settings.json", async () => {
+    // No app bundle, directory exists but settings.json missing
+    mockAccess.mockImplementation((filePath: string) => {
+      if (filePath === "/home/testuser/.trae") {
+        return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error("ENOENT"));
+    });
+
+    const result = await evaluateDetection(getDetectionConfig("trae"));
+    expect(result).toBe(false);
   });
 });
