@@ -29,6 +29,7 @@ scripts/ralph/.last-branch
 
 # Tasks (Ralph PRDs)
 /tasks/
+/docs/plans
 
 # Claude Code generated output
 .claude/reports/
