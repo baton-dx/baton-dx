@@ -15,6 +15,16 @@ const execFileAsync = promisify(execFile);
 const NPM_PACKAGE_NAME_REGEX =
   /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*(@[^@\s;|&]+)?$/;
 
+/**
+ * Validates an npm package name against the safety regex.
+ * Throws if the name contains invalid characters or shell metacharacters.
+ */
+export function validateNpmPackageName(name: string): void {
+  if (!NPM_PACKAGE_NAME_REGEX.test(name)) {
+    throw new Error(`Invalid npm package name: "${name}"`);
+  }
+}
+
 export interface NpmResolverOptions {
   /**
    * Parsed NPM source (provider: "npm")
@@ -65,9 +75,7 @@ export async function resolveNpmSource(options: NpmResolverOptions): Promise<Res
   const { source, basePath = process.cwd() } = options;
 
   // Validate package name to prevent command injection
-  if (!NPM_PACKAGE_NAME_REGEX.test(source.package)) {
-    throw new Error(`Invalid npm package name: "${source.package}"`);
-  }
+  validateNpmPackageName(source.package);
 
   // Detect package manager from lockfile
   const packageManager = await detectPackageManager(basePath);
