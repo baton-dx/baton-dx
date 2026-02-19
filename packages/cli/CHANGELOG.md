@@ -1,5 +1,16 @@
 # @baton-dx/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- [#23](https://github.com/baton-dx/baton-dx/pull/23) [`971b842`](https://github.com/baton-dx/baton-dx/commit/971b8429001c86d924c30ddac245dcc7e9196854) Thanks [@mantaray0](https://github.com/mantaray0)! - Extract reusable placed-file cleanup to core
+
+  - Add `removePlacedFiles()` to `@baton-dx/core` for cleaning up lockfile-tracked placed files
+  - Refactor `baton sync` cleanup to use the shared function
+  - Wire placed-file cleanup into the "Remove Baton" flow in `baton manage`
+  - Normalize lockfile paths to relative, fixing an EISDIR bug when removing directories
+
 ## 0.3.0
 
 ### Minor Changes
