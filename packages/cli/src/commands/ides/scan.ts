@@ -36,71 +36,61 @@ export const idesScanCommand = defineCommand({
 
     spinner.stop("Scan complete.");
 
-    // Categorize IDEs
-    const installed: { key: string; name: string }[] = [];
-    const notInstalled: { key: string; name: string }[] = [];
-
-    for (const ideKey of allIdeKeys) {
-      const entry = { key: ideKey, name: formatIdeName(ideKey) };
-
-      if (detectedIdes.includes(ideKey)) {
-        installed.push(entry);
-      } else {
-        notInstalled.push(entry);
-      }
-    }
-
-    // Display results
-    if (installed.length > 0) {
-      p.log.success(`Found ${installed.length} IDE platform${installed.length !== 1 ? "s" : ""}:`);
-      for (const ide of installed) {
-        const alreadySaved = currentPlatforms.includes(ide.key);
-        const badge = alreadySaved ? " (saved)" : " (new)";
-        console.log(`  \x1b[32m✓\x1b[0m ${ide.name}${badge}`);
-      }
+    if (detectedIdes.length > 0) {
+      p.log.success(
+        `Found ${detectedIdes.length} IDE platform${detectedIdes.length !== 1 ? "s" : ""} on your system.`,
+      );
     } else {
       p.log.warn("No IDE platforms detected on your system.");
+    }
+
+    // --yes flag: save only detected platforms (preserves current behavior)
+    if (args.yes) {
+      const hasChanges =
+        detectedIdes.length !== currentPlatforms.length ||
+        detectedIdes.some((key) => !currentPlatforms.includes(key));
+
+      if (hasChanges) {
+        await setGlobalIdePlatforms(detectedIdes);
+        p.log.success(`Saved ${detectedIdes.length} detected platform(s) to global config.`);
+      } else {
+        p.log.info("Global config is already up to date.");
+      }
+
       p.outro("Scan finished.");
       return;
     }
 
-    if (notInstalled.length > 0) {
-      console.log("");
-      p.log.info(`Not detected (${notInstalled.length}):`);
-      for (const ide of notInstalled) {
-        console.log(`  \x1b[90m✗ ${ide.name}\x1b[0m`);
-      }
+    // Interactive: show multiselect with all 6 IDE platforms
+    const options = allIdeKeys.map((ideKey) => {
+      const isDetected = detectedIdes.includes(ideKey);
+      return {
+        value: ideKey,
+        label: isDetected ? `${formatIdeName(ideKey)} (detected)` : formatIdeName(ideKey),
+      };
+    });
+
+    const selected = await p.multiselect({
+      message: "Select which IDE platforms to save:",
+      options,
+      initialValues: detectedIdes,
+    });
+
+    if (p.isCancel(selected)) {
+      p.outro("Scan finished (not saved).");
+      return;
     }
 
-    // Save detected platforms to global config
-    const detectedKeys = installed.map((i) => i.key);
+    const selectedKeys = selected as string[];
+
     const hasChanges =
-      detectedKeys.length !== currentPlatforms.length ||
-      detectedKeys.some((key) => !currentPlatforms.includes(key));
+      selectedKeys.length !== currentPlatforms.length ||
+      selectedKeys.some((key) => !currentPlatforms.includes(key));
 
     if (hasChanges) {
-      console.log("");
-      let shouldSave = args.yes;
-
-      if (!shouldSave) {
-        const confirm = await p.confirm({
-          message: "Save detected platforms to global config (~/.baton/config.yaml)?",
-        });
-
-        if (p.isCancel(confirm)) {
-          p.outro("Scan finished (not saved).");
-          return;
-        }
-
-        shouldSave = confirm;
-      }
-
-      if (shouldSave) {
-        await setGlobalIdePlatforms(detectedKeys);
-        p.log.success("Platforms saved to global config.");
-      }
+      await setGlobalIdePlatforms(selectedKeys);
+      p.log.success(`Saved ${selectedKeys.length} platform(s) to global config.`);
     } else {
-      console.log("");
       p.log.info("Global config is already up to date.");
     }
 
