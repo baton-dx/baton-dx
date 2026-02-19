@@ -1,113 +1,83 @@
-## Codebase Patterns
-- Zod schemas go in dedicated files, types derived via `z.infer<typeof schema>`
-- Tests co-located: `foo.ts` → `foo.test.ts` in same directory
-- Use `safeParse()` in tests to check both success and failure cases
-- Biome formatting: short imports fit on one line, don't break across multiple lines
-- Schema pattern: define schema → export type → use `.default()` for optional fields with defaults
-- YAML I/O pattern: see `loadGlobalConfig` / `saveGlobalConfig` in `core/src/config/global-config.ts`
-- Global config has `ai.tools` and `ide.platforms` arrays — project preferences mirror this structure with added `useGlobal` boolean
-- CRITICAL: Run `bun run build` before `bun run typecheck` when adding new core exports — CLI resolves core from `dist/` not source
-- Biome enforces alphabetical import sorting — insert new imports in correct alphabetical position
-- Two gitignore mechanisms: `init` adds `.baton/` with `# Baton cache`; `sync` uses `updateGitignore()` with `# Baton managed` section. Don't mix them.
-
 # Ralph Progress Log
-Started: Thu Feb 19 11:39:06 CET 2026
+Started: Thu Feb 19 17:08:21 CET 2026
+
+## Codebase Patterns
+- Lockfile module lives in `packages/core/src/lockfile/` — no barrel file existed before; created `index.ts` to re-export from `manager.ts` and `cleanup.ts`
+- Core public API is at `packages/core/src/index.ts` — all new exports from core must be added here
+- Tests use real temp directories (`mkdtemp`) with `beforeEach`/`afterEach` cleanup — no fs mocking
+- Biome enforces single-line formatting for short function signatures and ternaries — don't multi-line them
+- Import `.js` extensions required in all source files (ESM convention)
+- `placeFile()` returns absolute paths — always normalize with `relative(projectRoot, result.path)` before storing as lockfile keys
+- Must run `bun run build` before `bun run typecheck` — CLI resolves `@baton-dx/core` from built `dist/`, not source
+- `readLock()` throws `FileNotFoundError` for missing files — use try/catch to distinguish from parse errors
+- Use `removePlacedFiles()` from core for all file/directory deletion with cleanup — handles stat, ENOENT, and parent-dir cleanup
+
 ---
 
-## 2026-02-19 11:40 - US-001
-- Implemented `projectPreferencesSchema` in `packages/core/src/preferences/preferences-schema.ts`
-- Schema validates: `version: '1.0'` (literal), `ai: { useGlobal, tools[] }`, `ide: { useGlobal, platforms[] }`
-- `tools` and `platforms` default to `[]`; `ai` and `ide` sections default to `{ useGlobal: true, tools/platforms: [] }`
-- Invalid version values rejected (uses `z.literal("1.0")`)
-- Exported `ProjectPreferences` type via `z.infer<typeof projectPreferencesSchema>`
-- Created 11 unit tests covering valid, default, and invalid cases
-- Files changed: `preferences-schema.ts`, `preferences-schema.test.ts`
+## 2026-02-19T17:10 - US-001
+- Implemented `removePlacedFiles(filePaths, projectRoot)` in `packages/core/src/lockfile/cleanup.ts`
+- Uses `stat()` to distinguish files from directories, fixing the EISDIR bug where `unlink()` fails on directories
+- After each removal, walks up parent directories and removes empty ones up to (not including) projectRoot
+- ENOENT errors silently skipped for already-deleted paths
+- Created barrel file `packages/core/src/lockfile/index.ts` re-exporting from `manager.ts` and `cleanup.ts`
+- Added `removePlacedFiles` export to `packages/core/src/index.ts`
+- Files changed:
+  - `packages/core/src/lockfile/cleanup.ts` (new)
+  - `packages/core/src/lockfile/cleanup.test.ts` (new — 10 tests)
+  - `packages/core/src/lockfile/index.ts` (new — barrel)
+  - `packages/core/src/index.ts` (added export)
+  - `scripts/ralph/prd.json` (US-001 passes: true)
 - **Learnings for future iterations:**
-  - `z.literal("1.0")` is stricter than `z.string()` — rejects any non-"1.0" value including numeric 1.0
-  - Biome prefers single-line imports when they fit — avoid multi-line formatting for short import lists
-  - The preferences directory is new (`packages/core/src/preferences/`) — US-002 will add I/O, US-003 adds resolver, US-004 creates barrel export
+  - The existing `cleanupOrphanedFiles()` in `sync.ts` (lines 270-296) only uses `unlink()` which fails on directories — that's the bug
+  - `core/src/index.ts` imports lockfile functions directly from `./lockfile/manager.js` — the new barrel doesn't change this to avoid churn; new exports use `./lockfile/cleanup.js`
+  - Run `bun run lint` to check Biome formatting — it's strict about line length and ternary formatting
 ---
 
-## 2026-02-19 11:42 - US-002
-- Implemented `preferences-io.ts` with `getPreferencesPath()`, `readProjectPreferences()`, `writeProjectPreferences()`, `deleteProjectPreferences()`
-- Follows same YAML I/O pattern as `global-config.ts`: `readFile` → `yaml.parse` → `zod.parse` for reads, `zod.parse` → `yaml.stringify` → `writeFile` for writes
-- Missing file returns `null` (not an error); invalid content throws `ManifestValidationError`
-- `writeProjectPreferences()` creates `.baton/` directory if needed via `mkdir({ recursive: true })`
-- `deleteProjectPreferences()` uses `rm({ force: true })` to avoid throwing on missing file
-- Created 9 unit tests using temp directories for isolation
-- Files changed: `preferences-io.ts`, `preferences-io.test.ts`
+## 2026-02-19T17:14 - US-002
+- Normalized lockfile integrity keys to use relative paths in `packages/cli/src/commands/sync.ts`
+- Two locations where `placeFile()` returns absolute `result.path` are now converted to relative using `isAbsolute()` check + `relative(projectRoot, result.path)`
+  - Content accumulator flush (memory+rules) — around line 1039
+  - Command placement — around line 1100
+- Other path sources (skills, files, IDE configs) already stored relative paths — no changes needed
+- `cleanupOrphanedFiles()` resolver already handles both absolute and relative via `startsWith("/")` check — backward compat preserved
+- Added `isAbsolute` and `relative` to the `node:path` import (line 2)
+- Files changed:
+  - `packages/cli/src/commands/sync.ts` (modified — 2 path normalization sites)
+  - `scripts/ralph/prd.json` (US-002 passes: true)
 - **Learnings for future iterations:**
-  - Biome wants long `join()` calls broken across multiple lines — format before committing
-  - Biome prefers single quotes when containing escaped double quotes: `'version: "1.0"'` not `"version: \"1.0\""`
-  - Use `as const` for literal version in test objects to satisfy `z.literal("1.0")` type constraint
+  - `placeFile()` in `packages/core/src/placement/engine.ts` always returns absolute paths via `resolveAbsolutePath()` — any code storing `result.path` as a lockfile key must normalize to relative
+  - Five path-storage sites in sync.ts: skills (line 906, already relative), content accumulator (line 1039, now fixed), commands (line 1100, now fixed), files (line 1153, already relative), IDE (line 1209, already relative)
+  - The `relative()` function from `node:path` was already imported in the original code but not used — the import line just needed `isAbsolute` added
 ---
 
-## 2026-02-19 11:43 - US-003
-- Implemented `resolvePreferences()` in `packages/core/src/preferences/preferences-resolver.ts`
-- Resolution chain: no file → global; `useGlobal: true` → global; `useGlobal: false` → project
-- AI and IDE dimensions resolved independently — mixed configs work
-- Returns `ResolvedPreferences` with `source` attribution ("global" | "project") per dimension
-- Used `vi.mock()` to mock `getGlobalAiTools()` and `getGlobalIdePlatforms()` in tests
-- 5 unit tests covering: no file, useGlobal true, useGlobal false, mixed (AI project + IDE global), mixed (AI global + IDE project)
-- Files changed: `preferences-resolver.ts`, `preferences-resolver.test.ts`
+## 2026-02-19T17:17 - US-003
+- Refactored `cleanupOrphanedFiles()` in `packages/cli/src/commands/sync.ts` to use `removePlacedFiles()` from `@baton-dx/core`
+- Replaced inline `unlink()` + `rmdir()` + parent-directory-cleanup loop (old lines 270-296) with a single `removePlacedFiles(orphanedPaths, projectRoot)` call
+- Removed unused imports: `unlink` and `rmdir` from `node:fs/promises`
+- Added `removePlacedFiles` to the `@baton-dx/core` import block
+- Orphan detection logic (Set difference), user prompt flow, spinner, and count reporting all unchanged
+- Files changed:
+  - `packages/cli/src/commands/sync.ts` (modified — replaced inline deletion with shared function)
+  - `scripts/ralph/prd.json` (US-003 passes: true)
 - **Learnings for future iterations:**
-  - `vi.mock()` with factory function at top level is the pattern for mocking sibling module imports
-  - `Promise.all()` used to parallelize independent async calls (global tools + global platforms) when both needed
-  - Removed unused `ResolvedDimension` interface — keep exports minimal
+  - When removing inline code that used fs imports, always check if those imports are still needed elsewhere in the file before removing them — `readdir` and `stat` were still used, `unlink` and `rmdir` were not
+  - The refactored cleanup function went from 30 lines to 3 lines — the shared `removePlacedFiles()` handles path resolution, stat-based file/dir detection, ENOENT skipping, and empty parent cleanup
+  - Must run `bun run build` before `bun run typecheck` — the CLI resolves `@baton-dx/core` from its built `dist/` output
 ---
 
-## 2026-02-19 11:44 - US-004
-- Created barrel export in `packages/core/src/preferences/index.ts`
-- Added re-exports to `packages/core/src/index.ts` for all public API: `projectPreferencesSchema`, `ProjectPreferences`, `getPreferencesPath`, `readProjectPreferences`, `writeProjectPreferences`, `deleteProjectPreferences`, `resolvePreferences`, `ResolvedPreferences`
-- Files changed: `preferences/index.ts`, `core/src/index.ts`
+## 2026-02-19T17:20 - US-004
+- Added placed-file cleanup to `handleRemoveBaton()` in `packages/cli/src/commands/manage.ts`
+- Extracted `cleanupPlacedFilesFromLock()` helper that reads the lockfile, collects all integrity key paths, shows them to the user, and prompts for confirmation before calling `removePlacedFiles()`
+- Cleanup runs BEFORE deleting `baton.lock` (since we need to read it first)
+- Gracefully handles: missing lockfile (`FileNotFoundError`), invalid lockfile (caught generically), empty integrity entries (early return)
+- Removed the old "Note: Synced files were not removed" message since the feature now offers to remove them
+- Added imports: `FileNotFoundError`, `readLock`, `removePlacedFiles` from `@baton-dx/core`
+- Files changed:
+  - `packages/cli/src/commands/manage.ts` (modified — added placed-file cleanup)
+  - `scripts/ralph/prd.json` (US-004 passes: true)
 - **Learnings for future iterations:**
-  - Core index.ts follows grouped sections with comments — add new module exports at the end with a section comment
-  - Barrel exports use `./module-name.js` extension (ESM convention)
----
-
-## 2026-02-19 11:46 - US-005
-- Replaced `getGlobalAiTools()` / `getGlobalIdePlatforms()` with `resolvePreferences(projectRoot)` in sync.ts
-- `prefs.ai.tools` feeds into `developerTools.aiTools`, `prefs.ide.platforms` feeds into `developerTools.idePlatforms`
-- Added verbose logging: `AI tools: claude-code, cursor (from project preferences)`
-- All 1064 existing tests continue to pass — no preferences file = global fallback = identical behavior
-- Files changed: `packages/cli/src/commands/sync.ts`
-- **Learnings for future iterations:**
-  - Must run `bun run build` before typecheck when adding new core exports — CLI resolves core from `dist/`
-  - Biome enforces alphabetical import sorting — insert new imports in correct alphabetical position
-  - sync.ts is ~1100 lines — the tool intersection computation starts at ~line 605
----
-
-## 2026-02-19 11:48 - US-006
-- Replaced `confirm()` with `multiselect()` in ai-tools scan command
-- All 14 adapters listed via `getAllAdapters()` — detected ones show "(detected)" suffix and are pre-selected via `initialValues`
-- `--yes` flag saves only detected tools (preserves backward compatibility)
-- Simplified the scan code by removing separate installed/notInstalled categorization
-- Files changed: `packages/cli/src/commands/ai-tools/scan.ts`
-- **Learnings for future iterations:**
-  - `@clack/prompts` multiselect supports `initialValues` for pre-selection
-  - `getAllAdapters()` returns all 14 adapters with `.key` and `.name` properties — use for multiselect options
-  - Pattern for multiselect: cast `selected` to `string[]` after `isCancel()` check
----
-
-## 2026-02-19 11:49 - US-007
-- Same multiselect pattern as US-006 but for IDE platforms (6 platforms)
-- Uses `getRegisteredIdePlatforms()` for the full list and `formatIdeName()` for display names
-- Detected IDEs pre-selected; all 6 listed with "(detected)" suffix for detected ones
-- `--yes` saves only detected platforms (current behavior preserved)
-- Files changed: `packages/cli/src/commands/ides/scan.ts`
----
-
-## 2026-02-19 12:03 - US-016
-- Added `ensureBatonDirGitignored(projectRoot)` function to `packages/core/src/utils/gitignore.ts`
-- Function checks if `.baton/` already appears in `.gitignore` (by any mechanism) and adds it with `# Baton cache` header if missing — mirrors the init command approach
-- Called from `writeProjectPreferences()` in `preferences-io.ts` — ensures ALL callers (configure --project, first-run-preferences, manage wizard) get automatic gitignore protection
-- Exported from `packages/core/src/utils/index.ts`
-- Added 4 tests to `gitignore.test.ts`: creates .gitignore, appends to existing, no-op when present, no-op when in managed section
-- Added 2 tests to `preferences-io.test.ts`: verifies .gitignore gets .baton/ entry, verifies no duplication
-- All 1070 tests pass, typecheck clean, lint clean
-- Files changed: `core/src/utils/gitignore.ts`, `core/src/utils/index.ts`, `core/src/preferences/preferences-io.ts`, `core/src/utils/gitignore.test.ts`, `core/src/preferences/preferences-io.test.ts`
-- **Learnings for future iterations:**
-  - Two separate gitignore mechanisms: init uses manual `.baton/` entry with `# Baton cache` comment; sync uses `updateGitignore()` with `# Baton managed` section for placed files
-  - `updateGitignore()` replaces the entire managed section — don't use it for single-pattern additions
-  - Placing gitignore logic in `writeProjectPreferences()` covers all callers automatically — prefer centralized over per-callsite
+  - Lockfile integrity paths are extracted via `Object.values(lockfile.packages).flatMap(pkg => Object.keys(pkg.integrity))`
+  - The `manage` command doesn't support `--yes` flag — it's a purely interactive wizard, so placed-file cleanup only prompts interactively
+  - `readLock()` throws `FileNotFoundError` for missing files — catch it explicitly to distinguish from parse errors
+  - `p.confirm()` with `initialValue: false` ensures destructive cleanup defaults to "no" for safety
 ---

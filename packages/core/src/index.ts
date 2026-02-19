@@ -89,6 +89,9 @@ export {
   type LockFileEntry,
 } from "./lockfile/manager.js";
 
+// Export lockfile cleanup
+export { removePlacedFiles } from "./lockfile/cleanup.js";
+
 // Export local source loader
 export {
   loadLocalSource,

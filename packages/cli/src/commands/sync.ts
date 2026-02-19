@@ -1,5 +1,5 @@
-import { mkdir, readFile, readdir, rmdir, stat, unlink, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { IntersectionResult } from "@baton-dx/core";
 import {
   FileNotFoundError,
@@ -31,6 +31,7 @@ import {
   parseSource,
   placeFile,
   readLock,
+  removePlacedFiles,
   resolvePreferences,
   resolveProfileChain,
   sortProfilesByWeight,
@@ -265,36 +266,7 @@ async function cleanupOrphanedFiles(params: {
   }
 
   spinner.start("Removing orphaned files...");
-  let removedCount = 0;
-
-  for (const orphanedPath of orphanedPaths) {
-    const absolutePath = orphanedPath.startsWith("/")
-      ? orphanedPath
-      : resolve(projectRoot, orphanedPath);
-    try {
-      await unlink(absolutePath);
-      removedCount++;
-
-      // Clean up empty parent directories up to project root
-      let dir = dirname(absolutePath);
-      while (dir !== projectRoot && dir.startsWith(projectRoot)) {
-        try {
-          const entries = await readdir(dir);
-          if (entries.length === 0) {
-            await rmdir(dir);
-            dir = dirname(dir);
-          } else {
-            break;
-          }
-        } catch {
-          break;
-        }
-      }
-    } catch {
-      // File may already be gone — ignore
-    }
-  }
-
+  const removedCount = await removePlacedFiles(orphanedPaths, projectRoot);
   spinner.stop(`Removed ${removedCount} orphaned file(s)`);
 }
 
@@ -1033,10 +1005,13 @@ export const syncCommand = defineCommand({
               stats.created++;
             }
 
-            // Track content for lockfile integrity
+            // Track content for lockfile integrity (normalize to relative path)
+            const relPath = isAbsolute(result.path)
+              ? relative(projectRoot, result.path)
+              : result.path;
             for (const profileName of entry.profiles) {
               const pf = getOrCreatePlacedFiles(placedFiles, profileName);
-              pf[result.path] = {
+              pf[relPath] = {
                 content: combinedContent,
                 tool: entry.adapter.key,
                 category: "ai",
@@ -1095,9 +1070,12 @@ export const syncCommand = defineCommand({
                   stats.created++;
                 }
 
-                // Track content for lockfile integrity
+                // Track content for lockfile integrity (normalize to relative path)
+                const cmdRelPath = isAbsolute(result.path)
+                  ? relative(projectRoot, result.path)
+                  : result.path;
                 const pf = getOrCreatePlacedFiles(placedFiles, profile.name);
-                pf[result.path] = { content, tool: adapter.key, category: "ai" };
+                pf[cmdRelPath] = { content, tool: adapter.key, category: "ai" };
 
                 if (verbose) {
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
