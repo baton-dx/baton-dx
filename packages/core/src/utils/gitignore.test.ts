@@ -6,6 +6,7 @@ import type { ToolAdapter } from "../adapters/types.js";
 import {
   collectProfileSupportPatterns,
   collectSyncedPatterns,
+  ensureBatonDirGitignored,
   updateGitignore,
 } from "./gitignore.js";
 
@@ -275,6 +276,58 @@ describe("updateGitignore", () => {
     expect(content).toContain("# Custom\nnode_modules/");
     expect(content).toContain("# Other\n.env");
     expect(content).not.toContain("old-pattern");
+  });
+});
+
+describe("ensureBatonDirGitignored", () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = join(tmpdir(), `baton-ensure-gitignore-test-${Date.now()}`);
+    await mkdir(tmpDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("creates .gitignore with .baton/ when it does not exist", async () => {
+    await ensureBatonDirGitignored(tmpDir);
+
+    const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
+    expect(content).toContain("# Baton cache");
+    expect(content).toContain(".baton/");
+  });
+
+  it("appends .baton/ to existing .gitignore", async () => {
+    await writeFile(join(tmpDir, ".gitignore"), "node_modules/\n.env\n", "utf-8");
+
+    await ensureBatonDirGitignored(tmpDir);
+
+    const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
+    expect(content).toContain("node_modules/");
+    expect(content).toContain(".env");
+    expect(content).toContain(".baton/");
+  });
+
+  it("is a no-op when .baton/ is already present", async () => {
+    const original = "node_modules/\n\n# Baton cache\n.baton/\n";
+    await writeFile(join(tmpDir, ".gitignore"), original, "utf-8");
+
+    await ensureBatonDirGitignored(tmpDir);
+
+    const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
+    expect(content).toBe(original);
+  });
+
+  it("is a no-op when .baton/ appears in Baton managed section", async () => {
+    const original = "# Baton managed\n.baton/\n# End Baton managed\n";
+    await writeFile(join(tmpDir, ".gitignore"), original, "utf-8");
+
+    await ensureBatonDirGitignored(tmpDir);
+
+    const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
+    expect(content).toBe(original);
   });
 });
 

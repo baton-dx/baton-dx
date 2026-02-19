@@ -2,6 +2,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parse, stringify } from "yaml";
 import { ManifestValidationError } from "../errors.js";
+import { ensureBatonDirGitignored } from "../utils/gitignore.js";
 import { type ProjectPreferences, projectPreferencesSchema } from "./preferences-schema.js";
 
 /**
@@ -60,6 +61,7 @@ export async function writeProjectPreferences(
 
   await mkdir(dirname(prefsPath), { recursive: true });
   await writeFile(prefsPath, stringify(validated), "utf-8");
+  await ensureBatonDirGitignored(projectRoot);
 }
 
 /**

@@ -108,6 +108,35 @@ describe("Project Preferences I/O", () => {
 
       expect(result).toEqual(prefs);
     });
+
+    it("ensures .baton/ is added to .gitignore", async () => {
+      const prefs = {
+        version: "1.0" as const,
+        ai: { useGlobal: true, tools: [] as string[] },
+        ide: { useGlobal: true, platforms: [] as string[] },
+      };
+
+      await writeProjectPreferences(projectRoot, prefs);
+
+      const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf-8");
+      expect(gitignore).toContain(".baton/");
+    });
+
+    it("does not duplicate .baton/ in .gitignore if already present", async () => {
+      await writeFile(join(projectRoot, ".gitignore"), "# Baton cache\n.baton/\n", "utf-8");
+
+      const prefs = {
+        version: "1.0" as const,
+        ai: { useGlobal: true, tools: [] as string[] },
+        ide: { useGlobal: true, platforms: [] as string[] },
+      };
+
+      await writeProjectPreferences(projectRoot, prefs);
+
+      const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf-8");
+      const matches = gitignore.match(/\.baton\//g);
+      expect(matches?.length).toBe(1);
+    });
   });
 
   describe("deleteProjectPreferences", () => {
