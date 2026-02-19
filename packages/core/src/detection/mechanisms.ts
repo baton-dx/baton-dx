@@ -5,6 +5,8 @@ import { join } from "node:path";
 import type {
   AppBundleCheck,
   BinaryCheck,
+  DetectionCheck,
+  DetectionConfig,
   DirectoryCheck,
   JetbrainsPluginCheck,
   Platform,
@@ -201,4 +203,50 @@ export async function checkJetbrainsPlugin(check: JetbrainsPluginCheck): Promise
   }
 
   return false;
+}
+
+/**
+ * Handler map for dispatching detection checks by type.
+ * Uses an object so that individual handlers can be spied on in tests
+ * (ESM module exports are not interceptable for intra-module calls).
+ */
+export const checkHandlers = {
+  binary: checkBinary,
+  directory: checkDirectory,
+  app: checkAppBundle,
+  "vscode-extension": checkVscodeExtension,
+  "jetbrains-plugin": checkJetbrainsPlugin,
+};
+
+/**
+ * Dispatch a single detection check to the appropriate mechanism function.
+ */
+function runCheck(check: DetectionCheck): Promise<boolean> {
+  switch (check.type) {
+    case "binary":
+      return checkHandlers.binary(check);
+    case "directory":
+      return checkHandlers.directory(check);
+    case "app":
+      return checkHandlers.app(check);
+    case "vscode-extension":
+      return checkHandlers["vscode-extension"](check);
+    case "jetbrains-plugin":
+      return checkHandlers["jetbrains-plugin"](check);
+  }
+}
+
+/**
+ * Evaluate a DetectionConfig using OR-of-ANDs logic.
+ * Each group is evaluated in parallel. Within a group, ALL checks must pass (AND).
+ * ANY group passing means the tool is detected (OR across groups).
+ */
+export async function evaluateDetection(config: DetectionConfig): Promise<boolean> {
+  const groupResults = await Promise.all(
+    config.groups.map(async (group) => {
+      const results = await Promise.all(group.map(runCheck));
+      return results.every(Boolean);
+    }),
+  );
+  return groupResults.some(Boolean);
 }

@@ -16,13 +16,16 @@ vi.mock("node:os", () => ({
 
 import { execFile } from "node:child_process";
 import { access, readdir } from "node:fs/promises";
-import {
+import * as mechanisms from "./mechanisms.js";
+
+const {
   checkAppBundle,
   checkBinary,
   checkDirectory,
   checkJetbrainsPlugin,
   checkVscodeExtension,
-} from "./mechanisms.js";
+  evaluateDetection,
+} = mechanisms;
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -496,5 +499,161 @@ describe("checkJetbrainsPlugin", () => {
     });
 
     expect(result).toBe(true);
+  });
+});
+
+describe("evaluateDetection", () => {
+  type MockFn = ReturnType<typeof vi.fn>;
+  let spyBinary: MockFn;
+  let spyDirectory: MockFn;
+  let spyAppBundle: MockFn;
+  let spyVscodeExtension: MockFn;
+  let spyJetbrainsPlugin: MockFn;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Spy on checkHandlers (the dispatch object) rather than module exports.
+    // ESM module exports are not interceptable for intra-module calls, but
+    // object property lookups in checkHandlers happen at call time.
+    spyBinary = vi.spyOn(mechanisms.checkHandlers, "binary") as unknown as MockFn;
+    spyDirectory = vi.spyOn(mechanisms.checkHandlers, "directory") as unknown as MockFn;
+    spyAppBundle = vi.spyOn(mechanisms.checkHandlers, "app") as unknown as MockFn;
+    spyVscodeExtension = vi.spyOn(
+      mechanisms.checkHandlers,
+      "vscode-extension",
+    ) as unknown as MockFn;
+    spyJetbrainsPlugin = vi.spyOn(
+      mechanisms.checkHandlers,
+      "jetbrains-plugin",
+    ) as unknown as MockFn;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns true when single group with single check passes", async () => {
+    spyBinary.mockResolvedValueOnce(true);
+
+    const result = await evaluateDetection({
+      groups: [[{ type: "binary", name: "claude" }]],
+    });
+
+    expect(result).toBe(true);
+    expect(spyBinary).toHaveBeenCalledOnce();
+  });
+
+  it("returns false when single group fails", async () => {
+    spyBinary.mockResolvedValueOnce(false);
+
+    const result = await evaluateDetection({
+      groups: [[{ type: "binary", name: "nonexistent" }]],
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns true when any group passes (OR logic)", async () => {
+    spyBinary.mockResolvedValueOnce(false);
+    spyDirectory.mockResolvedValueOnce(true);
+
+    const result = await evaluateDetection({
+      groups: [
+        [{ type: "binary", name: "nonexistent" }],
+        [{ type: "directory", path: "~/.claude" }],
+      ],
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it("returns false when no groups pass", async () => {
+    spyBinary.mockResolvedValueOnce(false);
+    spyDirectory.mockResolvedValueOnce(false);
+
+    const result = await evaluateDetection({
+      groups: [
+        [{ type: "binary", name: "nonexistent" }],
+        [{ type: "directory", path: "/does/not/exist" }],
+      ],
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns true when all checks in a group pass (AND logic)", async () => {
+    spyBinary.mockResolvedValueOnce(true);
+    spyDirectory.mockResolvedValueOnce(true);
+
+    const result = await evaluateDetection({
+      groups: [
+        [
+          { type: "binary", name: "claude" },
+          { type: "directory", path: "~/.claude" },
+        ],
+      ],
+    });
+
+    expect(result).toBe(true);
+    expect(spyBinary).toHaveBeenCalledOnce();
+    expect(spyDirectory).toHaveBeenCalledOnce();
+  });
+
+  it("returns false when one check in a group fails (AND logic)", async () => {
+    spyBinary.mockResolvedValueOnce(true);
+    spyDirectory.mockResolvedValueOnce(false);
+
+    const result = await evaluateDetection({
+      groups: [
+        [
+          { type: "binary", name: "claude" },
+          { type: "directory", path: "~/.claude", markerFile: "settings.json" },
+        ],
+      ],
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns true with mixed groups when one passes (OR of ANDs)", async () => {
+    // First group: binary fails → group fails
+    spyBinary.mockResolvedValueOnce(false);
+    spyDirectory.mockResolvedValueOnce(true);
+    // Second group: app check passes → group passes
+    spyAppBundle.mockResolvedValueOnce(true);
+
+    const result = await evaluateDetection({
+      groups: [
+        [
+          { type: "binary", name: "nonexistent" },
+          { type: "directory", path: "~/.tool" },
+        ],
+        [{ type: "app", name: "Tool.app" }],
+      ],
+    });
+
+    expect(result).toBe(true);
+    expect(spyAppBundle).toHaveBeenCalledOnce();
+  });
+
+  it("dispatches to correct check function by type", async () => {
+    spyVscodeExtension.mockResolvedValueOnce(false);
+    spyJetbrainsPlugin.mockResolvedValueOnce(false);
+
+    await evaluateDetection({
+      groups: [
+        [{ type: "vscode-extension", extensionId: "github.copilot" }],
+        [{ type: "jetbrains-plugin", pluginId: "junie" }],
+      ],
+    });
+
+    expect(spyVscodeExtension).toHaveBeenCalledWith({
+      type: "vscode-extension",
+      extensionId: "github.copilot",
+    });
+    expect(spyJetbrainsPlugin).toHaveBeenCalledWith({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
   });
 });
