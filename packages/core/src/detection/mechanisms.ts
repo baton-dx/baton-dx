@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { constants, access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { BinaryCheck, DirectoryCheck, Platform } from "@baton-dx/agent-paths";
+import type { AppBundleCheck, BinaryCheck, DirectoryCheck, Platform } from "@baton-dx/agent-paths";
 
 /**
  * Execute a command and return stdout/stderr as a promise.
@@ -86,4 +86,27 @@ export async function checkDirectory(check: DirectoryCheck): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Check if a macOS .app bundle exists in /Applications or ~/Applications.
+ * Returns false immediately on non-darwin platforms.
+ */
+export async function checkAppBundle(check: AppBundleCheck): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+
+  const searchPaths = check.searchPaths ?? ["/Applications", join(homedir(), "Applications")];
+
+  for (const dir of searchPaths) {
+    try {
+      await access(join(dir, check.name));
+      return true;
+    } catch {
+      // not found in this path, try next
+    }
+  }
+
+  return false;
 }

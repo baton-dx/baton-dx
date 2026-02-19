@@ -15,7 +15,7 @@ vi.mock("node:os", () => ({
 
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
-import { checkBinary, checkDirectory } from "./mechanisms.js";
+import { checkAppBundle, checkBinary, checkDirectory } from "./mechanisms.js";
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -243,5 +243,80 @@ describe("checkDirectory", () => {
 
     expect(result).toBe(true);
     expect(mockAccess).toHaveBeenCalledWith("/home/testuser/.claude", 4);
+  });
+});
+
+describe("checkAppBundle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(process, "platform", { value: "darwin" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+  });
+
+  it("returns true when app found in /Applications on darwin", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkAppBundle({
+      type: "app",
+      name: "Cursor.app",
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledWith("/Applications/Cursor.app");
+  });
+
+  it("returns false on non-darwin platform", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+
+    const result = await checkAppBundle({
+      type: "app",
+      name: "Cursor.app",
+    });
+
+    expect(result).toBe(false);
+    expect(mockAccess).not.toHaveBeenCalled();
+  });
+
+  it("returns true when app found in ~/Applications", async () => {
+    mockAccess.mockRejectedValueOnce(new Error("ENOENT"));
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkAppBundle({
+      type: "app",
+      name: "Cursor.app",
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledTimes(2);
+    expect(mockAccess).toHaveBeenLastCalledWith("/home/testuser/Applications/Cursor.app");
+  });
+
+  it("returns false when app not found anywhere", async () => {
+    mockAccess.mockRejectedValueOnce(new Error("ENOENT"));
+    mockAccess.mockRejectedValueOnce(new Error("ENOENT"));
+
+    const result = await checkAppBundle({
+      type: "app",
+      name: "NonExistent.app",
+    });
+
+    expect(result).toBe(false);
+    expect(mockAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("supports custom searchPaths override", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkAppBundle({
+      type: "app",
+      name: "Custom.app",
+      searchPaths: ["/opt/apps"],
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledWith("/opt/apps/Custom.app");
   });
 });
