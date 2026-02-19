@@ -1,6 +1,7 @@
 import { constants, access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { evaluateDetection } from "../detection/mechanisms.js";
 import { idePlatformRegistry } from "./platform-registry.js";
 
 /**
@@ -34,12 +35,20 @@ async function directoryExists(path: string): Promise<boolean> {
 }
 
 /**
- * Detect if a specific IDE platform is installed
+ * Detect if a specific IDE platform is installed.
+ * Uses detectionConfig (structured OR-of-ANDs) when present,
+ * otherwise falls back to legacy detection string array.
  */
 async function isIdeInstalled(ideKey: string): Promise<boolean> {
   const ideConfig = idePlatformRegistry[ideKey];
   if (!ideConfig) return false;
 
+  // Prefer structured detectionConfig when available
+  if (ideConfig.detectionConfig) {
+    return evaluateDetection(ideConfig.detectionConfig);
+  }
+
+  // Legacy fallback: check each detection method
   for (const detection of ideConfig.detection) {
     // If detection string starts with ~/, it's a directory path
     if (detection.startsWith("~/")) {
