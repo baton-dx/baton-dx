@@ -8,6 +8,9 @@ Started: Thu Feb 19 17:08:21 CET 2026
 - Biome enforces single-line formatting for short function signatures and ternaries — don't multi-line them
 - Import `.js` extensions required in all source files (ESM convention)
 - `placeFile()` returns absolute paths — always normalize with `relative(projectRoot, result.path)` before storing as lockfile keys
+- Must run `bun run build` before `bun run typecheck` — CLI resolves `@baton-dx/core` from built `dist/`, not source
+- `readLock()` throws `FileNotFoundError` for missing files — use try/catch to distinguish from parse errors
+- Use `removePlacedFiles()` from core for all file/directory deletion with cleanup — handles stat, ENOENT, and parent-dir cleanup
 
 ---
 
@@ -60,4 +63,21 @@ Started: Thu Feb 19 17:08:21 CET 2026
   - When removing inline code that used fs imports, always check if those imports are still needed elsewhere in the file before removing them — `readdir` and `stat` were still used, `unlink` and `rmdir` were not
   - The refactored cleanup function went from 30 lines to 3 lines — the shared `removePlacedFiles()` handles path resolution, stat-based file/dir detection, ENOENT skipping, and empty parent cleanup
   - Must run `bun run build` before `bun run typecheck` — the CLI resolves `@baton-dx/core` from its built `dist/` output
+---
+
+## 2026-02-19T17:20 - US-004
+- Added placed-file cleanup to `handleRemoveBaton()` in `packages/cli/src/commands/manage.ts`
+- Extracted `cleanupPlacedFilesFromLock()` helper that reads the lockfile, collects all integrity key paths, shows them to the user, and prompts for confirmation before calling `removePlacedFiles()`
+- Cleanup runs BEFORE deleting `baton.lock` (since we need to read it first)
+- Gracefully handles: missing lockfile (`FileNotFoundError`), invalid lockfile (caught generically), empty integrity entries (early return)
+- Removed the old "Note: Synced files were not removed" message since the feature now offers to remove them
+- Added imports: `FileNotFoundError`, `readLock`, `removePlacedFiles` from `@baton-dx/core`
+- Files changed:
+  - `packages/cli/src/commands/manage.ts` (modified — added placed-file cleanup)
+  - `scripts/ralph/prd.json` (US-004 passes: true)
+- **Learnings for future iterations:**
+  - Lockfile integrity paths are extracted via `Object.values(lockfile.packages).flatMap(pkg => Object.keys(pkg.integrity))`
+  - The `manage` command doesn't support `--yes` flag — it's a purely interactive wizard, so placed-file cleanup only prompts interactively
+  - `readLock()` throws `FileNotFoundError` for missing files — catch it explicitly to distinguish from parse errors
+  - `p.confirm()` with `initialValue: false` ensures destructive cleanup defaults to "no" for safety
 ---

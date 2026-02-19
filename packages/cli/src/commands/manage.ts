@@ -2,6 +2,7 @@ import { access, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
+  FileNotFoundError,
   getAllAdapters,
   getDefaultGlobalSource,
   getGlobalAiTools,
@@ -9,7 +10,9 @@ import {
   getGlobalSources,
   getRegisteredIdePlatforms,
   loadProjectManifest,
+  readLock,
   readProjectPreferences,
+  removePlacedFiles,
   writeProjectPreferences,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -248,18 +251,48 @@ async function handleRemoveBaton(cwd: string): Promise<boolean> {
     return false;
   }
 
-  // 3. Delete baton.yaml
+  // 3. Offer to clean up placed files from lockfile
+  const lockPath = join(cwd, "baton.lock");
+  await cleanupPlacedFilesFromLock(lockPath, cwd);
+
+  // 4. Delete baton.yaml
   const manifestPath = join(cwd, "baton.yaml");
   await rm(manifestPath, { force: true });
 
-  // 4. Delete baton.lock if it exists
-  const lockPath = join(cwd, "baton.lock");
+  // 5. Delete baton.lock
   await rm(lockPath, { force: true });
 
   p.log.success("Baton has been removed from this project.");
-  p.log.info("Note: Synced files (rules, skills, memory) were not removed.");
-  p.log.info("Run 'baton sync' before removing to clean up, or delete them manually.");
   return true;
+}
+
+async function cleanupPlacedFilesFromLock(lockPath: string, projectRoot: string): Promise<void> {
+  let placedPaths: string[];
+  try {
+    const lockfile = await readLock(lockPath);
+    placedPaths = Object.values(lockfile.packages).flatMap((pkg) => Object.keys(pkg.integrity));
+  } catch (error) {
+    if (error instanceof FileNotFoundError) return;
+    // Invalid lockfile — skip cleanup silently
+    return;
+  }
+
+  if (placedPaths.length === 0) return;
+
+  p.log.info(`Found ${placedPaths.length} placed file(s):`);
+  for (const filePath of placedPaths) {
+    p.log.info(`  ${filePath}`);
+  }
+
+  const shouldClean = await p.confirm({
+    message: `Also remove ${placedPaths.length} placed file(s)?`,
+    initialValue: false,
+  });
+
+  if (p.isCancel(shouldClean) || !shouldClean) return;
+
+  const removedCount = await removePlacedFiles(placedPaths, projectRoot);
+  p.log.success(`Removed ${removedCount} placed file(s).`);
 }
 
 function formatIdeName(ideKey: string): string {

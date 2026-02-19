@@ -78,7 +78,7 @@
         "Tests pass"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "This story depends on US-001 (removePlacedFiles). Use readLock() from packages/core/src/lockfile/manager.ts — it returns a parsed lockfile object. The lockfile schema is at packages/core/src/schemas/lockfile.ts. handleRemoveBaton() is at approximately line 234 in manage.ts. The existing function only does: unlink baton.yaml, unlink baton.lock. Add the cleanup BEFORE deleting baton.lock (since we need to read it first)."
     }
   ]
