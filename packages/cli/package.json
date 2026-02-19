@@ -1,6 +1,6 @@
 {
   "name": "@baton-dx/cli",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "CLI for Baton - the package manager for Developer Experience & AI configuration",
   "type": "module",
   "main": "./dist/index.mjs",
