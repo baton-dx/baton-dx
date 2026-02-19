@@ -233,6 +233,25 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.github/copilot/commands/{name}.md",
     },
     detection: ["gh", "~/.github/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "binary",
+            name: "copilot",
+            versionPattern: /copilot|github/i,
+          },
+        ],
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "GitHub.copilot",
+            editors: ["vscode", "cursor"],
+          },
+        ],
+        [{ type: "directory", path: "~/.github/copilot/" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -341,6 +360,13 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.kiro/commands/{name}.md",
     },
     detection: ["kiro", "~/.kiro/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Kiro.app" }],
+        [{ type: "binary", name: "kiro" }],
+        [{ type: "directory", path: "~/.kiro/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -371,6 +397,19 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.zed/commands/{name}.md",
     },
     detection: ["zed", "~/.zed/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Zed.app" }],
+        [{ type: "binary", name: "zed" }],
+        [
+          {
+            type: "directory",
+            path: "~/.config/zed/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -401,6 +440,24 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.cline/commands/{name}.md",
     },
     detection: ["cline", "~/.cline/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "saoudrizwan.claude-dev",
+            editors: ["vscode", "cursor", "windsurf"],
+          },
+        ],
+        [
+          {
+            type: "directory",
+            path: "~/.cline/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -431,6 +488,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.roo/commands/{name}.md",
     },
     detection: ["roo", "~/.roo/"],
+    detectionConfig: {
+      groups: [
+        [
+          {
+            type: "vscode-extension",
+            extensionId: "RooVeterinaryInc.roo-cline",
+            editors: ["vscode", "cursor", "windsurf"],
+          },
+        ],
+        [{ type: "directory", path: "~/.roo/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
   {
@@ -461,6 +530,18 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.junie/commands/{name}.md",
     },
     detection: ["junie", "~/.junie/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "jetbrains-plugin", pluginId: "junie" }],
+        [
+          {
+            type: "directory",
+            path: "~/.junie/",
+            markerFile: "settings.json",
+          },
+        ],
+      ],
+    },
     legacy: {},
   },
   {
@@ -491,6 +572,12 @@ export const AGENT_PATHS: readonly AgentPathConfig[] = [
       global: "~/.trae/commands/{name}.md",
     },
     detection: ["trae", "~/.trae/"],
+    detectionConfig: {
+      groups: [
+        [{ type: "app", name: "Trae.app" }],
+        [{ type: "directory", path: "~/.trae/", markerFile: "settings.json" }],
+      ],
+    },
     legacy: {},
   },
 ];
