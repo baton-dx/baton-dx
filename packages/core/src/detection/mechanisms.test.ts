@@ -7,6 +7,7 @@ vi.mock("node:child_process", () => ({
 vi.mock("node:fs/promises", () => ({
   access: vi.fn(),
   constants: { R_OK: 4 },
+  readdir: vi.fn(),
 }));
 
 vi.mock("node:os", () => ({
@@ -14,13 +15,14 @@ vi.mock("node:os", () => ({
 }));
 
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
-import { checkAppBundle, checkBinary, checkDirectory } from "./mechanisms.js";
+import { access, readdir } from "node:fs/promises";
+import { checkAppBundle, checkBinary, checkDirectory, checkVscodeExtension } from "./mechanisms.js";
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
 const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
 const mockAccess = access as unknown as ReturnType<typeof vi.fn>;
+const mockReaddir = readdir as unknown as ReturnType<typeof vi.fn>;
 
 function successCallback(stdout: string, stderr = "") {
   return (_cmd: string, _args: string[], _opts: object, cb: ExecCallback) => {
@@ -318,5 +320,61 @@ describe("checkAppBundle", () => {
 
     expect(result).toBe(true);
     expect(mockAccess).toHaveBeenCalledWith("/opt/apps/Custom.app");
+  });
+});
+
+describe("checkVscodeExtension", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns true when extension found by prefix match", async () => {
+    mockReaddir.mockResolvedValueOnce(["github.copilot-1.234.0", "ms-python.python-2024.1.0"]);
+
+    const result = await checkVscodeExtension({
+      type: "vscode-extension",
+      extensionId: "GitHub.copilot",
+    });
+
+    expect(result).toBe(true);
+    expect(mockReaddir).toHaveBeenCalledWith("/home/testuser/.vscode/extensions");
+  });
+
+  it("returns false when extension not installed", async () => {
+    mockReaddir.mockResolvedValueOnce(["ms-python.python-2024.1.0"]);
+
+    const result = await checkVscodeExtension({
+      type: "vscode-extension",
+      extensionId: "GitHub.copilot",
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("checks multiple editors and finds in second", async () => {
+    mockReaddir.mockResolvedValueOnce(["ms-python.python-2024.1.0"]);
+    mockReaddir.mockResolvedValueOnce(["saoudrizwan.claude-dev-3.2.0"]);
+
+    const result = await checkVscodeExtension({
+      type: "vscode-extension",
+      extensionId: "saoudrizwan.claude-dev",
+      editors: ["vscode", "cursor"],
+    });
+
+    expect(result).toBe(true);
+    expect(mockReaddir).toHaveBeenCalledTimes(2);
+    expect(mockReaddir).toHaveBeenNthCalledWith(1, "/home/testuser/.vscode/extensions");
+    expect(mockReaddir).toHaveBeenNthCalledWith(2, "/home/testuser/.cursor/extensions");
+  });
+
+  it("returns false when extension directory missing (no error)", async () => {
+    mockReaddir.mockRejectedValueOnce(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+
+    const result = await checkVscodeExtension({
+      type: "vscode-extension",
+      extensionId: "GitHub.copilot",
+    });
+
+    expect(result).toBe(false);
   });
 });

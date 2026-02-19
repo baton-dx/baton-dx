@@ -1,8 +1,14 @@
 import { execFile } from "node:child_process";
-import { constants, access } from "node:fs/promises";
+import { constants, access, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AppBundleCheck, BinaryCheck, DirectoryCheck, Platform } from "@baton-dx/agent-paths";
+import type {
+  AppBundleCheck,
+  BinaryCheck,
+  DirectoryCheck,
+  Platform,
+  VscodeExtensionCheck,
+} from "@baton-dx/agent-paths";
 
 /**
  * Execute a command and return stdout/stderr as a promise.
@@ -105,6 +111,41 @@ export async function checkAppBundle(check: AppBundleCheck): Promise<boolean> {
       return true;
     } catch {
       // not found in this path, try next
+    }
+  }
+
+  return false;
+}
+
+/** Map of editor names to their extension directory paths. */
+const EDITOR_EXTENSION_DIRS: Record<string, string> = {
+  vscode: join(homedir(), ".vscode", "extensions"),
+  cursor: join(homedir(), ".cursor", "extensions"),
+  windsurf: join(homedir(), ".windsurf", "extensions"),
+};
+
+/**
+ * Check if a VS Code extension is installed in VS Code, Cursor, or Windsurf.
+ * Matches extension directories by prefix (case-insensitive) since directories
+ * are named `<extensionId>-<version>`.
+ */
+export async function checkVscodeExtension(check: VscodeExtensionCheck): Promise<boolean> {
+  const editors = check.editors ?? ["vscode"];
+  const prefix = check.extensionId.toLowerCase();
+
+  for (const editor of editors) {
+    const extDir = EDITOR_EXTENSION_DIRS[editor];
+    if (!extDir) {
+      // skip unknown editor
+    } else {
+      try {
+        const entries = await readdir(extDir);
+        if (entries.some((entry) => entry.toLowerCase().startsWith(prefix))) {
+          return true;
+        }
+      } catch {
+        // extension directory missing (ENOENT) — skip, not throw
+      }
     }
   }
 
