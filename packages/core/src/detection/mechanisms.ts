@@ -1,5 +1,8 @@
 import { execFile } from "node:child_process";
-import type { BinaryCheck, Platform } from "@baton-dx/agent-paths";
+import { constants, access } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import type { BinaryCheck, DirectoryCheck, Platform } from "@baton-dx/agent-paths";
 
 /**
  * Execute a command and return stdout/stderr as a promise.
@@ -49,6 +52,37 @@ export async function checkBinary(check: BinaryCheck): Promise<boolean> {
     });
     const output = `${stdout}\n${stderr}`;
     return check.versionPattern.test(output);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a directory exists and optionally contains a marker file.
+ * Prevents false positives from leftover empty directories (e.g., ~/.cline/ without settings.json).
+ */
+export async function checkDirectory(check: DirectoryCheck): Promise<boolean> {
+  if (check.platforms && !check.platforms.includes(process.platform as Platform)) {
+    return false;
+  }
+
+  const expandedPath = check.path.startsWith("~/")
+    ? join(homedir(), check.path.slice(2))
+    : check.path;
+
+  try {
+    await access(expandedPath, constants.R_OK);
+  } catch {
+    return false;
+  }
+
+  if (!check.markerFile) {
+    return true;
+  }
+
+  try {
+    await access(join(expandedPath, check.markerFile));
+    return true;
   } catch {
     return false;
   }

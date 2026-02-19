@@ -4,12 +4,23 @@ vi.mock("node:child_process", () => ({
   execFile: vi.fn(),
 }));
 
+vi.mock("node:fs/promises", () => ({
+  access: vi.fn(),
+  constants: { R_OK: 4 },
+}));
+
+vi.mock("node:os", () => ({
+  homedir: vi.fn(() => "/home/testuser"),
+}));
+
 import { execFile } from "node:child_process";
-import { checkBinary } from "./mechanisms.js";
+import { access } from "node:fs/promises";
+import { checkBinary, checkDirectory } from "./mechanisms.js";
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
 const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
+const mockAccess = access as unknown as ReturnType<typeof vi.fn>;
 
 function successCallback(stdout: string, stderr = "") {
   return (_cmd: string, _args: string[], _opts: object, cb: ExecCallback) => {
@@ -148,5 +159,89 @@ describe("checkBinary", () => {
       { timeout: 5000 },
       expect.any(Function),
     );
+  });
+});
+
+describe("checkDirectory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(process, "platform", { value: "darwin" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+  });
+
+  it("returns true when directory exists and no marker file", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkDirectory({
+      type: "directory",
+      path: "/usr/local/share/tool",
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledOnce();
+  });
+
+  it("returns false when directory does not exist", async () => {
+    mockAccess.mockRejectedValueOnce(new Error("ENOENT"));
+
+    const result = await checkDirectory({
+      type: "directory",
+      path: "/nonexistent/dir",
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns true when directory and marker file both exist", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkDirectory({
+      type: "directory",
+      path: "/home/testuser/.cline",
+      markerFile: "settings.json",
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns false when directory exists but marker file is missing", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+    mockAccess.mockRejectedValueOnce(new Error("ENOENT"));
+
+    const result = await checkDirectory({
+      type: "directory",
+      path: "/home/testuser/.cline",
+      markerFile: "settings.json",
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns false when platform does not match", async () => {
+    const result = await checkDirectory({
+      type: "directory",
+      path: "~/.config/tool",
+      platforms: ["linux", "win32"],
+    });
+
+    expect(result).toBe(false);
+    expect(mockAccess).not.toHaveBeenCalled();
+  });
+
+  it("expands tilde to home directory", async () => {
+    mockAccess.mockResolvedValueOnce(undefined);
+
+    const result = await checkDirectory({
+      type: "directory",
+      path: "~/.claude",
+    });
+
+    expect(result).toBe(true);
+    expect(mockAccess).toHaveBeenCalledWith("/home/testuser/.claude", 4);
   });
 });
