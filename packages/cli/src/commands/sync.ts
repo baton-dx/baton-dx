@@ -41,6 +41,7 @@ import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
+import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
 
 type SyncCategory = "ai" | "files" | "ide";
@@ -373,6 +374,9 @@ export const syncCommand = defineCommand({
         }
         process.exit(1);
       }
+
+      // Step 0a: First-run preferences check
+      await promptFirstRunPreferences(projectRoot, !!args.yes);
 
       // Step 0b: Read existing lockfile to detect orphaned files later
       const previousPaths = new Set<string>();
