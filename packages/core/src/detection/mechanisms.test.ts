@@ -16,7 +16,13 @@ vi.mock("node:os", () => ({
 
 import { execFile } from "node:child_process";
 import { access, readdir } from "node:fs/promises";
-import { checkAppBundle, checkBinary, checkDirectory, checkVscodeExtension } from "./mechanisms.js";
+import {
+  checkAppBundle,
+  checkBinary,
+  checkDirectory,
+  checkJetbrainsPlugin,
+  checkVscodeExtension,
+} from "./mechanisms.js";
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -376,5 +382,119 @@ describe("checkVscodeExtension", () => {
     });
 
     expect(result).toBe(false);
+  });
+});
+
+describe("checkJetbrainsPlugin", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(process, "platform", { value: "darwin" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+  });
+
+  it("returns true when plugin found across IDE versions", async () => {
+    // First readdir: list IDE version directories
+    mockReaddir.mockResolvedValueOnce(["IntelliJIdea2024.3", "IntelliJIdea2025.1"]);
+    // Second readdir: plugins in first version — no match
+    mockReaddir.mockResolvedValueOnce(["kotlin", "gradle"]);
+    // Third readdir: plugins in second version — match
+    mockReaddir.mockResolvedValueOnce(["junie", "kotlin", "gradle"]);
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(true);
+    expect(mockReaddir).toHaveBeenCalledTimes(3);
+    expect(mockReaddir).toHaveBeenNthCalledWith(
+      1,
+      "/home/testuser/Library/Application Support/JetBrains",
+    );
+    expect(mockReaddir).toHaveBeenNthCalledWith(
+      2,
+      "/home/testuser/Library/Application Support/JetBrains/IntelliJIdea2024.3/plugins",
+    );
+    expect(mockReaddir).toHaveBeenNthCalledWith(
+      3,
+      "/home/testuser/Library/Application Support/JetBrains/IntelliJIdea2025.1/plugins",
+    );
+  });
+
+  it("returns false when JetBrains config directory does not exist", async () => {
+    mockReaddir.mockRejectedValueOnce(new Error("ENOENT"));
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns false when config exists but plugin not installed", async () => {
+    mockReaddir.mockResolvedValueOnce(["IntelliJIdea2025.1"]);
+    mockReaddir.mockResolvedValueOnce(["kotlin", "gradle"]);
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("uses correct config path on linux", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockReaddir.mockResolvedValueOnce(["IntelliJIdea2025.1"]);
+    mockReaddir.mockResolvedValueOnce(["junie"]);
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(true);
+    expect(mockReaddir).toHaveBeenNthCalledWith(1, "/home/testuser/.config/JetBrains");
+  });
+
+  it("uses correct config path on win32", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    const originalAppdata = process.env.APPDATA;
+    process.env.APPDATA = "C:\\Users\\testuser\\AppData\\Roaming";
+
+    mockReaddir.mockResolvedValueOnce(["IntelliJIdea2025.1"]);
+    mockReaddir.mockResolvedValueOnce(["junie"]);
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(true);
+    expect(mockReaddir).toHaveBeenNthCalledWith(
+      1,
+      "C:\\Users\\testuser\\AppData\\Roaming/JetBrains",
+    );
+
+    process.env.APPDATA = originalAppdata;
+  });
+
+  it("handles missing plugins directory in a version gracefully", async () => {
+    mockReaddir.mockResolvedValueOnce(["IntelliJIdea2025.1", "GoLand2025.1"]);
+    // First version: plugins dir missing
+    mockReaddir.mockRejectedValueOnce(new Error("ENOENT"));
+    // Second version: has the plugin
+    mockReaddir.mockResolvedValueOnce(["junie"]);
+
+    const result = await checkJetbrainsPlugin({
+      type: "jetbrains-plugin",
+      pluginId: "junie",
+    });
+
+    expect(result).toBe(true);
   });
 });

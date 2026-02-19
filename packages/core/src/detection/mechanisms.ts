@@ -6,6 +6,7 @@ import type {
   AppBundleCheck,
   BinaryCheck,
   DirectoryCheck,
+  JetbrainsPluginCheck,
   Platform,
   VscodeExtensionCheck,
 } from "@baton-dx/agent-paths";
@@ -146,6 +147,56 @@ export async function checkVscodeExtension(check: VscodeExtensionCheck): Promise
       } catch {
         // extension directory missing (ENOENT) — skip, not throw
       }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get the JetBrains config base directory for the current platform.
+ * macOS: ~/Library/Application Support/JetBrains/
+ * Linux: ~/.config/JetBrains/
+ * Windows: %APPDATA%/JetBrains/
+ */
+function getJetbrainsConfigBase(): string | undefined {
+  switch (process.platform) {
+    case "darwin":
+      return join(homedir(), "Library", "Application Support", "JetBrains");
+    case "linux":
+      return join(homedir(), ".config", "JetBrains");
+    case "win32":
+      return process.env.APPDATA ? join(process.env.APPDATA, "JetBrains") : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Check if a JetBrains plugin is installed by scanning IDE config directories.
+ * Looks for pluginId as a subdirectory under <version>/plugins/ across all IDE versions.
+ */
+export async function checkJetbrainsPlugin(check: JetbrainsPluginCheck): Promise<boolean> {
+  const base = getJetbrainsConfigBase();
+  if (!base) {
+    return false;
+  }
+
+  let versionDirs: string[];
+  try {
+    versionDirs = await readdir(base);
+  } catch {
+    return false;
+  }
+
+  for (const versionDir of versionDirs) {
+    try {
+      const pluginEntries = await readdir(join(base, versionDir, "plugins"));
+      if (pluginEntries.some((entry) => entry.toLowerCase() === check.pluginId.toLowerCase())) {
+        return true;
+      }
+    } catch {
+      // plugins directory missing for this version — skip
     }
   }
 
