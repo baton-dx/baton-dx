@@ -1,6 +1,8 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
+  type AgentEntry,
+  type AgentFile,
   FileNotFoundError,
   type LockFileEntry,
   type MemoryEntry,
@@ -23,6 +25,7 @@ import {
   isLockedProfile,
   loadProfileManifest,
   loadProjectManifest,
+  mergeAgentsWithWarnings,
   mergeContentParts,
   mergeMemoryWithWarnings,
   mergeRulesWithWarnings,
@@ -421,6 +424,10 @@ export const syncCommand = defineCommand({
       const mergedRules: RuleEntry[] = rulesResult.rules;
       allWeightWarnings.push(...rulesResult.warnings);
 
+      const agentsResult = mergeAgentsWithWarnings(weightSortedProfiles);
+      const mergedAgents: AgentEntry[] = agentsResult.agents;
+      allWeightWarnings.push(...agentsResult.warnings);
+
       const memoryResult = mergeMemoryWithWarnings(weightSortedProfiles);
       const mergedMemory: MemoryEntry[] = memoryResult.entries;
       allWeightWarnings.push(...memoryResult.warnings);
@@ -532,7 +539,7 @@ export const syncCommand = defineCommand({
       const mergedIdeCount = ideMap.size;
 
       spinner.stop(
-        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
+        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
       );
 
       // Emit weight conflict warnings (same weight, conflicting values)
@@ -725,7 +732,7 @@ export const syncCommand = defineCommand({
         {
           parts: string[];
           adapter: ToolAdapter;
-          type: "memory" | "rules";
+          type: "memory" | "rules" | "agents";
           name: string;
           profiles: Set<string>;
         }
@@ -954,7 +961,97 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Flush accumulated content: write combined memory+rules to shared file paths
+      // Accumulate agent file content
+      if (!dryRun && syncAi) {
+        for (const adapter of adapters) {
+          if (verbose) {
+            p.log.step(`[${adapter.key}] Placing agents...`);
+          }
+          for (const agentEntry of mergedAgents) {
+            try {
+              // Check if this agent should be placed for this adapter
+              const isUniversal = agentEntry.agents.length === 0;
+              const isForThisAdapter = agentEntry.agents.includes(adapter.key);
+              if (!isUniversal && !isForThisAdapter) continue;
+
+              const profileDir = profileLocalPaths.get(agentEntry.profileName);
+              if (!profileDir) {
+                spinner.message(
+                  `Warning: Could not resolve local path for profile ${agentEntry.profileName}`,
+                );
+                continue;
+              }
+
+              // Determine source file path based on agent type
+              const agentSubdir = isUniversal ? "universal" : agentEntry.agents[0];
+              const agentSourcePath = resolve(
+                profileDir,
+                "ai",
+                "agents",
+                agentSubdir,
+                `${agentEntry.name}.md`,
+              );
+
+              // Read agent content
+              let rawContent: string;
+              try {
+                rawContent = await readFile(agentSourcePath, "utf-8");
+              } catch {
+                spinner.message(`Warning: Could not read agent file: ${agentSourcePath}`);
+                continue;
+              }
+
+              // Parse frontmatter
+              const parsed = parseFrontmatter(rawContent);
+
+              // Build canonical AgentFile (frontmatter is REQUIRED)
+              const frontmatter =
+                Object.keys(parsed.data).length > 0
+                  ? (parsed.data as AgentFile["frontmatter"])
+                  : { name: agentEntry.name };
+              const agentFile: AgentFile = {
+                name: agentEntry.name,
+                content: rawContent,
+                description: (frontmatter as Record<string, unknown>).description as
+                  | string
+                  | undefined,
+                frontmatter,
+              };
+
+              // Transform agent for this adapter
+              const transformed = adapter.transformAgent(agentFile);
+
+              // Compute target path to detect shared file destinations
+              const targetPath = adapter.getPath("agents", "project", agentEntry.name);
+              const absolutePath = targetPath.startsWith("/")
+                ? targetPath
+                : resolve(projectRoot, targetPath);
+
+              // Accumulate content for this target path
+              const existing = contentAccumulator.get(absolutePath);
+              if (existing) {
+                existing.parts.push(transformed.content);
+                existing.profiles.add(agentEntry.profileName);
+              } else {
+                contentAccumulator.set(absolutePath, {
+                  parts: [transformed.content],
+                  adapter,
+                  type: "agents",
+                  name: agentEntry.name,
+                  profiles: new Set([agentEntry.profileName]),
+                });
+              }
+            } catch (error) {
+              spinner.message(
+                `Error placing agent ${agentEntry.name} for ${adapter.name}: ${error}`,
+              );
+              stats.errors++;
+            }
+          }
+        }
+      }
+
+      // Flush accumulated content: write combined memory+rules+agents to shared file paths
       if (!dryRun && syncAi) {
         for (const [absolutePath, entry] of contentAccumulator) {
           try {
@@ -1200,6 +1297,7 @@ export const syncCommand = defineCommand({
         if (syncAi) {
           parts.push(`  • ${mergedSkills.length} skills`);
           parts.push(`  • ${mergedRules.length} rules`);
+          parts.push(`  • ${mergedAgents.length} agents`);
           parts.push(`  • ${mergedMemory.length} memory files`);
           parts.push(`  • ${mergedCommandCount} commands`);
         }
