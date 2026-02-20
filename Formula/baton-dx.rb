@@ -1,8 +1,8 @@
 class BatonDx < Formula
   desc "CLI package manager for Developer Experience & AI configuration"
   homepage "https://github.com/baton-dx/baton-dx"
-  url "https://registry.npmjs.org/@baton-dx/cli/-/cli-0.3.1.tgz"
-  sha256 "4b7f32f6635792f9beefba784260c8bcd9dcd298516722686460f5e6ae59ade5"
+  url "https://registry.npmjs.org/@baton-dx/cli/-/cli-0.3.2.tgz"
+  sha256 "69bf43516bbfdf7a6fc12e0491072ac1a60efdc68162a390f4d0aaa6c0417755"
   license "MIT"
 
   depends_on "node"
