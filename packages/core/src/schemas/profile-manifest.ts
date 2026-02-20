@@ -39,6 +39,16 @@ const rulesSchema = z.union([
 ]);
 
 /**
+ * Agents in profile manifest - can be either an array or an object
+ */
+const agentsSchema = z.union([
+  // Array format: universal agents
+  z.array(z.string()),
+  // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
+  z.record(z.string(), z.array(z.string()).optional()),
+]);
+
+/**
  * Memory file configuration item
  *
  * Convention: Use "MEMORY.md" as source for generic memory that will be
@@ -72,6 +82,7 @@ const aiSectionSchema = z
     tools: z.array(z.string()).optional(), // Target AI tools (e.g., ["claude-code", "cursor"])
     skills: z.array(skillItemSchema).optional(),
     rules: rulesSchema.optional(),
+    agents: agentsSchema.optional(),
     memory: memorySectionSchema.optional(),
     settings: settingsSchema.optional(),
     commands: z.array(z.string()).optional(),

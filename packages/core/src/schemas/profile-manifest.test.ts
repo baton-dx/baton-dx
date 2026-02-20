@@ -21,7 +21,7 @@ describe("Schema Validation - Profile Manifest", () => {
         ai: {
           tools: ["claude-code", "cursor"],
           skills: [{ name: "code-review", scope: "project" }],
-          agents: [{ name: "reviewer", scope: "global" }],
+          agents: ["code-reviewer", "test-writer"],
           rules: {
             universal: ["coding-standards"],
             cursor: ["code-style"],
@@ -344,6 +344,104 @@ describe("Schema Validation - Profile Manifest", () => {
         version: "1.0.0",
         ide: {
           vscode: "settings.json",
+        },
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("Agents in AI section", () => {
+    it("validates agents as array (universal format)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: ["code-reviewer", "test-writer"],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates agents as object (tool-specific format)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: {
+            universal: ["shared-agent"],
+            "claude-code": ["claude-only"],
+            cursor: ["cursor-only"],
+          },
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates agents with mixed keys including optional arrays", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: {
+            universal: ["shared"],
+            "claude-code": undefined,
+          },
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates empty agents array", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: [],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates missing agents field (optional)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          tools: ["claude-code"],
+        },
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.ai?.agents).toBeUndefined();
+      }
+    });
+
+    it("rejects agents with non-string array items", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: [123, true],
+        },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects agents with nested objects as values", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test-profile",
+        version: "1.0.0",
+        ai: {
+          agents: {
+            universal: [{ name: "invalid" }],
+          },
         },
       });
 
