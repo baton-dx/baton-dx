@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.3.2
+
+### Patch Changes
+
+- [#30](https://github.com/baton-dx/baton-dx/pull/30) [`66c9ad1`](https://github.com/baton-dx/baton-dx/commit/66c9ad1be416a68286ac02c8433d550b19bb3c38) Thanks [@mantaray0](https://github.com/mantaray0)! - Make .gitignore a project-level decision at init time instead of per-sync dynamic updates. Adds `gitignore` field to baton.yaml, comprehensive patterns for all known AI tools and IDE platforms, and fixes a bug where `.github/` was over-broadly gitignored instead of only `.github/copilot-instructions.md`.
+
 ## 0.3.1
 
 ### Patch Changes
