@@ -229,6 +229,14 @@ export {
   type MergeRulesResult,
 } from "./merge/rules.js";
 
+// Export agent merge logic
+export {
+  mergeAgents,
+  mergeAgentsWithWarnings,
+  type AgentEntry,
+  type MergeAgentsResult,
+} from "./merge/agents.js";
+
 // Export memory merge logic
 export {
   mergeMemory,
