@@ -31,20 +31,12 @@ scripts/ralph/.last-branch
 /tasks/
 /docs/plans
 
-# Claude Code generated output
+# Claude Code generated output (not managed by Baton)
 .claude/reports/
 .claude/plans/
-.claude/commands/
-
-# Other AI tool dirs (not used in this project)
-.cline/
-.cursor/
-.cursorrules
-AGENTS.md
 
 # Safety: prevent accidental absolute-path output
 /Users/
-
 
 # Baton cache
 .baton/
@@ -58,10 +50,11 @@ AGENTS.md
 .agents/commands/
 .agents/rules/
 .agents/skills/
+.antigravity/
+.claude/
 .claude/agents/
 .claude/commands/
 .claude/rules/
-.claude/settings.json
 .claude/skills/
 .cline/agents/
 .cline/commands/
@@ -71,15 +64,18 @@ AGENTS.md
 .codex/commands/
 .codex/rules/
 .codex/skills/
+.config/zed/
+.cursor/
 .cursor/agents/
 .cursor/commands/
 .cursor/rules/
 .cursor/skills/
 .cursorrules
-.github/
 .github/agents/
 .github/copilot/commands/
+.github/copilot-instructions.md
 .github/skills/
+.idea/
 .junie/agents/
 .junie/commands/
 .junie/rules/
@@ -100,6 +96,8 @@ AGENTS.md
 .trae/commands/
 .trae/rules/
 .trae/skills/
+.vscode/
+.windsurf/
 .windsurf/agents/
 .windsurf/rules/
 .windsurf/skills/

@@ -38,13 +38,13 @@ export {
   loadProjectManifest,
   parseSource,
   parseFrontmatter,
-  collectProfileSupportPatterns,
-  collectSyncedPatterns,
+  collectComprehensivePatterns,
+  ensureBatonDirGitignored,
+  removeGitignoreManagedSection,
   updateGitignore,
   type ParsedSource,
   type ParsedFrontmatter,
-  type CollectProfileSupportPatternsOptions,
-  type CollectSyncedPatternsOptions,
+  type CollectComprehensivePatternsOptions,
 } from "./utils/index.js";
 
 // Export Git source provider

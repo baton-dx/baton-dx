@@ -1,6 +1,5 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import type { IntersectionResult } from "@baton-dx/core";
 import {
   FileNotFoundError,
   type LockFileEntry,
@@ -12,9 +11,10 @@ import {
   type ToolAdapter,
   type WeightConflictWarning,
   cloneGitSource,
-  collectProfileSupportPatterns,
+  collectComprehensivePatterns,
   detectInstalledAgents,
   detectLegacyPaths,
+  ensureBatonDirGitignored,
   generateLock,
   getAdaptersForKeys,
   getIdePlatformTargetDir,
@@ -31,6 +31,7 @@ import {
   parseSource,
   placeFile,
   readLock,
+  removeGitignoreManagedSection,
   removePlacedFiles,
   resolvePreferences,
   resolveProfileChain,
@@ -96,71 +97,37 @@ async function copyDirectoryRecursive(sourceDir: string, targetDir: string): Pro
 }
 
 /**
- * Collect profile-support-based .gitignore patterns and update .gitignore.
- * Uses ALL tools the profile supports (not just the developer's intersection)
- * to ensure consistent .gitignore across all team members.
+ * Handle .gitignore update based on the project manifest's gitignore setting.
+ *
+ * When gitignore is enabled (default): writes comprehensive patterns for ALL
+ * known AI tools and IDE platforms to ensure stable, dev-independent content.
+ * When disabled: removes any existing managed section.
+ * Always ensures .baton/ is gitignored regardless of setting.
  */
-async function updateGitignorePatterns(params: {
-  allIntersections: Map<string, IntersectionResult> | null;
-  adapters: ToolAdapter[];
-  ideMap: Map<string, { ideKey: string; fileName: string; targetDir: string; profileName: string }>;
-  mergedSkills: MergedSkillItem[];
-  mergedRules: RuleEntry[];
-  mergedMemory: MemoryEntry[];
-  mergedCommandCount: number;
+async function handleGitignoreUpdate(params: {
+  projectManifest: ProjectManifest;
   fileMap: Map<string, { source: string; target: string; profileName: string }>;
   projectRoot: string;
   spinner: ReturnType<typeof p.spinner>;
 }): Promise<void> {
-  const {
-    allIntersections,
-    adapters,
-    ideMap,
-    mergedSkills,
-    mergedRules,
-    mergedMemory,
-    mergedCommandCount,
-    fileMap,
-    projectRoot,
-    spinner,
-  } = params;
+  const { projectManifest, fileMap, projectRoot, spinner } = params;
+  const gitignoreEnabled = projectManifest.gitignore !== false;
 
-  const profileSupportedAiTools = new Set<string>();
-  const profileSupportedIdePlatforms = new Set<string>();
+  // Always ensure .baton/ is gitignored
+  await ensureBatonDirGitignored(projectRoot);
 
-  if (allIntersections) {
-    for (const intersection of allIntersections.values()) {
-      for (const tool of intersection.aiTools.synced) profileSupportedAiTools.add(tool);
-      for (const tool of intersection.aiTools.unavailable) profileSupportedAiTools.add(tool);
-      for (const plat of intersection.idePlatforms.synced) profileSupportedIdePlatforms.add(plat);
-      for (const plat of intersection.idePlatforms.unavailable) {
-        profileSupportedIdePlatforms.add(plat);
-      }
-    }
-  } else {
-    for (const adapter of adapters) profileSupportedAiTools.add(adapter.key);
-    for (const entry of ideMap.values()) profileSupportedIdePlatforms.add(entry.ideKey);
-  }
-
-  const hasContent =
-    mergedSkills.length > 0 ||
-    mergedRules.length > 0 ||
-    mergedMemory.length > 0 ||
-    mergedCommandCount > 0;
-
-  const gitignorePatterns = collectProfileSupportPatterns({
-    profileAiTools: [...profileSupportedAiTools],
-    profileIdePlatforms: [...profileSupportedIdePlatforms],
-    fileTargets: [...fileMap.values()].map((f) => f.target),
-    hasContent,
-  });
-
-  if (gitignorePatterns.length > 0) {
+  if (gitignoreEnabled) {
     spinner.start("Updating .gitignore...");
-    const updated = await updateGitignore(projectRoot, gitignorePatterns);
+    const fileTargets = [...fileMap.values()].map((f) => f.target);
+    const patterns = collectComprehensivePatterns({ fileTargets });
+    const updated = await updateGitignore(projectRoot, patterns);
     spinner.stop(
-      updated ? "Updated .gitignore with synced patterns" : ".gitignore already up to date",
+      updated ? "Updated .gitignore with managed patterns" : ".gitignore already up to date",
     );
+  } else {
+    spinner.start("Checking .gitignore...");
+    const removed = await removeGitignoreManagedSection(projectRoot);
+    spinner.stop(removed ? "Removed managed section from .gitignore" : ".gitignore unchanged");
   }
 }
 
@@ -1204,14 +1171,8 @@ export const syncCommand = defineCommand({
 
       // Step 8: Update .gitignore
       if (!dryRun) {
-        await updateGitignorePatterns({
-          allIntersections,
-          adapters,
-          ideMap,
-          mergedSkills,
-          mergedRules,
-          mergedMemory,
-          mergedCommandCount,
+        await handleGitignoreUpdate({
+          projectManifest,
           fileMap,
           projectRoot,
           spinner,

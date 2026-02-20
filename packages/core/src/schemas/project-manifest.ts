@@ -38,6 +38,8 @@ export const projectManifestSchema = z.object({
   extras: extrasSectionSchema,
   overrides: overridesSectionSchema,
   variables: z.record(z.string(), z.string()).optional(),
+  /** Whether baton-managed files should be added to .gitignore (defaults to true when absent) */
+  gitignore: z.boolean().optional(),
 });
 
 /**

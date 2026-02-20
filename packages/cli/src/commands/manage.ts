@@ -454,6 +454,46 @@ async function handleConfigureIdes(cwd: string): Promise<void> {
   p.log.success(`Project configured with ${selectedKeys.length} IDE platform(s).`);
 }
 
+async function handleConfigureGitignore(cwd: string): Promise<void> {
+  const manifestPath = join(cwd, "baton.yaml");
+  const manifest = await loadProjectManifestSafe(cwd);
+  if (!manifest) {
+    p.log.error("Could not load baton.yaml");
+    return;
+  }
+
+  const currentSetting = manifest.gitignore !== false;
+  p.log.info(
+    currentSetting
+      ? "Currently: synced files ARE gitignored"
+      : "Currently: synced files are NOT gitignored (committed to repo)",
+  );
+
+  const newSetting = await p.confirm({
+    message: "Add synced AI tool and IDE config files to .gitignore?",
+    initialValue: currentSetting,
+  });
+
+  if (p.isCancel(newSetting)) {
+    p.log.warn("Cancelled.");
+    return;
+  }
+
+  if (newSetting === currentSetting) {
+    p.log.info("No change.");
+    return;
+  }
+
+  manifest.gitignore = newSetting;
+  const updatedYaml = stringify(manifest);
+  await writeFile(manifestPath, updatedYaml, "utf-8");
+  p.log.success(
+    newSetting
+      ? "Enabled .gitignore management. Run 'baton sync' to update."
+      : "Disabled .gitignore management. Run 'baton sync' to clean up.",
+  );
+}
+
 export const manageCommand = defineCommand({
   meta: {
     name: "manage",
@@ -490,6 +530,11 @@ export const manageCommand = defineCommand({
             label: "Configure IDEs for this project",
             hint: "Choose which IDEs to sync",
           },
+          {
+            value: "configure-gitignore",
+            label: "Configure .gitignore",
+            hint: "Choose whether synced files are gitignored",
+          },
           { value: "remove-baton", label: "Remove Baton", hint: "Remove Baton from this project" },
           { value: "quit", label: "Quit" },
         ],
@@ -519,6 +564,10 @@ export const manageCommand = defineCommand({
       } else if (action === "configure-ides") {
         console.log("");
         await handleConfigureIdes(cwd);
+        console.log("");
+      } else if (action === "configure-gitignore") {
+        console.log("");
+        await handleConfigureGitignore(cwd);
         console.log("");
       } else if (action === "remove-baton") {
         console.log("");

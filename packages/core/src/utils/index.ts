@@ -2,10 +2,9 @@ export { loadLockfile, loadProfileManifest, loadProjectManifest } from "./yaml-p
 export { parseSource, type ParsedSource } from "./source-parser.js";
 export { parseFrontmatter, type ParsedFrontmatter } from "./frontmatter.js";
 export {
-  collectProfileSupportPatterns,
-  collectSyncedPatterns,
+  collectComprehensivePatterns,
   ensureBatonDirGitignored,
+  removeGitignoreManagedSection,
   updateGitignore,
-  type CollectProfileSupportPatternsOptions,
-  type CollectSyncedPatternsOptions,
+  type CollectComprehensivePatternsOptions,
 } from "./gitignore.js";
