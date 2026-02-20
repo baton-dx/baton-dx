@@ -5,6 +5,7 @@ import {
   clearAgentCache,
   clearIdeCache,
   cloneGitSource,
+  collectComprehensivePatterns,
   computeIntersection,
   detectInstalledAgents,
   detectInstalledIdes,
@@ -18,6 +19,7 @@ import {
   resolveProfileSupport,
   setGlobalAiTools,
   setGlobalIdePlatforms,
+  updateGitignore,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -137,9 +139,26 @@ export const initCommand = defineCommand({
     // 4. Show intersection between developer tools and profile support
     await showProfileIntersections(profileSources);
 
-    // 5. Generate baton.yaml with multiple profiles
+    // 5. Ask whether synced files should be gitignored
+    let gitignoreSetting = true; // default for --yes mode
+    if (isInteractive) {
+      const shouldGitignore = await p.confirm({
+        message: "Add synced AI tool and IDE config files to .gitignore?",
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldGitignore)) {
+        p.cancel("Setup cancelled.");
+        process.exit(0);
+      }
+
+      gitignoreSetting = shouldGitignore;
+    }
+
+    // 6. Generate baton.yaml with multiple profiles and gitignore setting
     const manifest: ProjectManifest = {
       profiles: profileSources.map((source) => ({ source })),
+      gitignore: gitignoreSetting,
     };
 
     const yamlContent = stringify(manifest);
@@ -148,7 +167,7 @@ export const initCommand = defineCommand({
     await writeFile(join(cwd, "baton.yaml"), yamlContent, "utf-8");
     spinner.stop("✅ Created baton.yaml");
 
-    // 6. Add .baton/ to .gitignore
+    // 7. Update .gitignore
     spinner.start("Updating .gitignore...");
     const gitignorePath = join(cwd, ".gitignore");
     let gitignoreContent = "";
@@ -159,17 +178,24 @@ export const initCommand = defineCommand({
       // .gitignore doesn't exist, create new
     }
 
+    // Always ensure .baton/ is gitignored
     if (!gitignoreContent.includes(".baton/")) {
       const newContent = gitignoreContent
         ? `${gitignoreContent}\n\n# Baton cache\n.baton/\n`
         : "# Baton cache\n.baton/\n";
       await writeFile(gitignorePath, newContent, "utf-8");
-      spinner.stop("✅ Added .baton/ to .gitignore");
-    } else {
-      spinner.stop("✅ .gitignore already contains .baton/");
     }
 
-    // 7. Create .baton directory
+    // If gitignore enabled, write comprehensive patterns for all known tools
+    if (gitignoreSetting) {
+      const patterns = collectComprehensivePatterns({ fileTargets: [] });
+      await updateGitignore(cwd, patterns);
+      spinner.stop("✅ Updated .gitignore with managed file patterns");
+    } else {
+      spinner.stop("✅ Added .baton/ to .gitignore");
+    }
+
+    // 8. Create .baton directory
     spinner.start("Creating .baton directory...");
     try {
       await mkdir(join(cwd, ".baton"), { recursive: true });
@@ -178,10 +204,10 @@ export const initCommand = defineCommand({
       spinner.stop("✅ .baton directory already exists");
     }
 
-    // 8. First-run preferences prompt
+    // 9. First-run preferences prompt
     await promptFirstRunPreferences(cwd, !isInteractive);
 
-    // 9. Offer to sync profiles
+    // 10. Offer to sync profiles
     if (profileSources.length > 0) {
       const shouldSync = isInteractive
         ? await p.confirm({
@@ -197,7 +223,7 @@ export const initCommand = defineCommand({
       }
     }
 
-    // 10. Summary
+    // 11. Summary
     p.outro("Baton initialized successfully!");
   },
 });

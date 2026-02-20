@@ -1,8 +1,4 @@
-# Baton - Development Context
-
-## What is Baton
-
-Baton is a CLI package manager for Developer Experience & AI configuration. It manages Skills, Rules, Agents, Memory Files, Commands, and file configs as versioned, composable profiles for 14 AI coding tools. Think of it as "npm for DX configs" — source repositories contain profiles that get resolved, merged, transformed, and placed into the correct format for each AI tool.
+# Baton DX — Monorepo Architecture
 
 ## Architecture
 
@@ -11,7 +7,7 @@ Baton is a CLI package manager for Developer Experience & AI configuration. It m
 (path registry)            (logic layer)       (user interface)
 ```
 
-**Dependency flow:** `agent-paths` has zero dependencies. `core` depends on `agent-paths`. `cli` depends on `core`.
+**Dependency flow:** `agent-paths` has zero dependencies. `core` depends on `agent-paths`. `cli` depends on `core`. One direction only — never reverse.
 
 **Publishing:** Only `@baton-dx/cli` is published to npm. `core` and `agent-paths` are `"private": true` — they are bundled into the CLI build via tsdown's `noExternal` + `alias` config (see `packages/cli/tsdown.config.ts`). The published CLI package has zero runtime dependencies; everything is self-contained in `dist/index.mjs`.
 
@@ -43,6 +39,7 @@ All business logic lives here. No CLI or UI concerns.
 - **Placement:** `src/placement/` — file placement engine
 - **Migration:** `src/migration/` — legacy config migration
 - **Substitution:** `src/substitution/` — template variable replacement (`{{var}}`)
+- **Inheritance:** `src/inheritance/` — profile chain resolution
 
 ### @baton-dx/agent-paths (`packages/agent-paths/`)
 
@@ -53,34 +50,10 @@ Zero-dependency path registry for all 14 AI tools.
 - **Scopes:** project (`.tool/`) and global (`~/.tool/`)
 - **Exports:** `getAgentPath()`, `getAgentPaths()`, `getAllAgentKeys()`
 
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `baton init` | Initialize Baton in your project (interactive wizard) |
-| `baton sync` | Resolve, merge, transform, and place all configs |
-| `baton update` | Check for and apply updates to installed packages |
-| `baton diff` | Compare local files with remote source versions |
-| `baton manage` | Interactive project management wizard |
-| `baton config` | Show dashboard overview or configure settings |
-| `baton source create <name>` | Scaffold a new source repository |
-| `baton source list` | List registered global sources |
-| `baton source connect <url>` | Register a source repository globally |
-| `baton source disconnect <name>` | Remove a global source registration |
-| `baton profile create <name>` | Create a new profile in a source repo |
-| `baton profile list` | List profiles in current source or project |
-| `baton profile remove <name>` | Remove a profile from the project |
-| `baton ai-tools scan` | Detect installed AI tools |
-| `baton ai-tools list` | List configured AI tools |
-| `baton ides scan` | Detect installed IDE platforms |
-| `baton ides list` | List configured IDE platforms |
-
-**Global flags:** `--yes/-y` (non-interactive), `--dry-run`, `--verbose`, `--version/-v`
-
-## Key Schemas
+## Key Schemas (Zod)
 
 | Schema | File | Config File |
-|--------|------|-------------|
+| ----------------- | ------------------------------------------ | --------------------- |
 | `ProjectManifest` | `core/src/schemas/project-manifest.ts` | `baton.yaml` |
 | `ProfileManifest` | `core/src/schemas/profile-manifest.ts` | `baton.profile.yaml` |
 | `SourceManifest` | `core/src/schemas/source-manifest.ts` | `baton.source.yaml` |
@@ -95,8 +68,8 @@ Every AI tool adapter implements the `ToolAdapter` interface (`core/src/adapters
 
 ```typescript
 interface ToolAdapter {
-  key: string;                    // e.g. "claude-code"
-  name: string;                   // e.g. "Claude Code"
+  key: string;
+  name: string;
   isInstalled(): Promise<boolean>;
   getPath(type, scope, name): string;
   getLegacyPaths(type): string[];
@@ -109,37 +82,31 @@ interface ToolAdapter {
 }
 ```
 
-Most adapters extend `BaseAdapter` (`base-adapter.ts`) which provides sensible defaults. Override only what differs — e.g., Cursor overrides `transformRule()` for `.mdc` format, Windsurf strips frontmatter.
+Most adapters extend `BaseAdapter` (`base-adapter.ts`) which provides sensible defaults. Override only what differs — e.g., Cursor overrides `transformRule()` for `.mdc` format, Windsurf strips frontmatter, Antigravity uses `GEMINI.md`, GitHub Copilot uses `copilot-instructions.md`.
 
-**14 supported tools:** claude-code, cursor, windsurf, antigravity, codex, github-copilot, opencode, amp, kiro, zed, cline, roo, junie, trae
+## CLI Commands
 
-## Merge Strategies
+| Command | Description |
+| --------------------------------- | ----------------------------------------------- |
+| `baton init` | Initialize Baton in your project (interactive wizard) |
+| `baton sync` | Resolve, merge, transform, and place all configs |
+| `baton update` | Check for and apply updates |
+| `baton diff` | Compare local files with remote source versions |
+| `baton manage` | Interactive project management wizard |
+| `baton config` | Show dashboard or configure settings |
+| `baton source create <name>` | Scaffold a new source repository |
+| `baton source list` | List registered global sources |
+| `baton source connect <url>` | Register a source globally |
+| `baton source disconnect <name>` | Remove a global source |
+| `baton profile create <name>` | Create a new profile in a source repo |
+| `baton profile list` | List profiles |
+| `baton profile remove <name>` | Remove a profile |
+| `baton ai-tools scan` | Detect installed AI tools |
+| `baton ai-tools list` | List configured AI tools |
+| `baton ides scan` | Detect installed IDE platforms |
+| `baton ides list` | List configured IDE platforms |
 
-| Strategy | Behavior |
-|----------|----------|
-| `replace` | Target completely replaced with source |
-| `deep` | JSON/YAML deep merge (source keys override) |
-| `append` | Source appended to target with separator |
-| `prepend` | Source prepended to target with separator |
-| `skip` | Only write if target doesn't exist |
-| `prompt` | Ask user interactively (replace/skip/diff) |
-| `directory` | Directory merge: add new files, overwrite existing |
-| `import` | Add `@import` reference line to target |
-
-Defined in `core/src/merge/strategies.ts`.
-
-## IDE Platforms
-
-6 supported IDE platforms (`core/src/ide/platform-registry.ts`):
-
-| Platform | Target Dir | Detection |
-|----------|-----------|-----------|
-| VS Code | `.vscode` | `code` binary, `~/.vscode/` |
-| JetBrains | `.idea` | `idea` binary, `~/.config/JetBrains/` |
-| Cursor | `.cursor` | `cursor` binary, `~/.cursor/` |
-| Windsurf | `.windsurf` | `windsurf` binary, `~/.windsurf/` |
-| Antigravity | `.antigravity` | `antigravity` binary, `~/.antigravity/` |
-| Zed | `.config/zed` | `zed` binary, `~/.config/zed/` |
+**Global flags:** `--yes/-y`, `--dry-run`, `--verbose`, `--version/-v`
 
 ## Development Commands
 
@@ -149,61 +116,31 @@ bun run test        # Run tests (vitest)
 bun run lint        # Lint with Biome
 bun run typecheck   # TypeScript strict check
 bun run dead-code   # Find unused exports (knip)
+bun run dev         # Run CLI from source (tsx)
 ```
 
 ## Release Workflow
 
-Releases use [Changesets](https://github.com/changesets/changesets) + GitHub Actions.
+Releases use Changesets + GitHub Actions.
 
-**Local steps (only these two):**
+**Local steps only:**
 ```bash
-bun run changeset              # Create a changeset file (interactive)
+bun run changeset              # Create a changeset file
 git add .changeset/ && git commit && git push
 ```
 
-**Never run locally:** `changeset version`, `ci:version`, `ci:publish` — these are CI-only.
+**Never run locally:** `changeset version`, `ci:version`, `ci:publish`.
 
-**What happens on push to `main`:**
-1. Release workflow detects `.changeset/*.md` files
-2. Creates a "chore: release packages" PR with version bumps + CHANGELOGs
-3. You review and merge that PR
-4. Release workflow runs again → `changeset publish` → npm publish
-5. If published, Homebrew formula is auto-updated
-
-**CLI aliases:** After `npm install -g @baton-dx/cli`, three commands are available: `baton`, `baton-dx`, `btx`
+On push to `main`: release workflow detects changeset files, creates a version bump PR, and after merge publishes to npm and updates the Homebrew formula.
 
 ## Development Conventions
 
 - **TypeScript strict mode** — no `any` types, use `unknown` + type narrowing
 - **Named exports only** — no `export default`
-- **Functional composition** — except for adapters which use class inheritance (`BaseAdapter`)
+- **Functional composition** — except adapters which use class inheritance (`BaseAdapter`)
 - **Zod schemas as source of truth** — derive types with `z.infer<typeof schema>`
 - **Tests co-located** — `foo.test.ts` next to `foo.ts` (vitest)
 - **Async file I/O** — always `fs/promises`, never sync
 - **Conventional commits** — `feat(cli):`, `fix(core):`, `refactor(agent-paths):`
 - **Biome formatting** — run `bun run lint` before committing
 - **Import ordering** — Node built-ins → external packages → workspace packages → relative imports
-
-## Skills (for Contributors)
-
-Available skills in `.claude/skills/`:
-
-| Skill | Purpose |
-|-------|---------|
-| `add-adapter` | Add a new AI tool adapter (all 3 packages) |
-| `add-ide-platform` | Add a new IDE platform to Baton |
-| `code-reviewer` | Run code quality review |
-| `dead-code` | Find unused exports and dead code |
-| `redundancy-finder` | Find duplicate logic across the monorepo |
-| `review` | Comprehensive project review |
-| `pr` | Create well-documented pull requests |
-| `release-checklist` | Walk through the release process |
-
-## Agents (for Contributors)
-
-Available agents in `.claude/agents/`:
-
-| Agent | Purpose |
-|-------|---------|
-| `code-quality-auditor` | Deep code quality analysis with isolated context |
-| `consolidation-scout` | Find consolidation opportunities across the monorepo |
