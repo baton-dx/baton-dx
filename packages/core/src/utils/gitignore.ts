@@ -194,6 +194,9 @@ export function collectComprehensivePatterns(
     const agentPath = adapter.getPath("agents", "project", "_probe");
     addDirPattern(patterns, agentPath);
 
+    const settingsPath = adapter.getPath("settings", "project", "_probe");
+    addPathPattern(patterns, settingsPath);
+
     for (const legacyPath of adapter.getLegacyPaths("rules")) {
       patterns.add(legacyPath);
     }

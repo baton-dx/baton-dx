@@ -46,7 +46,7 @@ export function sortProfilesByWeight(profiles: ResolvedProfile[]): ResolvedProfi
  */
 export interface WeightConflictWarning {
   key: string;
-  category: "skill" | "rule" | "memory" | "command" | "file" | "ide" | "agent";
+  category: "skill" | "rule" | "memory" | "command" | "file" | "ide" | "agent" | "settings";
   profileA: string;
   profileB: string;
   weight: number;

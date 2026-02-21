@@ -27,7 +27,7 @@ describe("mergeRules", () => {
           name: "base",
           version: "1.0.0",
           ai: {
-            rules: ["coding-standards.md", "security.md"],
+            rules: ["coding-standards", "security"],
           },
         } as ProfileManifest,
       },
@@ -37,12 +37,12 @@ describe("mergeRules", () => {
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      name: "coding-standards.md",
+      name: "coding-standards",
       agents: [],
       profileName: "base",
     });
     expect(result).toContainEqual({
-      name: "security.md",
+      name: "security",
       agents: [],
       profileName: "base",
     });
@@ -58,8 +58,8 @@ describe("mergeRules", () => {
           version: "1.0.0",
           ai: {
             rules: {
-              "claude-code": ["code-review.md"],
-              cursor: ["cursor-style.mdc"],
+              "claude-code": ["code-review"],
+              cursor: ["cursor-style"],
             },
           },
         } as ProfileManifest,
@@ -70,12 +70,12 @@ describe("mergeRules", () => {
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      name: "code-review.md",
+      name: "code-review",
       agents: ["claude-code"],
       profileName: "base",
     });
     expect(result).toContainEqual({
-      name: "cursor-style.mdc",
+      name: "cursor-style",
       agents: ["cursor"],
       profileName: "base",
     });
@@ -91,7 +91,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           ai: {
             rules: {
-              universal: ["coding-standards.md", "security.md"],
+              universal: ["coding-standards", "security"],
             },
           },
         } as ProfileManifest,
@@ -102,12 +102,12 @@ describe("mergeRules", () => {
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      name: "coding-standards.md",
+      name: "coding-standards",
       agents: [],
       profileName: "base",
     });
     expect(result).toContainEqual({
-      name: "security.md",
+      name: "security",
       agents: [],
       profileName: "base",
     });
@@ -122,7 +122,7 @@ describe("mergeRules", () => {
           name: "base",
           version: "1.0.0",
           ai: {
-            rules: ["base-rule.md"],
+            rules: ["base-rule"],
           },
         } as ProfileManifest,
       },
@@ -133,7 +133,7 @@ describe("mergeRules", () => {
           name: "override",
           version: "1.0.0",
           ai: {
-            rules: ["override-rule.md"],
+            rules: ["override-rule"],
           },
         } as ProfileManifest,
       },
@@ -143,12 +143,12 @@ describe("mergeRules", () => {
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      name: "base-rule.md",
+      name: "base-rule",
       agents: [],
       profileName: "base",
     });
     expect(result).toContainEqual({
-      name: "override-rule.md",
+      name: "override-rule",
       agents: [],
       profileName: "override",
     });
@@ -163,7 +163,7 @@ describe("mergeRules", () => {
           name: "base",
           version: "1.0.0",
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -174,7 +174,7 @@ describe("mergeRules", () => {
           name: "override",
           version: "1.0.0",
           ai: {
-            rules: ["coding-standards.md"], // Same name, should override
+            rules: ["coding-standards"], // Same name, should override
           },
         } as ProfileManifest,
       },
@@ -184,7 +184,7 @@ describe("mergeRules", () => {
 
     // Only one rule with this name should exist (last wins)
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("coding-standards.md");
+    expect(result[0].name).toBe("coding-standards");
     expect(result[0].agents).toEqual([]);
   });
 
@@ -198,7 +198,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           ai: {
             rules: {
-              cursor: ["style.mdc"],
+              cursor: ["style"],
             },
           },
         } as ProfileManifest,
@@ -211,7 +211,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           ai: {
             rules: {
-              cursor: ["style.mdc"], // Same agent and name, should override
+              cursor: ["style"], // Same agent and name, should override
             },
           },
         } as ProfileManifest,
@@ -220,9 +220,9 @@ describe("mergeRules", () => {
 
     const result = mergeRules(profiles);
 
-    // Only one cursor:style.mdc should exist
+    // Only one cursor:style should exist
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("style.mdc");
+    expect(result[0].name).toBe("style");
     expect(result[0].agents).toEqual(["cursor"]);
   });
 
@@ -235,7 +235,7 @@ describe("mergeRules", () => {
           name: "base",
           version: "1.0.0",
           ai: {
-            rules: ["frontend/react.md", "backend/api.md"],
+            rules: ["frontend/react", "backend/api"],
           },
         } as ProfileManifest,
       },
@@ -244,8 +244,8 @@ describe("mergeRules", () => {
     const result = mergeRules(profiles);
 
     expect(result).toHaveLength(2);
-    expect(result.some((r) => r.name === "frontend/react.md")).toBe(true);
-    expect(result.some((r) => r.name === "backend/api.md")).toBe(true);
+    expect(result.some((r) => r.name === "frontend/react")).toBe(true);
+    expect(result.some((r) => r.name === "backend/api")).toBe(true);
   });
 
   test("allows same rule name for different agents", () => {
@@ -258,9 +258,9 @@ describe("mergeRules", () => {
           version: "1.0.0",
           ai: {
             rules: {
-              "claude-code": ["code-style.md"],
-              cursor: ["code-style.md"],
-              universal: ["code-style.md"],
+              "claude-code": ["code-style"],
+              cursor: ["code-style"],
+              universal: ["code-style"],
             },
           },
         } as ProfileManifest,
@@ -271,7 +271,7 @@ describe("mergeRules", () => {
 
     // Three different rules with same name but different agent scopes
     expect(result).toHaveLength(3);
-    expect(result.filter((r) => r.name === "code-style.md")).toHaveLength(3);
+    expect(result.filter((r) => r.name === "code-style")).toHaveLength(3);
   });
 
   test("handles profiles without rules section", () => {
@@ -362,7 +362,7 @@ describe("mergeRules", () => {
           name: "base",
           version: "1.0.0",
           ai: {
-            rules: ["universal-rule.md"], // Array format
+            rules: ["universal-rule"], // Array format
           },
         } as ProfileManifest,
       },
@@ -375,7 +375,7 @@ describe("mergeRules", () => {
           ai: {
             rules: {
               // Object format
-              cursor: ["cursor-rule.mdc"],
+              cursor: ["cursor-rule"],
             },
           },
         } as ProfileManifest,
@@ -386,12 +386,12 @@ describe("mergeRules", () => {
 
     expect(result).toHaveLength(2);
     expect(result).toContainEqual({
-      name: "universal-rule.md",
+      name: "universal-rule",
       agents: [],
       profileName: "base",
     });
     expect(result).toContainEqual({
-      name: "cursor-rule.mdc",
+      name: "cursor-rule",
       agents: ["cursor"],
       profileName: "override",
     });
@@ -407,7 +407,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 10,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -419,7 +419,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 1,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -443,7 +443,7 @@ describe("mergeRules", () => {
           weight: 1,
           ai: {
             rules: {
-              cursor: ["style.mdc"],
+              cursor: ["style"],
             },
           },
         } as ProfileManifest,
@@ -457,7 +457,7 @@ describe("mergeRules", () => {
           weight: 10,
           ai: {
             rules: {
-              cursor: ["style.mdc"],
+              cursor: ["style"],
             },
           },
         } as ProfileManifest,
@@ -480,7 +480,7 @@ describe("mergeRules", () => {
           name: "default-weight",
           version: "1.0.0",
           ai: {
-            rules: ["security.md"],
+            rules: ["security"],
           },
         } as ProfileManifest,
       },
@@ -492,7 +492,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 5,
           ai: {
-            rules: ["security.md"],
+            rules: ["security"],
           },
         } as ProfileManifest,
       },
@@ -515,7 +515,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: -1,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -527,7 +527,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 100,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -551,7 +551,7 @@ describe("mergeRules", () => {
           weight: -1,
           ai: {
             rules: {
-              cursor: ["style.mdc"],
+              cursor: ["style"],
             },
           },
         } as ProfileManifest,
@@ -565,7 +565,7 @@ describe("mergeRules", () => {
           weight: 50,
           ai: {
             rules: {
-              cursor: ["style.mdc"],
+              cursor: ["style"],
             },
           },
         } as ProfileManifest,
@@ -589,7 +589,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: -1,
           ai: {
-            rules: ["security.md"],
+            rules: ["security"],
           },
         } as ProfileManifest,
       },
@@ -600,7 +600,7 @@ describe("mergeRules", () => {
           name: "normal",
           version: "1.0.0",
           ai: {
-            rules: ["formatting.md"],
+            rules: ["formatting"],
           },
         } as ProfileManifest,
       },
@@ -610,8 +610,8 @@ describe("mergeRules", () => {
     const result = mergeRules(sorted);
 
     expect(result).toHaveLength(2);
-    expect(result.map((r) => r.name)).toContain("security.md");
-    expect(result.map((r) => r.name)).toContain("formatting.md");
+    expect(result.map((r) => r.name)).toContain("security");
+    expect(result.map((r) => r.name)).toContain("formatting");
   });
 
   test("emits warning when same-weight profiles define the same rule", () => {
@@ -624,7 +624,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 5,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -636,7 +636,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 5,
           ai: {
-            rules: ["coding-standards.md"],
+            rules: ["coding-standards"],
           },
         } as ProfileManifest,
       },
@@ -646,7 +646,7 @@ describe("mergeRules", () => {
     const result = mergeRulesWithWarnings(sorted);
 
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].key).toBe("coding-standards.md");
+    expect(result.warnings[0].key).toBe("coding-standards");
     expect(result.warnings[0].category).toBe("rule");
     expect(result.warnings[0].profileA).toBe("team-a");
     expect(result.warnings[0].profileB).toBe("team-b");
@@ -663,7 +663,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 1,
           ai: {
-            rules: ["security.md"],
+            rules: ["security"],
           },
         } as ProfileManifest,
       },
@@ -675,7 +675,7 @@ describe("mergeRules", () => {
           version: "1.0.0",
           weight: 10,
           ai: {
-            rules: ["security.md"],
+            rules: ["security"],
           },
         } as ProfileManifest,
       },
