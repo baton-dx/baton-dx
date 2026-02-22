@@ -276,12 +276,8 @@ export {
   getGlobalConfigPath,
   getGlobalAiTools,
   setGlobalAiTools,
-  addGlobalAiTool,
-  removeGlobalAiTool,
   getGlobalIdePlatforms,
   setGlobalIdePlatforms,
-  addGlobalIdePlatform,
-  removeGlobalIdePlatform,
 } from "./config/global-config.js";
 
 export type { GlobalSourceEntry } from "./schemas/global-config.js";

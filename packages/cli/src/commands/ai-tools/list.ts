@@ -135,9 +135,7 @@ export const aiToolsListCommand = defineCommand({
       console.log("");
     }
 
-    p.outro(
-      "Manage tools: 'baton ai-tools scan' (detect) | 'baton config set default-tools <tools>'",
-    );
+    p.outro("Manage tools: 'baton ai-tools scan' (detect) | 'baton ai-tools configure' (select)");
   },
 });
 

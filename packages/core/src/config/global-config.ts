@@ -205,42 +205,6 @@ export async function setGlobalAiTools(tools: string[]): Promise<void> {
 }
 
 /**
- * Adds a single AI tool to the global configuration.
- *
- * @param toolKey - The tool key to add (e.g., "claude-code")
- * @throws {Error} If the tool is already configured
- */
-export async function addGlobalAiTool(toolKey: string): Promise<void> {
-  const config = await loadGlobalConfig();
-  const currentTools = config.ai?.tools ?? [];
-
-  if (currentTools.includes(toolKey)) {
-    throw new Error(`AI tool "${toolKey}" is already configured`);
-  }
-
-  config.ai = { ...config.ai, tools: [...currentTools, toolKey] };
-  await saveGlobalConfig(config);
-}
-
-/**
- * Removes a single AI tool from the global configuration.
- *
- * @param toolKey - The tool key to remove
- * @throws {Error} If the tool is not found in configuration
- */
-export async function removeGlobalAiTool(toolKey: string): Promise<void> {
-  const config = await loadGlobalConfig();
-  const currentTools = config.ai?.tools ?? [];
-
-  if (!currentTools.includes(toolKey)) {
-    throw new Error(`AI tool "${toolKey}" is not configured`);
-  }
-
-  config.ai = { ...config.ai, tools: currentTools.filter((t) => t !== toolKey) };
-  await saveGlobalConfig(config);
-}
-
-/**
  * Gets the list of persisted IDE platforms from global configuration.
  *
  * @returns Array of platform keys (empty if none configured)
@@ -258,42 +222,6 @@ export async function getGlobalIdePlatforms(): Promise<string[]> {
 export async function setGlobalIdePlatforms(platforms: string[]): Promise<void> {
   const config = await loadGlobalConfig();
   config.ide = { ...config.ide, platforms };
-  await saveGlobalConfig(config);
-}
-
-/**
- * Adds a single IDE platform to the global configuration.
- *
- * @param ideKey - The platform key to add (e.g., "vscode")
- * @throws {Error} If the platform is already configured
- */
-export async function addGlobalIdePlatform(ideKey: string): Promise<void> {
-  const config = await loadGlobalConfig();
-  const currentPlatforms = config.ide?.platforms ?? [];
-
-  if (currentPlatforms.includes(ideKey)) {
-    throw new Error(`IDE platform "${ideKey}" is already configured`);
-  }
-
-  config.ide = { ...config.ide, platforms: [...currentPlatforms, ideKey] };
-  await saveGlobalConfig(config);
-}
-
-/**
- * Removes a single IDE platform from the global configuration.
- *
- * @param ideKey - The platform key to remove
- * @throws {Error} If the platform is not found in configuration
- */
-export async function removeGlobalIdePlatform(ideKey: string): Promise<void> {
-  const config = await loadGlobalConfig();
-  const currentPlatforms = config.ide?.platforms ?? [];
-
-  if (!currentPlatforms.includes(ideKey)) {
-    throw new Error(`IDE platform "${ideKey}" is not configured`);
-  }
-
-  config.ide = { ...config.ide, platforms: currentPlatforms.filter((p) => p !== ideKey) };
   await saveGlobalConfig(config);
 }
 

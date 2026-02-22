@@ -4,8 +4,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ManifestValidationError } from "../errors.js";
 import {
-  addGlobalAiTool,
-  addGlobalIdePlatform,
   addGlobalSource,
   getDefaultGlobalSource,
   getGlobalAiTools,
@@ -13,8 +11,6 @@ import {
   getGlobalIdePlatforms,
   getGlobalSources,
   loadGlobalConfig,
-  removeGlobalAiTool,
-  removeGlobalIdePlatform,
   removeGlobalSource,
   saveGlobalConfig,
   setGlobalAiTools,
@@ -294,43 +290,6 @@ describe("Global Config", () => {
       });
     });
 
-    describe("addGlobalAiTool", () => {
-      it("should add a single tool", async () => {
-        await addGlobalAiTool("claude-code");
-
-        const tools = await getGlobalAiTools();
-        expect(tools).toEqual(["claude-code"]);
-      });
-
-      it("should append to existing tools", async () => {
-        await setGlobalAiTools(["claude-code"]);
-        await addGlobalAiTool("cursor");
-
-        const tools = await getGlobalAiTools();
-        expect(tools).toEqual(["claude-code", "cursor"]);
-      });
-
-      it("should throw when tool already configured", async () => {
-        await addGlobalAiTool("claude-code");
-
-        await expect(addGlobalAiTool("claude-code")).rejects.toThrow(/already configured/);
-      });
-    });
-
-    describe("removeGlobalAiTool", () => {
-      it("should remove a single tool", async () => {
-        await setGlobalAiTools(["claude-code", "cursor"]);
-        await removeGlobalAiTool("claude-code");
-
-        const tools = await getGlobalAiTools();
-        expect(tools).toEqual(["cursor"]);
-      });
-
-      it("should throw when tool not found", async () => {
-        await expect(removeGlobalAiTool("nonexistent")).rejects.toThrow(/not configured/);
-      });
-    });
-
     describe("ai field in globalConfigSchema", () => {
       it("should accept config with ai.tools field", async () => {
         const config = await loadGlobalConfig();
@@ -390,43 +349,6 @@ describe("Global Config", () => {
         expect(config.sources).toHaveLength(1);
         expect(config.ai?.tools).toEqual(["claude-code"]);
         expect(config.ide?.platforms).toEqual(["vscode"]);
-      });
-    });
-
-    describe("addGlobalIdePlatform", () => {
-      it("should add a single platform", async () => {
-        await addGlobalIdePlatform("vscode");
-
-        const platforms = await getGlobalIdePlatforms();
-        expect(platforms).toEqual(["vscode"]);
-      });
-
-      it("should append to existing platforms", async () => {
-        await setGlobalIdePlatforms(["vscode"]);
-        await addGlobalIdePlatform("cursor");
-
-        const platforms = await getGlobalIdePlatforms();
-        expect(platforms).toEqual(["vscode", "cursor"]);
-      });
-
-      it("should throw when platform already configured", async () => {
-        await addGlobalIdePlatform("vscode");
-
-        await expect(addGlobalIdePlatform("vscode")).rejects.toThrow(/already configured/);
-      });
-    });
-
-    describe("removeGlobalIdePlatform", () => {
-      it("should remove a single platform", async () => {
-        await setGlobalIdePlatforms(["vscode", "cursor"]);
-        await removeGlobalIdePlatform("vscode");
-
-        const platforms = await getGlobalIdePlatforms();
-        expect(platforms).toEqual(["cursor"]);
-      });
-
-      it("should throw when platform not found", async () => {
-        await expect(removeGlobalIdePlatform("nonexistent")).rejects.toThrow(/not configured/);
       });
     });
 

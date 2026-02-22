@@ -1,11 +1,8 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getAIToolConfig } from "@baton-dx/ai-tool-paths";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
-  getBatonHome,
   getGlobalAiTools,
-  getGlobalConfigPath,
   getGlobalIdePlatforms,
   getGlobalSources,
   loadProjectManifest,
@@ -13,35 +10,8 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
-import { parse, stringify } from "yaml";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { formatIntersectionSummary } from "../utils/intersection-display.js";
-
-interface BatonConfig {
-  "cache-dir"?: string;
-  "default-scope"?: "project" | "global";
-  "symlink-mode"?: boolean;
-  "default-tools"?: string[];
-}
-
-const VALID_KEYS = ["cache-dir", "default-scope", "symlink-mode", "default-tools"] as const;
-
-async function loadConfig(): Promise<BatonConfig> {
-  const configFile = getGlobalConfigPath();
-  try {
-    await access(configFile);
-  } catch {
-    return {};
-  }
-  const content = await readFile(configFile, "utf-8");
-  return parse(content) as BatonConfig;
-}
-
-async function saveConfig(config: BatonConfig): Promise<void> {
-  const configFile = getGlobalConfigPath();
-  await mkdir(getBatonHome(), { recursive: true });
-  await writeFile(configFile, stringify(config), "utf-8");
-}
 
 async function showDashboard(): Promise<void> {
   p.intro("Baton Dashboard");
@@ -160,7 +130,7 @@ async function showDashboard(): Promise<void> {
   }
 
   console.log("");
-  p.outro("Use 'baton config list' to view configuration settings");
+  p.outro("Manage tools: 'baton ai-tools configure' | 'baton ides configure'");
 }
 
 async function loadProjectManifestSafe(): Promise<ProjectManifest | null> {
@@ -174,132 +144,9 @@ async function loadProjectManifestSafe(): Promise<ProjectManifest | null> {
 export const configCommand = defineCommand({
   meta: {
     name: "config",
-    description: "Show Baton dashboard overview or configure settings (set, get, list)",
+    description: "Show Baton dashboard overview",
   },
-  args: {
-    action: {
-      type: "positional",
-      description: "Action: set, get, or list",
-      required: false,
-    },
-    key: {
-      type: "positional",
-      description: "Configuration key",
-      required: false,
-    },
-    value: {
-      type: "positional",
-      description: "Configuration value (for set)",
-      required: false,
-    },
-  },
-  async run({ args }) {
-    const action = args.action as string | undefined;
-    const key = args.key as string | undefined;
-    const value = args.value as string | undefined;
-
-    // Show dashboard if no action provided
-    if (!action) {
-      await showDashboard();
-      return;
-    }
-
-    const selectedAction = action;
-
-    if (selectedAction === "list") {
-      p.intro("⚙️  Baton Configuration");
-
-      const config = await loadConfig();
-      if (Object.keys(config).length === 0) {
-        p.outro("No configuration set. Using defaults.");
-        return;
-      }
-
-      console.log("");
-      for (const [configKey, configValue] of Object.entries(config)) {
-        console.log(
-          `${configKey}: ${Array.isArray(configValue) ? configValue.join(", ") : configValue}`,
-        );
-      }
-      console.log("");
-
-      p.outro("Configuration loaded");
-      return;
-    }
-
-    if (selectedAction === "get") {
-      if (!key) {
-        p.intro("⚙️  Baton Configuration");
-        p.outro("Error: Missing key argument. Usage: baton config get <key>");
-        process.exit(1);
-      }
-
-      if (!VALID_KEYS.includes(key as (typeof VALID_KEYS)[number])) {
-        p.intro("⚙️  Baton Configuration");
-        p.outro(`Error: Invalid key "${key}". Valid keys: ${VALID_KEYS.join(", ")}`);
-        process.exit(1);
-      }
-
-      const config = await loadConfig();
-      const configValue = config[key as keyof BatonConfig];
-
-      if (configValue === undefined) {
-        p.intro("⚙️  Baton Configuration");
-        p.outro(`"${key}" is not set (using default)`);
-        return;
-      }
-
-      console.log(Array.isArray(configValue) ? configValue.join(", ") : configValue);
-      return;
-    }
-
-    if (selectedAction === "set") {
-      if (!key || !value) {
-        p.intro("⚙️  Baton Configuration");
-        p.outro("Error: Missing arguments. Usage: baton config set <key> <value>");
-        process.exit(1);
-      }
-
-      if (!VALID_KEYS.includes(key as (typeof VALID_KEYS)[number])) {
-        p.intro("⚙️  Baton Configuration");
-        p.outro(`Error: Invalid key "${key}". Valid keys: ${VALID_KEYS.join(", ")}`);
-        process.exit(1);
-      }
-
-      p.intro("⚙️  Baton Configuration");
-
-      const config = await loadConfig();
-
-      // Type-safe value parsing based on key
-      if (key === "default-scope") {
-        if (value !== "project" && value !== "global") {
-          p.outro('Error: default-scope must be either "project" or "global"');
-          process.exit(1);
-        }
-        config["default-scope"] = value;
-      } else if (key === "symlink-mode") {
-        if (value !== "true" && value !== "false") {
-          p.outro('Error: symlink-mode must be either "true" or "false"');
-          process.exit(1);
-        }
-        config["symlink-mode"] = value === "true";
-      } else if (key === "default-tools") {
-        // Parse comma-separated list
-        config["default-tools"] = value.split(",").map((s) => s.trim());
-      } else if (key === "cache-dir") {
-        config["cache-dir"] = value;
-      }
-
-      await saveConfig(config);
-
-      p.outro(
-        `✓ Set ${key} = ${Array.isArray(config[key as keyof BatonConfig]) ? (config[key as keyof BatonConfig] as string[]).join(", ") : config[key as keyof BatonConfig]}`,
-      );
-      return;
-    }
-
-    p.intro("⚙️  Baton Configuration");
-    p.outro(`Error: Unknown action "${selectedAction}". Use: set, get, or list`);
-    process.exit(1);
+  async run() {
+    await showDashboard();
   },
 });
