@@ -50,6 +50,7 @@ export {
 // Export Git source provider
 export {
   cloneGitSource,
+  expandSparseCheckout,
   type CloneOptions,
   type ClonedSource,
 } from "./sources/git-clone.js";
@@ -187,6 +188,7 @@ export {
 // Export profile inheritance
 export {
   resolveProfileChain,
+  type CloneContext,
   type ResolvedProfile,
 } from "./inheritance/profile-chain.js";
 

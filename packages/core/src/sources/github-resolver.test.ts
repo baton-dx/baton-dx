@@ -30,6 +30,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/abc123",
         fromCache: false,
         sha: "abc123def456",
+        cachePath: "/cache/abc123",
+        sparseCheckout: false,
       });
 
       const result = await resolveGitHubSource({ source });
@@ -58,6 +60,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/xyz789",
         fromCache: false,
         sha: "xyz789abc123",
+        cachePath: "/cache/xyz789",
+        sparseCheckout: false,
       });
 
       const result = await resolveGitHubSource({ source });
@@ -85,6 +89,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/def456",
         fromCache: true,
         sha: "def456ghi789",
+        cachePath: "/cache/def456",
+        sparseCheckout: false,
       });
 
       const result = await resolveGitHubSource({ source });
@@ -111,6 +117,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/ghi789/frontend",
         fromCache: false,
         sha: "ghi789jkl012",
+        cachePath: "/cache/ghi789",
+        sparseCheckout: true,
       });
 
       const result = await resolveGitHubSource({ source });
@@ -137,6 +145,8 @@ describe("GitHub Resolver", () => {
         localPath: "/tmp/fresh-clone",
         fromCache: false,
         sha: "fresh123abc",
+        cachePath: "/tmp/fresh-clone",
+        sparseCheckout: false,
       });
 
       await resolveGitHubSource({ source, useCache: false });
@@ -223,6 +233,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/test",
         fromCache: false,
         sha: "test123",
+        cachePath: "/cache/test",
+        sparseCheckout: false,
       });
 
       await resolveGitHubSource({ source });
@@ -242,6 +254,8 @@ describe("GitHub Resolver", () => {
         localPath: "/cache/test",
         fromCache: false,
         sha: "test123",
+        cachePath: "/cache/test",
+        sparseCheckout: false,
       });
 
       await resolveGitHubSource({ source });

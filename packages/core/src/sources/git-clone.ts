@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import simpleGit from "simple-git";
@@ -10,12 +10,15 @@ export interface CloneOptions {
   ref?: string;
   subpath?: string;
   useCache?: boolean;
+  maxCacheAgeMs?: number;
 }
 
 export interface ClonedSource {
   localPath: string;
   fromCache: boolean;
   sha: string;
+  cachePath: string;
+  sparseCheckout: boolean;
 }
 
 const CACHE_DIR = join(homedir(), ".baton", "cache");
@@ -51,21 +54,61 @@ async function isCacheValid(cachePath: string): Promise<boolean> {
 }
 
 /**
+ * Checks if a cached repository is stale based on FETCH_HEAD or HEAD mtime.
+ * Falls back to .git/HEAD if FETCH_HEAD does not exist.
+ */
+async function isCacheStale(cachePath: string, maxAgeMs: number): Promise<boolean> {
+  try {
+    const fetchHeadPath = join(cachePath, ".git", "FETCH_HEAD");
+    const fetchHeadStat = await stat(fetchHeadPath);
+    return Date.now() - fetchHeadStat.mtimeMs > maxAgeMs;
+  } catch {
+    // FETCH_HEAD may not exist (first clone without fetch), fall back to HEAD
+    try {
+      const headPath = join(cachePath, ".git", "HEAD");
+      const headStat = await stat(headPath);
+      return Date.now() - headStat.mtimeMs > maxAgeMs;
+    } catch {
+      // Neither file exists — treat as stale
+      return true;
+    }
+  }
+}
+
+/**
  * Clones a Git repository with shallow clone and optional sparse checkout
  */
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
-  const { url, ref, subpath, useCache = true } = options;
+  const { url, ref, subpath, useCache = true, maxCacheAgeMs } = options;
 
   // Check cache first
   const cachePath = getCachePath(url, ref);
   if (useCache && (await isCacheValid(cachePath))) {
     const git = simpleGit(cachePath);
     try {
-      // Try to update the cached repository
-      try {
-        await git.pull(["--depth=1"]);
-      } catch {
-        // Pull failed (network issue, detached HEAD, etc.) - use cache as-is
+      const stale = maxCacheAgeMs !== undefined && (await isCacheStale(cachePath, maxCacheAgeMs));
+
+      if (stale) {
+        // Stale cache: aggressive refresh with fetch + reset
+        try {
+          await git.fetch(["--depth=1", "origin"]);
+          await git.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
+        } catch {
+          // Fetch failed (network issue), fall back to pull
+          try {
+            await git.pull(["--depth=1"]);
+          } catch {
+            // Pull also failed — use stale cache with warning
+            console.warn(`[baton] Network unavailable, using stale cache for ${url}`);
+          }
+        }
+      } else {
+        // Cache is fresh or no TTL set: best-effort pull
+        try {
+          await git.pull(["--depth=1"]);
+        } catch {
+          // Pull failed (network issue, detached HEAD, etc.) - use cache as-is
+        }
       }
 
       const sha = await git.revparse(["HEAD"]);
@@ -73,6 +116,8 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         localPath: subpath ? join(cachePath, subpath) : cachePath,
         fromCache: true,
         sha: sha.trim(),
+        cachePath,
+        sparseCheckout: !!subpath,
       };
     } catch (error) {
       throw new GitSourceError(
@@ -143,6 +188,8 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
       localPath: subpath ? join(cachePath, subpath) : cachePath,
       fromCache: false,
       sha: sha.trim(),
+      cachePath,
+      sparseCheckout: !!subpath,
     };
   } catch (error) {
     throw new GitSourceError(
@@ -150,4 +197,16 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
       error,
     );
   }
+}
+
+/**
+ * Expands sparse-checkout in a cached repository to include additional paths.
+ * Uses 'git sparse-checkout add' to preserve existing checkout paths.
+ */
+export async function expandSparseCheckout(
+  cachePath: string,
+  additionalPaths: string[],
+): Promise<void> {
+  const git = simpleGit(cachePath);
+  await git.raw(["sparse-checkout", "add", ...additionalPaths]);
 }

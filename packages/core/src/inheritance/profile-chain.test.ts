@@ -1,9 +1,19 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CircularInheritanceError } from "../errors.js";
+import { expandSparseCheckout } from "../sources/git-clone.js";
+import type { CloneContext } from "./profile-chain.js";
 import { resolveProfileChain } from "./profile-chain.js";
+
+vi.mock("../sources/git-clone.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sources/git-clone.js")>();
+  return {
+    ...actual,
+    expandSparseCheckout: vi.fn(),
+  };
+});
 
 describe("inheritance/profile-chain", () => {
   let tempDir: string;
@@ -441,6 +451,393 @@ extends:
       // Root profile (not loaded via loadProfileFromSource) has no localPath
       expect(chain[1].name).toBe("child-profile");
       expect(chain[1].localPath).toBeUndefined();
+    });
+  });
+
+  describe("hard error on extends resolution failure", () => {
+    it("throws descriptive error when extends target does not exist", async () => {
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/nonexistent\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/nonexistent"],
+      };
+
+      await expect(resolveProfileChain(childManifest, "./profiles/child", tempDir)).rejects.toThrow(
+        /Failed to resolve extends '\.\/profiles\/nonexistent' from profile 'child-profile'/,
+      );
+    });
+
+    it("still throws CircularInheritanceError for circular extends", async () => {
+      const profileAPath = join(profilesDir, "a");
+      await mkdir(profileAPath, { recursive: true });
+      await writeFile(
+        join(profileAPath, "baton.profile.yaml"),
+        "name: profile-a\nversion: 1.0.0\nextends:\n  - ./profiles/b\n",
+        "utf-8",
+      );
+
+      const profileBPath = join(profilesDir, "b");
+      await mkdir(profileBPath, { recursive: true });
+      await writeFile(
+        join(profileBPath, "baton.profile.yaml"),
+        "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+        "utf-8",
+      );
+
+      const manifest = {
+        name: "profile-a",
+        version: "1.0.0",
+        extends: ["./profiles/b"],
+      };
+
+      await expect(resolveProfileChain(manifest, "./profiles/a", tempDir)).rejects.toThrow(
+        CircularInheritanceError,
+      );
+    });
+
+    it("still throws max-depth error for excessively deep chains", async () => {
+      for (let i = 0; i < 12; i++) {
+        const profilePath = join(profilesDir, `deep-${i}`);
+        await mkdir(profilePath, { recursive: true });
+        const extendsLine = i < 11 ? `extends:\n  - ./profiles/deep-${i + 1}` : "";
+        await writeFile(
+          join(profilePath, "baton.profile.yaml"),
+          `name: deep-${i}\nversion: 1.0.0\n${extendsLine}\n`,
+          "utf-8",
+        );
+      }
+
+      const manifest = {
+        name: "deep-0",
+        version: "1.0.0",
+        extends: ["./profiles/deep-1"],
+      };
+
+      await expect(resolveProfileChain(manifest, "./profiles/deep-0", tempDir)).rejects.toThrow(
+        /exceeds maximum depth/,
+      );
+    });
+
+    it("includes underlying cause in error message", async () => {
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/bad\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/bad"],
+      };
+
+      try {
+        await resolveProfileChain(childManifest, "./profiles/child", tempDir);
+        expect.fail("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        const msg = (error as Error).message;
+        expect(msg).toContain("Failed to resolve extends './profiles/bad'");
+        expect(msg).toContain("from profile 'child-profile'");
+        // Should include the underlying cause (FileNotFoundError message)
+        expect(msg.length).toBeGreaterThan(
+          "Failed to resolve extends './profiles/bad' from profile 'child-profile': ".length,
+        );
+      }
+    });
+  });
+
+  describe("resolveProfileChain with CloneContext", () => {
+    beforeEach(() => {
+      vi.mocked(expandSparseCheckout).mockReset();
+    });
+
+    it("expands sparse-checkout and loads parent when profile not initially present", async () => {
+      // Create child profile that extends base (base doesn't exist yet — sparse-checkout)
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        `
+name: child-profile
+version: 1.0.0
+extends:
+  - ./profiles/base
+`,
+        "utf-8",
+      );
+
+      // Mock expandSparseCheckout to create the base profile (simulating git checkout expansion)
+      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
+        const basePath = join(cachePath, paths[0]);
+        await mkdir(basePath, { recursive: true });
+        await writeFile(
+          join(basePath, "baton.profile.yaml"),
+          "name: base-profile\nversion: 1.0.0\n",
+          "utf-8",
+        );
+      });
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/base"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+      const chain = await resolveProfileChain(
+        childManifest,
+        "./profiles/child",
+        tempDir,
+        cloneContext,
+      );
+
+      // expandSparseCheckout was called with the relative path to the missing parent
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/base"]);
+
+      // Chain includes both parent and child (base first, child last)
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[1].name).toBe("child-profile");
+    });
+
+    it("works unchanged without CloneContext (local sources)", async () => {
+      // Create base profile
+      const basePath = join(profilesDir, "base");
+      await mkdir(basePath, { recursive: true });
+      await writeFile(
+        join(basePath, "baton.profile.yaml"),
+        "name: base-profile\nversion: 1.0.0\n",
+        "utf-8",
+      );
+
+      // Create child profile
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/base\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/base"],
+      };
+
+      // No cloneContext — standard local resolution
+      const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
+
+      // expandSparseCheckout should NOT be called
+      expect(expandSparseCheckout).not.toHaveBeenCalled();
+
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[1].name).toBe("child-profile");
+    });
+
+    it("throws hard error when expansion does not help (parent truly missing)", async () => {
+      // Create child profile that extends a non-existent base
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/missing\n",
+        "utf-8",
+      );
+
+      // expandSparseCheckout is called but does NOT create the file (parent truly doesn't exist)
+      vi.mocked(expandSparseCheckout).mockResolvedValue(undefined);
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/missing"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+
+      // Should throw a descriptive error after expansion attempt fails
+      await expect(
+        resolveProfileChain(childManifest, "./profiles/child", tempDir, cloneContext),
+      ).rejects.toThrow(
+        /Failed to resolve extends '\.\/profiles\/missing' from profile 'child-profile'/,
+      );
+
+      // expandSparseCheckout was called (expansion was attempted before giving up)
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/missing"]);
+    });
+
+    it("resolves extends with ../base relative path and CloneContext", async () => {
+      // Simulate a source repo structure: profiles/child extends ../base (= profiles/base)
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      // base does NOT exist initially — sparse-checkout will materialize it
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ../base\n",
+        "utf-8",
+      );
+
+      // expandSparseCheckout materializes the base profile directory
+      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
+        const targetPath = join(cachePath, paths[0]);
+        await mkdir(targetPath, { recursive: true });
+        await writeFile(
+          join(targetPath, "baton.profile.yaml"),
+          "name: base-profile\nversion: 1.0.0\n",
+          "utf-8",
+        );
+      });
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["../base"],
+      };
+
+      // baseDir is the child's directory, so ../base resolves to profiles/base
+      // source is the child's own path (distinct from the extends target)
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+      const chain = await resolveProfileChain(
+        childManifest,
+        "./profiles/child",
+        childPath,
+        cloneContext,
+      );
+
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/base"]);
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[1].name).toBe("child-profile");
+    });
+
+    it("resolves multi-level extends (A→B→C) with sparse-checkout expansion", async () => {
+      // Only child C exists initially; B and A are materialized via sparse-checkout
+      const profileCPath = join(profilesDir, "c");
+      await mkdir(profileCPath, { recursive: true });
+      await writeFile(
+        join(profileCPath, "baton.profile.yaml"),
+        "name: profile-c\nversion: 1.0.0\nextends:\n  - ./profiles/b\n",
+        "utf-8",
+      );
+
+      // expandSparseCheckout materializes profiles on demand
+      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
+        for (const p of paths) {
+          const targetPath = join(cachePath, p);
+          await mkdir(targetPath, { recursive: true });
+          if (p === "profiles/b") {
+            await writeFile(
+              join(targetPath, "baton.profile.yaml"),
+              "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+              "utf-8",
+            );
+          } else if (p === "profiles/a") {
+            await writeFile(
+              join(targetPath, "baton.profile.yaml"),
+              "name: profile-a\nversion: 1.0.0\n",
+              "utf-8",
+            );
+          }
+        }
+      });
+
+      const manifestC = {
+        name: "profile-c",
+        version: "1.0.0",
+        extends: ["./profiles/b"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+      const chain = await resolveProfileChain(manifestC, "./profiles/c", tempDir, cloneContext);
+
+      // Both B and A should be expanded via sparse-checkout
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/b"]);
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/a"]);
+
+      // Chain order: A (base), B (middle), C (top)
+      expect(chain).toHaveLength(3);
+      expect(chain[0].name).toBe("profile-a");
+      expect(chain[1].name).toBe("profile-b");
+      expect(chain[2].name).toBe("profile-c");
+    });
+
+    it("resolves diamond inheritance (D extends B+C, both extend A) with CloneContext", async () => {
+      // Only D exists initially; B, C, and A are materialized via sparse-checkout
+      const profileDPath = join(profilesDir, "d");
+      await mkdir(profileDPath, { recursive: true });
+      await writeFile(
+        join(profileDPath, "baton.profile.yaml"),
+        "name: profile-d\nversion: 1.0.0\nextends:\n  - ./profiles/b\n  - ./profiles/c\n",
+        "utf-8",
+      );
+
+      // Track which profiles have been materialized to avoid duplicate writes
+      const materialized = new Set<string>();
+
+      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
+        for (const p of paths) {
+          if (materialized.has(p)) continue;
+          materialized.add(p);
+          const targetPath = join(cachePath, p);
+          await mkdir(targetPath, { recursive: true });
+          if (p === "profiles/b") {
+            await writeFile(
+              join(targetPath, "baton.profile.yaml"),
+              "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+              "utf-8",
+            );
+          } else if (p === "profiles/c") {
+            await writeFile(
+              join(targetPath, "baton.profile.yaml"),
+              "name: profile-c\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+              "utf-8",
+            );
+          } else if (p === "profiles/a") {
+            await writeFile(
+              join(targetPath, "baton.profile.yaml"),
+              "name: profile-a\nversion: 1.0.0\n",
+              "utf-8",
+            );
+          }
+        }
+      });
+
+      const manifestD = {
+        name: "profile-d",
+        version: "1.0.0",
+        extends: ["./profiles/b", "./profiles/c"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+      const chain = await resolveProfileChain(manifestD, "./profiles/d", tempDir, cloneContext);
+
+      // Diamond: D extends B and C, both extend A
+      // Each subtree has its own visited set, so A appears in both paths
+      // Chain order: A (via B), B, A (via C), C, D
+      expect(chain).toHaveLength(5);
+      expect(chain[0].name).toBe("profile-a");
+      expect(chain[1].name).toBe("profile-b");
+      expect(chain[2].name).toBe("profile-a");
+      expect(chain[3].name).toBe("profile-c");
+      expect(chain[4].name).toBe("profile-d");
+
+      // expandSparseCheckout was called for B, A (via B path), C, and A (via C path)
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/b"]);
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/c"]);
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/a"]);
     });
   });
 });

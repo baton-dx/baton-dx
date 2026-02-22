@@ -4,6 +4,7 @@ import {
   type AIToolAdapter,
   type AgentEntry,
   type AgentFile,
+  type CloneContext,
   FileNotFoundError,
   type LockFileEntry,
   type MemoryEntry,
@@ -23,6 +24,7 @@ import {
   getProfileWeight,
   isKnownIdePlatform,
   isLockedProfile,
+  loadGlobalConfig,
   loadProfileManifest,
   loadProjectManifest,
   mergeAgentsWithWarnings,
@@ -267,12 +269,18 @@ export const syncCommand = defineCommand({
       description: "Show detailed output for each placed file",
       default: false,
     },
+    fresh: {
+      type: "boolean",
+      description: "Force an immediate source refresh (ignore cache TTL)",
+      default: false,
+    },
   },
   async run({ args }) {
     const dryRun = args["dry-run"];
     const categoryArg = args.category as string | undefined;
     const autoYes = args.yes;
     const verbose = args.verbose;
+    const fresh = args.fresh;
 
     // Validate --category flag
     let category: SyncCategory | undefined;
@@ -320,6 +328,16 @@ export const syncCommand = defineCommand({
       // Step 0a: First-run preferences check
       await promptFirstRunPreferences(projectRoot, !!args.yes);
 
+      // Step 0c: Compute source cache TTL
+      let cacheTtlHours = 24;
+      try {
+        const globalConfig = await loadGlobalConfig();
+        cacheTtlHours = globalConfig.sync?.cacheTtlHours ?? 24;
+      } catch {
+        // Best-effort — proceed with default 24h if config can't be loaded
+      }
+      const maxCacheAgeMs = fresh ? 0 : cacheTtlHours * 60 * 60 * 1000;
+
       // Step 0b: Read existing lockfile to detect orphaned files later
       const previousPaths = new Set<string>();
       try {
@@ -350,6 +368,7 @@ export const syncCommand = defineCommand({
           const parsed = parseSource(profileSource.source);
 
           let manifestPath: string;
+          let cloneContext: CloneContext | undefined;
           if (parsed.provider === "local" || parsed.provider === "file") {
             const absolutePath = parsed.path.startsWith("/")
               ? parsed.path
@@ -382,14 +401,24 @@ export const syncCommand = defineCommand({
               ref: profileSource.version,
               subpath: "subpath" in parsed ? parsed.subpath : undefined,
               useCache: true,
+              maxCacheAgeMs,
             });
             manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
             sourceShas.set(profileSource.source, cloned.sha);
+            cloneContext = {
+              cachePath: cloned.cachePath,
+              sparseCheckout: cloned.sparseCheckout,
+            };
           }
 
           const manifest = await loadProfileManifest(manifestPath);
           const profileDir = dirname(manifestPath);
-          const chain = await resolveProfileChain(manifest, profileSource.source, profileDir);
+          const chain = await resolveProfileChain(
+            manifest,
+            profileSource.source,
+            profileDir,
+            cloneContext,
+          );
           allProfiles.push(...chain);
         } catch (error) {
           spinner.stop(`Failed to resolve profile ${profileSource.source}: ${error}`);
@@ -707,6 +736,7 @@ export const syncCommand = defineCommand({
             ref: profileSource.version,
             subpath: "subpath" in parsed ? parsed.subpath : undefined,
             useCache: true,
+            maxCacheAgeMs,
           });
           for (const prof of allProfiles) {
             if (prof.source === profileSource.source) {

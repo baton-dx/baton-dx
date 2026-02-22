@@ -10,8 +10,9 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
-import { buildIntersection } from "../utils/build-intersection.js";
-import { formatIntersectionSummary } from "../utils/intersection-display.js";
+import { buildIntersection } from "../../utils/build-intersection.js";
+import { formatIntersectionSummary } from "../../utils/intersection-display.js";
+import { configSetCommand } from "./set.js";
 
 async function showDashboard(): Promise<void> {
   p.intro("Baton Dashboard");
@@ -144,7 +145,10 @@ async function loadProjectManifestSafe(): Promise<ProjectManifest | null> {
 export const configCommand = defineCommand({
   meta: {
     name: "config",
-    description: "Show Baton dashboard overview",
+    description: "Show Baton dashboard overview or configure settings",
+  },
+  subCommands: {
+    set: configSetCommand,
   },
   async run() {
     await showDashboard();
