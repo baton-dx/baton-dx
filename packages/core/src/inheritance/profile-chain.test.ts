@@ -454,6 +454,109 @@ extends:
     });
   });
 
+  describe("hard error on extends resolution failure", () => {
+    it("throws descriptive error when extends target does not exist", async () => {
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/nonexistent\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/nonexistent"],
+      };
+
+      await expect(resolveProfileChain(childManifest, "./profiles/child", tempDir)).rejects.toThrow(
+        /Failed to resolve extends '\.\/profiles\/nonexistent' from profile 'child-profile'/,
+      );
+    });
+
+    it("still throws CircularInheritanceError for circular extends", async () => {
+      const profileAPath = join(profilesDir, "a");
+      await mkdir(profileAPath, { recursive: true });
+      await writeFile(
+        join(profileAPath, "baton.profile.yaml"),
+        "name: profile-a\nversion: 1.0.0\nextends:\n  - ./profiles/b\n",
+        "utf-8",
+      );
+
+      const profileBPath = join(profilesDir, "b");
+      await mkdir(profileBPath, { recursive: true });
+      await writeFile(
+        join(profileBPath, "baton.profile.yaml"),
+        "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+        "utf-8",
+      );
+
+      const manifest = {
+        name: "profile-a",
+        version: "1.0.0",
+        extends: ["./profiles/b"],
+      };
+
+      await expect(resolveProfileChain(manifest, "./profiles/a", tempDir)).rejects.toThrow(
+        CircularInheritanceError,
+      );
+    });
+
+    it("still throws max-depth error for excessively deep chains", async () => {
+      for (let i = 0; i < 12; i++) {
+        const profilePath = join(profilesDir, `deep-${i}`);
+        await mkdir(profilePath, { recursive: true });
+        const extendsLine = i < 11 ? `extends:\n  - ./profiles/deep-${i + 1}` : "";
+        await writeFile(
+          join(profilePath, "baton.profile.yaml"),
+          `name: deep-${i}\nversion: 1.0.0\n${extendsLine}\n`,
+          "utf-8",
+        );
+      }
+
+      const manifest = {
+        name: "deep-0",
+        version: "1.0.0",
+        extends: ["./profiles/deep-1"],
+      };
+
+      await expect(resolveProfileChain(manifest, "./profiles/deep-0", tempDir)).rejects.toThrow(
+        /exceeds maximum depth/,
+      );
+    });
+
+    it("includes underlying cause in error message", async () => {
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/bad\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/bad"],
+      };
+
+      try {
+        await resolveProfileChain(childManifest, "./profiles/child", tempDir);
+        expect.fail("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        const msg = (error as Error).message;
+        expect(msg).toContain("Failed to resolve extends './profiles/bad'");
+        expect(msg).toContain("from profile 'child-profile'");
+        // Should include the underlying cause (FileNotFoundError message)
+        expect(msg.length).toBeGreaterThan(
+          "Failed to resolve extends './profiles/bad' from profile 'child-profile': ".length,
+        );
+      }
+    });
+  });
+
   describe("resolveProfileChain with CloneContext", () => {
     beforeEach(() => {
       vi.mocked(expandSparseCheckout).mockReset();
@@ -544,7 +647,7 @@ extends:
       expect(chain[1].name).toBe("child-profile");
     });
 
-    it("throws hard error from loadProfileFromSource when expansion does not help", async () => {
+    it("throws hard error when expansion does not help (parent truly missing)", async () => {
       // Create child profile that extends a non-existent base
       const childPath = join(profilesDir, "child");
       await mkdir(childPath, { recursive: true });
@@ -565,22 +668,15 @@ extends:
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
 
-      // expandSparseCheckout is called (retry attempted)
-      // The FileNotFoundError is thrown from loadProfileFromSource after retry,
-      // but currently caught by resolveChainRecursive's catch block (US-003 will fix that)
-      const chain = await resolveProfileChain(
-        childManifest,
-        "./profiles/child",
-        tempDir,
-        cloneContext,
+      // Should throw a descriptive error after expansion attempt fails
+      await expect(
+        resolveProfileChain(childManifest, "./profiles/child", tempDir, cloneContext),
+      ).rejects.toThrow(
+        /Failed to resolve extends '\.\/profiles\/missing' from profile 'child-profile'/,
       );
 
-      // expandSparseCheckout was called (expansion was attempted)
+      // expandSparseCheckout was called (expansion was attempted before giving up)
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/missing"]);
-
-      // Chain only contains child (parent was not loadable even after expansion)
-      expect(chain).toHaveLength(1);
-      expect(chain[0].name).toBe("child-profile");
     });
   });
 });

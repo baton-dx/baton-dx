@@ -9,6 +9,9 @@ Started: Sun Feb 22 19:14:06 CET 2026
 - Must run `bun run build` before `bun run typecheck` since CLI resolves @baton-dx/core from dist/
 - Biome enforces parameter-per-line formatting for long function signatures
 - Tests are co-located: `foo.test.ts` next to `foo.ts`
+- For mocking a single export from a module, use `vi.mock("path", async (importOriginal) => ({ ...(await importOriginal()), fn: vi.fn() }))` to keep other exports real
+- `FileNotFoundError` (from errors.ts) is the canonical error when `loadProfileManifest` can't find a file — check with `instanceof FileNotFoundError`
+- `resolveChainRecursive` now re-throws all non-circular, non-max-depth errors with enhanced context message (US-003 completed)
 
 ---
 
@@ -24,4 +27,30 @@ Started: Sun Feb 22 19:14:06 CET 2026
   - The resolveGitHubSource function intentionally filters ClonedSource fields down to its own ResolvedGitHubSource type — test assertions should match the resolver's return type, not the full ClonedSource
   - Biome will reject long function signatures on one line — use parameter-per-line format
   - The existing git-clone.test.ts has integration tests (describe.skip) — add unit tests with vi.mock("simple-git") as separate describe blocks
+---
+
+## 2026-02-22T19:25 - US-002
+- What was implemented: Defined `CloneContext` interface (`{ cachePath: string; sparseCheckout: boolean }`) in profile-chain.ts. Threaded `cloneContext` as optional parameter through `resolveProfileChain()` → `resolveChainRecursive()` → `loadProfileFromSource()`. Added sparse-checkout expansion retry logic in `loadProfileFromSource()`: when `FileNotFoundError` is caught and `cloneContext.sparseCheckout` is true, computes relative path via `path.relative()`, calls `expandSparseCheckout()`, and retries the load. Exported `CloneContext` type from core/src/index.ts.
+- Files changed:
+  - packages/core/src/inheritance/profile-chain.ts (CloneContext interface + cloneContext parameter threading + retry logic)
+  - packages/core/src/index.ts (added CloneContext type export)
+  - packages/core/src/inheritance/profile-chain.test.ts (3 new tests: sparse-checkout expansion success, without CloneContext unchanged, expansion failure)
+- **Learnings for future iterations:**
+  - `loadProfileFromSource` is private — test sparse-checkout behavior through `resolveProfileChain` with a CloneContext param
+  - The `resolveChainRecursive` catch block still silently swallows non-critical errors (US-003 will fix this) — so even if `loadProfileFromSource` throws after failed retry, the chain just omits the parent
+  - Use `vi.mocked(fn).mockImplementation()` to simulate side effects (like creating files on disk) that would normally happen via git sparse-checkout
+  - `path.relative(cachePath, absolutePath)` correctly computes repo-relative paths for sparse-checkout expansion (e.g., `profiles/base`)
+---
+
+## 2026-02-22T19:27 - US-003
+- What was implemented: Replaced silent error swallowing in `resolveChainRecursive()` catch block with re-throw behavior. Non-circular, non-max-depth errors are now re-thrown with enhanced error messages that include the child profile name, the extends value, and the underlying cause.
+- Files changed:
+  - packages/core/src/inheritance/profile-chain.ts (catch block: replaced silent swallow with descriptive re-throw)
+  - packages/core/src/inheritance/profile-chain.test.ts (4 new tests in "hard error on extends resolution failure" describe block + updated sparse-checkout expansion failure test to expect throw)
+  - scripts/ralph/prd.json (US-003 passes: true)
+- **Learnings for future iterations:**
+  - The catch block change was minimal (3 lines replaced) but the test impact was significant — any test that previously expected silent failure now needs to expect a throw
+  - The US-002 sparse-checkout test "throws hard error when expansion does not help" was directly affected: previously the chain silently omitted the parent, now it throws. Updated test expectations accordingly.
+  - Error message format: `Failed to resolve extends '<source>' from profile '<name>': <cause>` — use regex matching with escaped special chars in test assertions
+  - Biome auto-format (`npx biome check --write`) is the fastest way to fix formatting issues rather than manually adjusting
 ---

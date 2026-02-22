@@ -135,7 +135,11 @@ async function resolveChainRecursive(
         if (error instanceof Error && error.message.includes("exceeds maximum depth")) {
           throw error;
         }
-        // Skip missing parent profiles gracefully (e.g., template-generated extends refs)
+        // Re-throw all other errors with enhanced context
+        const cause = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to resolve extends '${extendSource}' from profile '${manifest.name}': ${cause}`,
+        );
       }
     }
   }

@@ -41,7 +41,7 @@
         "Tests pass"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "profile-chain.ts signatures: resolveProfileChain() at lines 36-40 (3 params: manifest, source, baseDir — add 4th optional cloneContext). resolveChainRecursive() at lines 61-69 (8 params including localPath — add 9th optional cloneContext). loadProfileFromSource() at lines 138-141 (2 params: source, baseDir — add 3rd optional cloneContext). The retry logic in loadProfileFromSource: when it catches a file-not-found error AND cloneContext?.sparseCheckout is true, compute the relative path using node:path.relative(cloneContext.cachePath, absoluteTargetPath) to get the repo-relative path (e.g. 'profiles/base'), then call expandSparseCheckout(cloneContext.cachePath, [relativePath]), then retry the load. Import expandSparseCheckout from ../sources/git-clone.js. Export block for profile-chain in core/src/index.ts is at lines 187-191 — add type CloneContext. Must run 'bun run build' before 'bun run typecheck' since CLI resolves @baton-dx/core from dist/."
     },
     {
@@ -60,7 +60,7 @@
         "Tests pass"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "The catch block is at profile-chain.ts lines 106-115. Currently: re-throws CircularInheritanceError and max-depth errors, silently swallows everything else (comment says 'Skip missing parent profiles gracefully'). Change: instead of the empty catch-all at the bottom, re-throw a new Error with descriptive message like `Failed to resolve extends '${extendsValue}' from profile '${manifest.name}': ${error.message}`. The existing tests in profile-chain.test.ts should verify circular inheritance still works. Add new tests for the hard error case. IMPORTANT: This story modifies the same file as US-002 (profile-chain.ts). Since US-002 adds the sparse-checkout retry logic inside loadProfileFromSource, the catch block in resolveChainRecursive should now only catch errors that bubble up AFTER the retry attempt. The error flow is: loadProfileFromSource tries load → fails → if sparseCheckout, expands and retries → if retry also fails, throws → resolveChainRecursive catches and re-throws with context."
     },
     {
