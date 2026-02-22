@@ -97,7 +97,7 @@
         "Tests pass"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "CloneOptions is at git-clone.ts lines 8-13 — add maxCacheAgeMs?: number. The isCacheStale function: use stat from node:fs/promises (add to imports) to check mtime of path.join(cachePath, '.git', 'FETCH_HEAD'). If FETCH_HEAD doesn't exist (first clone without fetch), fall back to path.join(cachePath, '.git', 'HEAD'). Compare: (Date.now() - mtime.getTime()) > maxAgeMs. The stale cache refresh logic goes in the cache-hit branch of cloneGitSource() (around line 85-95). Current behavior: tries git pull, catches silently, returns from cache. New behavior: if maxCacheAgeMs is set AND isCacheStale returns true, try fetch+reset first, fall back to pull, fall back to stale cache with console.warn. If maxCacheAgeMs is NOT set or cache is fresh, keep existing git pull behavior. Import { stat } from 'node:fs/promises'. The ref for the reset is options.ref || 'HEAD'."
     },
     {

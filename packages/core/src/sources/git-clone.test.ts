@@ -1,11 +1,16 @@
 import { createHash } from "node:crypto";
-import { rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import * as simpleGitModule from "simple-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitSourceError } from "../errors.js";
 import { cloneGitSource, expandSparseCheckout } from "./git-clone.js";
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+  stat: vi.fn(),
+}));
 
 const CACHE_DIR = join(homedir(), ".baton", "cache");
 
@@ -261,5 +266,172 @@ describe("ClonedSource interface fields", () => {
     expect(result.cachePath).toBeDefined();
     expect(result.sparseCheckout).toBe(true);
     expect(result.fromCache).toBe(false);
+  });
+});
+
+describe("cache staleness", () => {
+  const mockStat = vi.mocked(stat);
+  let mockCheckIsRepo: ReturnType<typeof vi.fn>;
+  let mockPull: ReturnType<typeof vi.fn>;
+  let mockFetch: ReturnType<typeof vi.fn>;
+  let mockRaw: ReturnType<typeof vi.fn>;
+  let mockRevparse: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockCheckIsRepo = vi.fn().mockResolvedValue(true);
+    mockPull = vi.fn().mockResolvedValue(undefined);
+    mockFetch = vi.fn().mockResolvedValue(undefined);
+    mockRaw = vi.fn().mockResolvedValue("");
+    mockRevparse = vi.fn().mockResolvedValue("abc123def456abc123def456abc123def456abc123");
+
+    vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+      checkIsRepo: mockCheckIsRepo,
+      pull: mockPull,
+      fetch: mockFetch,
+      raw: mockRaw,
+      revparse: mockRevparse,
+    } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("triggers fetch+reset when cache is stale", async () => {
+    // FETCH_HEAD mtime is 2 hours ago, TTL is 1 hour
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: twoHoursAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000, // 1 hour
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(["--depth=1", "origin"]);
+    expect(mockRaw).toHaveBeenCalledWith(["reset", "--hard", "origin/HEAD"]);
+    expect(mockPull).not.toHaveBeenCalled();
+  });
+
+  it("triggers fetch+reset with correct ref when stale", async () => {
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: twoHoursAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      ref: "main",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000,
+    });
+
+    expect(mockRaw).toHaveBeenCalledWith(["reset", "--hard", "origin/main"]);
+  });
+
+  it("skips fetch when cache is fresh", async () => {
+    // FETCH_HEAD mtime is 10 minutes ago, TTL is 1 hour
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: tenMinutesAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000, // 1 hour
+    });
+
+    // Should use normal pull path, not fetch+reset
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPull).toHaveBeenCalledWith(["--depth=1"]);
+  });
+
+  it("falls back to pull when fetch fails on stale cache", async () => {
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: twoHoursAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    // Fetch fails (network issue)
+    mockFetch.mockRejectedValueOnce(new Error("network error"));
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000,
+    });
+
+    expect(mockFetch).toHaveBeenCalled();
+    expect(mockPull).toHaveBeenCalledWith(["--depth=1"]);
+  });
+
+  it("uses stale cache with warning when both fetch and pull fail", async () => {
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: twoHoursAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    mockFetch.mockRejectedValueOnce(new Error("network error"));
+    mockPull.mockRejectedValueOnce(new Error("network error"));
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000,
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Network unavailable"));
+    expect(result.fromCache).toBe(true);
+    warnSpy.mockRestore();
+  });
+
+  it("falls back to HEAD mtime when FETCH_HEAD does not exist", async () => {
+    // First stat (FETCH_HEAD) fails, second (HEAD) succeeds with stale time
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    mockStat.mockRejectedValueOnce(new Error("ENOENT")).mockResolvedValueOnce({
+      mtimeMs: twoHoursAgo,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 60 * 60 * 1000,
+    });
+
+    // Should have triggered fetch+reset since HEAD is stale
+    expect(mockFetch).toHaveBeenCalledWith(["--depth=1", "origin"]);
+  });
+
+  it("uses maxCacheAgeMs: 0 to always force fetch", async () => {
+    // Even a very recent mtime should be stale with TTL=0
+    const justNow = Date.now() - 100; // 100ms ago
+    mockStat.mockResolvedValueOnce({
+      mtimeMs: justNow,
+    } as Awaited<ReturnType<typeof stat>>);
+
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+      maxCacheAgeMs: 0,
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(["--depth=1", "origin"]);
+  });
+
+  it("uses normal pull when maxCacheAgeMs is not set", async () => {
+    await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+    });
+
+    // No stat check, no fetch — just best-effort pull
+    expect(mockStat).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockPull).toHaveBeenCalledWith(["--depth=1"]);
   });
 });
