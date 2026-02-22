@@ -155,9 +155,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
   try {
     // Clone with shallow depth
     const cloneOptions: string[] = ["--depth=1"];
+    const isSha = ref && /^[0-9a-f]{7,40}$/i.test(ref);
 
-    // If ref is specified and not a branch, we need to clone differently
-    if (ref && ref !== "main" && ref !== "master") {
+    // If ref is a branch/tag name (not a SHA), pass it to --branch
+    if (ref && !isSha && ref !== "main" && ref !== "master") {
       cloneOptions.push("--branch", ref);
     }
 
@@ -167,21 +168,27 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     }
 
     await git.clone(url, cachePath, cloneOptions);
+    const repoGit = simpleGit(cachePath);
+
+    // For SHA refs: fetch the specific commit then checkout
+    if (isSha) {
+      await repoGit.fetch(["--depth=1", "origin", ref]);
+      await repoGit.checkout("FETCH_HEAD");
+    }
 
     // Configure sparse checkout if subpath is specified
     if (subpath) {
-      const repoGit = simpleGit(cachePath);
       await repoGit.raw(["sparse-checkout", "init", "--cone"]);
       await repoGit.raw(["sparse-checkout", "set", subpath]);
-      await repoGit.checkout(ref || "HEAD");
-    } else if (ref && ref !== "main" && ref !== "master") {
-      // Checkout specific ref if needed (and not using sparse checkout)
-      const repoGit = simpleGit(cachePath);
+      if (!isSha) {
+        await repoGit.checkout(ref || "HEAD");
+      }
+    } else if (ref && !isSha && ref !== "main" && ref !== "master") {
+      // Checkout specific ref if needed (branch/tag, not SHA or sparse)
       await repoGit.checkout(ref);
     }
 
     // Get the current commit SHA
-    const repoGit = simpleGit(cachePath);
     const sha = await repoGit.revparse(["HEAD"]);
 
     return {
