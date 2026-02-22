@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#33](https://github.com/baton-dx/baton-dx/pull/33) [`fe38dba`](https://github.com/baton-dx/baton-dx/commit/fe38dba6aae090901f51fa4edaf5a369b7353895) Thanks [@mantaray0](https://github.com/mantaray0)! - Remove `settings` ConfigType — tool-specific settings files should use the generic `files` structure with `source`/`target` instead. Also removes unused `lockfile/index.ts` barrel export and orphaned `execa` dependency.
+
 ## 0.3.2
 
 ### Patch Changes
