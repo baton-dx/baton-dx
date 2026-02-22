@@ -51,10 +51,10 @@ scripts/ralph/.last-branch
 .agents/rules/
 .agents/skills/
 .antigravity/
-.claude/
 .claude/agents/
 .claude/commands/
 .claude/rules/
+.claude/settings.json
 .claude/skills/
 .cline/agents/
 .cline/commands/
@@ -72,8 +72,8 @@ scripts/ralph/.last-branch
 .cursor/skills/
 .cursorrules
 .github/agents/
-.github/copilot/commands/
 .github/copilot-instructions.md
+.github/copilot/commands/
 .github/skills/
 .idea/
 .junie/agents/
