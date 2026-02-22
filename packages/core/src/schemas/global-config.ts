@@ -32,17 +32,6 @@ export const globalConfigSchema = z.object({
   /** Registered source repositories available globally */
   sources: z.array(globalSourceEntrySchema).optional().default([]),
 
-  /** Cache configuration */
-  cache: z
-    .object({
-      /** Cache directory location (supports ~ expansion) */
-      location: z.string().default("~/.baton/cache"),
-
-      /** Cache TTL in seconds (default: 24 hours) */
-      ttl: z.number().default(86400),
-    })
-    .optional(),
-
   /** Default settings for profile installation */
   defaults: z
     .object({

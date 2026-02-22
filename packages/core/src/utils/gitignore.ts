@@ -47,7 +47,7 @@ function addPathPattern(patterns: Set<string>, path: string): void {
 /**
  * Ensures `.baton/` is listed in the project's .gitignore.
  *
- * Uses the same "# Baton cache" format as `baton init`.
+ * Uses the same "# Baton local" format as `baton init`.
  * Idempotent: no-op if `.baton/` is already present (by any mechanism).
  */
 export async function ensureBatonDirGitignored(projectRoot: string): Promise<void> {
@@ -65,8 +65,8 @@ export async function ensureBatonDirGitignored(projectRoot: string): Promise<voi
   }
 
   const newContent = content
-    ? `${content.trimEnd()}\n\n# Baton cache\n.baton/\n`
-    : "# Baton cache\n.baton/\n";
+    ? `${content.trimEnd()}\n\n# Baton local\n.baton/\n`
+    : "# Baton local\n.baton/\n";
   await writeFile(gitignorePath, newContent, "utf-8");
 }
 
