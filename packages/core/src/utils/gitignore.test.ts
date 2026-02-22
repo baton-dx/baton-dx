@@ -101,7 +101,7 @@ describe("ensureBatonDirGitignored", () => {
     await ensureBatonDirGitignored(tmpDir);
 
     const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
-    expect(content).toContain("# Baton cache");
+    expect(content).toContain("# Baton local");
     expect(content).toContain(".baton/");
   });
 
@@ -117,7 +117,7 @@ describe("ensureBatonDirGitignored", () => {
   });
 
   it("is a no-op when .baton/ is already present", async () => {
-    const original = "node_modules/\n\n# Baton cache\n.baton/\n";
+    const original = "node_modules/\n\n# Baton local\n.baton/\n";
     await writeFile(join(tmpDir, ".gitignore"), original, "utf-8");
 
     await ensureBatonDirGitignored(tmpDir);
@@ -188,14 +188,14 @@ describe("removeGitignoreManagedSection", () => {
   });
 
   it("preserves .baton/ cache section when removing managed section", async () => {
-    const initial = "# Baton cache\n.baton/\n\n# Baton managed\n.vscode/\n# End Baton managed\n";
+    const initial = "# Baton local\n.baton/\n\n# Baton managed\n.vscode/\n# End Baton managed\n";
     await writeFile(join(tmpDir, ".gitignore"), initial, "utf-8");
 
     const removed = await removeGitignoreManagedSection(tmpDir);
     expect(removed).toBe(true);
 
     const content = await readFile(join(tmpDir, ".gitignore"), "utf-8");
-    expect(content).toContain("# Baton cache");
+    expect(content).toContain("# Baton local");
     expect(content).toContain(".baton/");
     expect(content).not.toContain("# Baton managed");
   });

@@ -50,7 +50,6 @@ export {
 // Export Git source provider
 export {
   cloneGitSource,
-  invalidateCache,
   type CloneOptions,
   type ClonedSource,
 } from "./sources/git-clone.js";

@@ -123,7 +123,7 @@ describe("Project Preferences I/O", () => {
     });
 
     it("does not duplicate .baton/ in .gitignore if already present", async () => {
-      await writeFile(join(projectRoot, ".gitignore"), "# Baton cache\n.baton/\n", "utf-8");
+      await writeFile(join(projectRoot, ".gitignore"), "# Baton local\n.baton/\n", "utf-8");
 
       const prefs = {
         version: "1.0" as const,

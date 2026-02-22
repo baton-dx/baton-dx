@@ -151,18 +151,3 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     );
   }
 }
-
-/**
- * Invalidates the cache for a specific source (removes cached repository)
- */
-export async function invalidateCache(url: string, ref?: string): Promise<void> {
-  const cachePath = getCachePath(url, ref);
-  try {
-    await rm(cachePath, { recursive: true, force: true });
-  } catch (error) {
-    // Ignore errors if cache doesn't exist
-    if (error instanceof Error && "code" in error && error.code !== "ENOENT") {
-      throw new GitSourceError(`Failed to invalidate cache: ${error.message}`, error);
-    }
-  }
-}

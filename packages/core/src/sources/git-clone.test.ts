@@ -1,8 +1,21 @@
+import { createHash } from "node:crypto";
+import { rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { GitSourceError } from "../errors.js";
-import { cloneGitSource, invalidateCache } from "./git-clone.js";
+import { cloneGitSource } from "./git-clone.js";
+
+const CACHE_DIR = join(homedir(), ".baton", "cache");
+
+function getCachePath(url: string, ref?: string): string {
+  const normalized = `${url}@${ref || "HEAD"}`;
+  return join(CACHE_DIR, createHash("sha256").update(normalized).digest("hex").substring(0, 16));
+}
+
+async function clearCache(url: string, ref?: string): Promise<void> {
+  await rm(getCachePath(url, ref), { recursive: true, force: true });
+}
 
 // These tests are covered by git-integration.test.ts which handles concurrent access better
 // Skipping to avoid race conditions with parallel test execution
@@ -11,8 +24,8 @@ describe.skip("cloneGitSource", () => {
 
   beforeEach(async () => {
     // Clean up cache before each test to ensure fresh state
-    await invalidateCache(testUrl);
-    await invalidateCache(testUrl, "main");
+    await clearCache(testUrl);
+    await clearCache(testUrl, "main");
   });
 
   it("clones a public GitHub repository", async () => {
@@ -78,7 +91,7 @@ describe.skip("cloneGitSource", () => {
     await cloneGitSource({ url: testUrl, useCache: true });
 
     // Invalidate cache
-    await invalidateCache(testUrl);
+    await clearCache(testUrl);
 
     // Next clone should be from scratch
     const result = await cloneGitSource({ url: testUrl, useCache: true });
@@ -104,7 +117,7 @@ describe.skip("cache management", () => {
 
   beforeEach(async () => {
     // Clean up cache before each test
-    await invalidateCache(testUrl);
+    await clearCache(testUrl);
   });
 
   it("creates cache directory if it doesn't exist", async () => {

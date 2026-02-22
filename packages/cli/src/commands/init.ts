@@ -181,8 +181,8 @@ export const initCommand = defineCommand({
     // Always ensure .baton/ is gitignored
     if (!gitignoreContent.includes(".baton/")) {
       const newContent = gitignoreContent
-        ? `${gitignoreContent}\n\n# Baton cache\n.baton/\n`
-        : "# Baton cache\n.baton/\n";
+        ? `${gitignoreContent}\n\n# Baton local\n.baton/\n`
+        : "# Baton local\n.baton/\n";
       await writeFile(gitignorePath, newContent, "utf-8");
     }
 
