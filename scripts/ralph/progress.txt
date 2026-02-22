@@ -1,67 +1,27 @@
 # Ralph Progress Log
-Started: Fri Feb 20 11:51:19 CET 2026
+Started: Sun Feb 22 19:14:06 CET 2026
+---
 
 ## Codebase Patterns
-- Schema fields use private `const xxxSchema` (no export) — only `ProfileManifest` via `z.infer` is exported publicly
-- Union schemas (`z.union([z.array(z.string()), z.record(...)])`) are the standard pattern for universal vs tool-specific targeting (used by rules, agents)
-- Zod's `.object()` strips unknown keys by default — existing tests may pass with invalid data in undeclared fields
-- Tests are co-located: `foo.test.ts` next to `foo.ts`, using `vitest` with `describe/it/expect`
-- Must run `bun run build` before `bun run typecheck` since CLI resolves `@baton-dx/core` from `dist/`
-- Merge functions follow identical structure: `mergeX()` wraps `mergeXWithWarnings()`, uses Map for dedup by composite key (`scope:name`), last-wins semantics
-- Export blocks in `core/src/index.ts` use 2-space indent, group functions + types together, comment header per block
-- Biome enforces 2-space indent — files written with tabs will fail lint
-- Biome sorts imports: `type` imports must come before value imports within an import block
-- The sync pipeline pattern is: Merge → Accumulate (into `contentAccumulator`) → Flush. New content types just need an accumulation loop and inclusion in the type union
-- `AgentFile.frontmatter` is REQUIRED (unlike `RuleFile.frontmatter` which is optional). Always provide a fallback: `{ name: agentEntry.name }`
-- The content flush at the end of sync handles any type in the accumulator generically — no flush changes needed when adding new content types
+- ClonedSource interface in git-clone.ts is the canonical return type for all git clone operations; any new fields must also be added to mock objects in github-resolver.test.ts and edge-cases.test.ts
+- resolveGitHubSource returns its own ResolvedGitHubSource interface (subset of ClonedSource) — test assertions should not expect fields that aren't in the resolver's return type
+- simpleGit mocking pattern: `vi.mock("simple-git")` at module level, then `vi.mocked(simpleGitModule.simpleGit).mockReturnValue({...})` in beforeEach
+- Must run `bun run build` before `bun run typecheck` since CLI resolves @baton-dx/core from dist/
+- Biome enforces parameter-per-line formatting for long function signatures
+- Tests are co-located: `foo.test.ts` next to `foo.ts`
 
 ---
 
-## 2026-02-20 11:53 - US-001
-- Added `agentsSchema` to `packages/core/src/schemas/profile-manifest.ts` using the same `z.union` pattern as `rulesSchema`
-- Added `agents: agentsSchema.optional()` to `aiSectionSchema` alongside the existing `rules` field
-- Updated existing full profile test to use valid agents array format (was using skill item format which Zod previously stripped)
-- Added 7 new tests covering: array format, object format, mixed keys, empty array, missing field, non-string items rejection, nested objects rejection
+## 2026-02-22T19:18 - US-001
+- What was implemented: Expanded ClonedSource interface with `cachePath: string` and `sparseCheckout: boolean` fields. Updated both return paths in cloneGitSource() (cache-hit and fresh-clone). Added `expandSparseCheckout()` function using `git sparse-checkout add`. Exported from core/src/index.ts.
 - Files changed:
-  - `packages/core/src/schemas/profile-manifest.ts` (added agentsSchema + agents field)
-  - `packages/core/src/schemas/profile-manifest.test.ts` (fixed existing test + 7 new tests)
+  - packages/core/src/sources/git-clone.ts (interface expansion + new function)
+  - packages/core/src/index.ts (added expandSparseCheckout export)
+  - packages/core/src/sources/git-clone.test.ts (added unit tests with mocked simpleGit)
+  - packages/core/src/sources/github-resolver.test.ts (updated mock objects for new ClonedSource fields, fixed assertions)
 - **Learnings for future iterations:**
-  - The existing "full profile" test at line 24 had `agents: [{ name: "reviewer", scope: "global" }]` which was silently stripped by Zod — adding the real `agents` field broke this test and required updating to valid format
-  - `rulesSchema` pattern is the canonical template: private, `z.union([z.array(z.string()), z.record(z.string(), z.array(z.string()).optional())])`
-  - No need to export new types — `ProfileManifest` via `z.infer` automatically picks up new fields
----
-
-## 2026-02-20 12:00 - US-002
-- Created `packages/core/src/merge/agents.ts` mirroring `rules.ts` structure exactly
-- Implements `mergeAgents()` and `mergeAgentsWithWarnings()` with `AgentEntry` and `MergeAgentsResult` interfaces
-- Updated `WeightConflictWarning.category` in `weight-sort.ts` to include `'agent'`
-- Added export block in `packages/core/src/index.ts` (after rules block)
-- 11 unit tests covering: array format, object format, universal key, last-wins, tool scopes, weight ordering, locking, same-weight warnings, empty arrays, missing sections
-- Files changed:
-  - `packages/core/src/merge/agents.ts` (new — 137 lines)
-  - `packages/core/src/merge/agents.test.ts` (new — 11 tests)
-  - `packages/core/src/merge/weight-sort.ts` (added `'agent'` to category union)
-  - `packages/core/src/index.ts` (added agent merge export block)
-- **Learnings for future iterations:**
-  - The `agents` field name is overloaded: `AgentEntry.agents` is `string[]` of target tool keys (empty = universal), not AI agents. This mirrors `RuleEntry.agents` — it means "which AI tools this entry targets"
-  - Biome auto-fix (`bunx biome check --write`) is the fastest way to fix formatting issues
-  - All merge functions access profile data via `profile.manifest.ai?.agents` (optional chaining on `ai`)
----
-
-## 2026-02-20 12:02 - US-003
-- Added agent processing to the `baton sync` pipeline in `packages/cli/src/commands/sync.ts`
-- Imports: Added `type AgentEntry`, `type AgentFile`, and `mergeAgentsWithWarnings` to the `@baton-dx/core` import block
-- Merge phase: Call `mergeAgentsWithWarnings(weightSortedProfiles)` after rules merge, push warnings to `allWeightWarnings`
-- Spinner message: Added agents count to merged configurations summary
-- Content accumulator: Extended type union to `'memory' | 'rules' | 'agents'`
-- Agent accumulation loop: Mirrors rules loop — filters universal vs tool-specific, resolves source from `{profileDir}/ai/agents/{subdir}/{name}.md`, parses frontmatter, builds `AgentFile` with required frontmatter fallback, transforms via `adapter.transformAgent()`, accumulates into `contentAccumulator`
-- Flush comment: Updated from `memory+rules` to `memory+rules+agents`
-- Dry-run summary: Added agents count line
-- Files changed:
-  - `packages/cli/src/commands/sync.ts` (added agent processing — ~85 lines of new agent accumulation loop + imports/merge/summary changes)
-- **Learnings for future iterations:**
-  - Biome import sorting requires `type` imports to come before value imports — `type AgentEntry` before `FileNotFoundError`
-  - The agent accumulation loop is a near-exact copy of the rules loop, with key differences: `AgentFile` has required `frontmatter` (fallback to `{ name }`) and optional `description` at top level
-  - The content flush is generic — no changes needed, it already handles any type string via `placeFile(content, adapter, entry.type, ...)`
-  - Gitignore patterns already cover agents via `collectComprehensivePatterns` which probes `adapter.getPath('agents', ...)` — no gitignore changes needed
+  - When expanding ClonedSource, you MUST also update all mock objects in github-resolver.test.ts (7 occurrences) — TypeScript strict mode catches this via typecheck
+  - The resolveGitHubSource function intentionally filters ClonedSource fields down to its own ResolvedGitHubSource type — test assertions should match the resolver's return type, not the full ClonedSource
+  - Biome will reject long function signatures on one line — use parameter-per-line format
+  - The existing git-clone.test.ts has integration tests (describe.skip) — add unit tests with vi.mock("simple-git") as separate describe blocks
 ---

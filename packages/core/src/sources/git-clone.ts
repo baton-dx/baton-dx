@@ -16,6 +16,8 @@ export interface ClonedSource {
   localPath: string;
   fromCache: boolean;
   sha: string;
+  cachePath: string;
+  sparseCheckout: boolean;
 }
 
 const CACHE_DIR = join(homedir(), ".baton", "cache");
@@ -73,6 +75,8 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         localPath: subpath ? join(cachePath, subpath) : cachePath,
         fromCache: true,
         sha: sha.trim(),
+        cachePath,
+        sparseCheckout: !!subpath,
       };
     } catch (error) {
       throw new GitSourceError(
@@ -143,6 +147,8 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
       localPath: subpath ? join(cachePath, subpath) : cachePath,
       fromCache: false,
       sha: sha.trim(),
+      cachePath,
+      sparseCheckout: !!subpath,
     };
   } catch (error) {
     throw new GitSourceError(
@@ -150,4 +156,16 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
       error,
     );
   }
+}
+
+/**
+ * Expands sparse-checkout in a cached repository to include additional paths.
+ * Uses 'git sparse-checkout add' to preserve existing checkout paths.
+ */
+export async function expandSparseCheckout(
+  cachePath: string,
+  additionalPaths: string[],
+): Promise<void> {
+  const git = simpleGit(cachePath);
+  await git.raw(["sparse-checkout", "add", ...additionalPaths]);
 }

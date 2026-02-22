@@ -50,6 +50,7 @@ export {
 // Export Git source provider
 export {
   cloneGitSource,
+  expandSparseCheckout,
   type CloneOptions,
   type ClonedSource,
 } from "./sources/git-clone.js";

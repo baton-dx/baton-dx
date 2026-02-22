@@ -2,9 +2,10 @@ import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import * as simpleGitModule from "simple-git";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitSourceError } from "../errors.js";
-import { cloneGitSource } from "./git-clone.js";
+import { cloneGitSource, expandSparseCheckout } from "./git-clone.js";
 
 const CACHE_DIR = join(homedir(), ".baton", "cache");
 
@@ -139,4 +140,126 @@ describe.skip("cache management", () => {
     const result = await cloneGitSource(options);
     expect(result.fromCache).toBe(false);
   }, 30000);
+});
+
+// Unit tests with mocked simpleGit
+vi.mock("simple-git");
+
+describe("expandSparseCheckout", () => {
+  let mockRaw: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockRaw = vi.fn().mockResolvedValue("");
+    vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+      raw: mockRaw,
+    } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls git sparse-checkout add with additional paths", async () => {
+    await expandSparseCheckout("/cache/abc123", ["profiles/base", "profiles/team"]);
+
+    expect(simpleGitModule.simpleGit).toHaveBeenCalledWith("/cache/abc123");
+    expect(mockRaw).toHaveBeenCalledWith([
+      "sparse-checkout",
+      "add",
+      "profiles/base",
+      "profiles/team",
+    ]);
+  });
+
+  it("uses 'add' not 'set' to preserve existing checkout paths", async () => {
+    await expandSparseCheckout("/cache/abc123", ["profiles/new"]);
+
+    const rawArgs = mockRaw.mock.calls[0][0] as string[];
+    expect(rawArgs[0]).toBe("sparse-checkout");
+    expect(rawArgs[1]).toBe("add");
+    expect(rawArgs).not.toContain("set");
+  });
+});
+
+describe("ClonedSource interface fields", () => {
+  let mockCheckIsRepo: ReturnType<typeof vi.fn>;
+  let mockPull: ReturnType<typeof vi.fn>;
+  let mockRevparse: ReturnType<typeof vi.fn>;
+  let mockClone: ReturnType<typeof vi.fn>;
+  let mockRaw: ReturnType<typeof vi.fn>;
+  let mockCheckout: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockCheckIsRepo = vi.fn().mockResolvedValue(true);
+    mockPull = vi.fn().mockResolvedValue(undefined);
+    mockRevparse = vi.fn().mockResolvedValue("abc123def456abc123def456abc123def456abc123");
+    mockClone = vi.fn().mockResolvedValue(undefined);
+    mockRaw = vi.fn().mockResolvedValue("");
+    mockCheckout = vi.fn().mockResolvedValue(undefined);
+
+    vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+      checkIsRepo: mockCheckIsRepo,
+      pull: mockPull,
+      revparse: mockRevparse,
+      clone: mockClone,
+      raw: mockRaw,
+      checkout: mockCheckout,
+    } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("includes cachePath and sparseCheckout: false when no subpath (cache hit)", async () => {
+    const result = await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+    });
+
+    expect(result.cachePath).toBeDefined();
+    expect(typeof result.cachePath).toBe("string");
+    expect(result.sparseCheckout).toBe(false);
+  });
+
+  it("includes cachePath and sparseCheckout: true when subpath is set (cache hit)", async () => {
+    const result = await cloneGitSource({
+      url: "https://example.com/repo.git",
+      subpath: "profiles/team",
+      useCache: true,
+    });
+
+    expect(result.cachePath).toBeDefined();
+    expect(result.sparseCheckout).toBe(true);
+    expect(result.localPath).toContain("profiles/team");
+  });
+
+  it("includes cachePath and sparseCheckout on fresh clone without subpath", async () => {
+    // First call: isCacheValid → checkIsRepo throws (no cache)
+    mockCheckIsRepo.mockRejectedValueOnce(new Error("not a git repo"));
+
+    const result = await cloneGitSource({
+      url: "https://example.com/repo.git",
+      useCache: true,
+    });
+
+    expect(result.cachePath).toBeDefined();
+    expect(result.sparseCheckout).toBe(false);
+    expect(result.fromCache).toBe(false);
+  });
+
+  it("includes cachePath and sparseCheckout: true on fresh clone with subpath", async () => {
+    // First call: isCacheValid → checkIsRepo throws (no cache)
+    mockCheckIsRepo.mockRejectedValueOnce(new Error("not a git repo"));
+
+    const result = await cloneGitSource({
+      url: "https://example.com/repo.git",
+      subpath: "profiles/team",
+      useCache: true,
+    });
+
+    expect(result.cachePath).toBeDefined();
+    expect(result.sparseCheckout).toBe(true);
+    expect(result.fromCache).toBe(false);
+  });
 });
