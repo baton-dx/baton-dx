@@ -1,5 +1,13 @@
 # @baton-dx/cli
 
+## 0.4.4
+
+### Patch Changes
+
+- [#45](https://github.com/baton-dx/baton-dx/pull/45) [`ec2eb60`](https://github.com/baton-dx/baton-dx/commit/ec2eb604c53886384ec700db40fa009957792455) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix git clone failing when source version is a commit SHA
+
+  `git clone --branch` only accepts branch/tag names, not commit SHAs. When the lockfile or `baton update` resolves a version to a commit SHA, cloning now correctly fetches the specific commit instead of passing it as `--branch`.
+
 ## 0.4.3
 
 ### Patch Changes
