@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineCommand, runMain } from "citty";
 import { aiToolsCommand } from "./commands/ai-tools/index.js";
-import { configCommand } from "./commands/config.js";
+import { configCommand } from "./commands/config/index.js";
 import { diffCommand } from "./commands/diff.js";
 import { idesCommand } from "./commands/ides/index.js";
 import { initCommand } from "./commands/init.js";

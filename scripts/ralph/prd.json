@@ -114,7 +114,7 @@
         "Tests pass"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Two files to modify: (1) packages/core/src/schemas/global-config.ts — the schema is at lines 28-63. Add a sync field: sync: z.object({ cacheTtlHours: z.number().default(24) }).optional(). Place it after the existing ide field. (2) packages/cli/src/commands/sync.ts — the sync command uses citty. Add --fresh flag to the command args definition. In the command handler, load global config, compute maxCacheAgeMs: if --fresh flag is set, use 0; otherwise read globalConfig.sync?.cacheTtlHours (default 24) * 3600000. Pass maxCacheAgeMs into cloneGitSource() options. The sync command definition is near the top of sync.ts — look for the args/flags definition. citty flags use { type: 'boolean', description: '...' } format. The global config is already loaded in the sync handler — check how other config values are read."
     },
     {

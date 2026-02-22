@@ -60,6 +60,14 @@ export const globalConfigSchema = z.object({
       platforms: z.array(z.string()).optional().default([]),
     })
     .optional(),
+
+  /** Sync behavior configuration */
+  sync: z
+    .object({
+      /** Maximum cache age in hours before a source is considered stale (default: 24) */
+      cacheTtlHours: z.number().default(24),
+    })
+    .optional(),
 });
 
 export type GlobalConfig = z.infer<typeof globalConfigSchema>;

@@ -15,6 +15,10 @@ Started: Sun Feb 22 19:14:06 CET 2026
 - Cache staleness logic: `maxCacheAgeMs: 0` forces immediate fetch; `undefined` preserves existing best-effort pull behavior
 - `FileNotFoundError` (from errors.ts) is the canonical error when `loadProfileManifest` can't find a file — check with `instanceof FileNotFoundError`
 - `resolveChainRecursive` now re-throws all non-circular, non-max-depth errors with enhanced context message (US-003 completed)
+- `GlobalConfig` type is NOT exported from `@baton-dx/core` index — use `loadGlobalConfig()` return type via inference, not explicit `type GlobalConfig` import
+- Biome enforces alphabetical import sorting — `loadGlobalConfig` goes between `isLockedProfile` and `loadProfileManifest`
+- To convert a single-file command to a directory with subcommands: rename `config.ts` → `config/index.ts`, update import path in CLI entry to `./commands/config/index.js`
+- citty supports `subCommands` + `run()` on the same command: `run()` fires when no subcommand matches (default behavior)
 
 ---
 
@@ -83,4 +87,21 @@ Started: Sun Feb 22 19:14:06 CET 2026
   - `maxCacheAgeMs: 0` effectively means "always stale" — used by `--fresh` flag (US-006)
   - The stale cache path has 3 levels of fallback: fetch+reset → pull → stale cache with warning — this gracefully handles offline scenarios
   - When `maxCacheAgeMs` is `undefined` (not set), the short-circuit `&&` prevents `isCacheStale` from being called at all, so `stat` is never invoked — existing tests don't need stat mocks
+---
+
+## 2026-02-22T19:42 - US-006
+- What was implemented: Added `--fresh` CLI flag to `baton sync` and `sync.cacheTtlHours` config field to global config schema. Created `baton config set` subcommand with dotted-path support for programmatic config changes. Wired `maxCacheAgeMs` from config/flag to both `cloneGitSource()` calls in sync.ts.
+- Files changed:
+  - packages/core/src/schemas/global-config.ts (added `sync` optional object with `cacheTtlHours: z.number().default(24)`)
+  - packages/cli/src/commands/sync.ts (added `--fresh` flag, `loadGlobalConfig` import, TTL computation, `maxCacheAgeMs` passed to both clone calls)
+  - packages/cli/src/commands/config.ts → packages/cli/src/commands/config/index.ts (restructured to directory with subcommands, preserved dashboard as default run)
+  - packages/cli/src/commands/config/set.ts (new `config set` subcommand with dotted-path support, type inference for values, Zod validation on save)
+  - packages/cli/src/index.ts (updated config import path to `./commands/config/index.js`)
+  - scripts/ralph/prd.json (US-006 passes: true)
+- **Learnings for future iterations:**
+  - `GlobalConfig` type is not exported from core — avoid explicit type imports; use `loadGlobalConfig()` with type inference instead
+  - When adding imports to sync.ts, Biome enforces strict alphabetical order — `loadGlobalConfig` must go between `isLockedProfile` and `loadProfileManifest`
+  - citty allows both `subCommands` and `run()` on the same command definition — `run()` is the default handler when no subcommand matches
+  - Converting a command file to a directory: rename `cmd.ts` to `cmd/index.ts`, update the import in the CLI entry point to include `/index.js`
+  - The `saveGlobalConfig()` function validates via Zod before writing — this means `config set` gets free validation without needing to manually check the value type
 ---
