@@ -1,4 +1,4 @@
-import { AdapterNotFoundError } from "../errors.js";
+import { AIToolAdapterNotFoundError } from "../errors.js";
 import { AmpAdapter } from "./amp.js";
 import { AntigravityAdapter } from "./antigravity.js";
 import { ClaudeCodeAdapter } from "./claude-code.js";
@@ -11,7 +11,7 @@ import { KiroAdapter } from "./kiro.js";
 import { OpenCodeAdapter } from "./opencode.js";
 import { RooAdapter } from "./roo.js";
 import { TraeAdapter } from "./trae.js";
-import type { ToolAdapter } from "./types.js";
+import type { AIToolAdapter } from "./types.js";
 import { WindsurfAdapter } from "./windsurf.js";
 import { ZedAdapter } from "./zed.js";
 
@@ -19,15 +19,15 @@ import { ZedAdapter } from "./zed.js";
  * Registry of all tool adapters
  * Singleton instances are created lazily on first access
  */
-const adapterInstances = new Map<string, ToolAdapter>();
+const aiToolAdapterInstances = new Map<string, AIToolAdapter>();
 
 /**
  * Initialize all adapters
  */
-function initializeAdapters(): void {
-  if (adapterInstances.size > 0) return; // Already initialized
+function initializeAIToolAdapters(): void {
+  if (aiToolAdapterInstances.size > 0) return; // Already initialized
 
-  const adapters: ToolAdapter[] = [
+  const adapters: AIToolAdapter[] = [
     new ClaudeCodeAdapter(),
     new CursorAdapter(),
     new WindsurfAdapter(),
@@ -45,23 +45,23 @@ function initializeAdapters(): void {
   ];
 
   for (const adapter of adapters) {
-    adapterInstances.set(adapter.key, adapter);
+    aiToolAdapterInstances.set(adapter.key, adapter);
   }
 }
 
 /**
  * Get adapter instance by tool key
- * @param agentKey - Tool key (e.g., 'claude-code', 'cursor')
+ * @param toolKey - Tool key (e.g., 'claude-code', 'cursor')
  * @returns Adapter instance
- * @throws AdapterNotFoundError if adapter is not registered
+ * @throws AIToolAdapterNotFoundError if adapter is not registered
  */
-export function getAdapter(agentKey: string): ToolAdapter {
-  initializeAdapters();
+export function getAIToolAdapter(toolKey: string): AIToolAdapter {
+  initializeAIToolAdapters();
 
-  const adapter = adapterInstances.get(agentKey);
+  const adapter = aiToolAdapterInstances.get(toolKey);
   if (!adapter) {
-    throw new AdapterNotFoundError(
-      `Adapter not found for tool: ${agentKey}. Available adapters: ${Array.from(adapterInstances.keys()).join(", ")}`,
+    throw new AIToolAdapterNotFoundError(
+      `Adapter not found for tool: ${toolKey}. Available adapters: ${Array.from(aiToolAdapterInstances.keys()).join(", ")}`,
     );
   }
 
@@ -72,9 +72,9 @@ export function getAdapter(agentKey: string): ToolAdapter {
  * Get all registered adapters
  * @returns Array of all adapter instances
  */
-export function getAllAdapters(): ToolAdapter[] {
-  initializeAdapters();
-  return Array.from(adapterInstances.values());
+export function getAllAIToolAdapters(): AIToolAdapter[] {
+  initializeAIToolAdapters();
+  return Array.from(aiToolAdapterInstances.values());
 }
 
 /**
@@ -82,6 +82,6 @@ export function getAllAdapters(): ToolAdapter[] {
  * @param keys - Array of tool keys
  * @returns Array of adapter instances
  */
-export function getAdaptersForKeys(keys: string[]): ToolAdapter[] {
-  return keys.map((key) => getAdapter(key));
+export function getAIToolAdaptersForKeys(keys: string[]): AIToolAdapter[] {
+  return keys.map((key) => getAIToolAdapter(key));
 }

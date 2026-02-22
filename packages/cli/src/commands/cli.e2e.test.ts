@@ -155,20 +155,20 @@ describe("E2E: CLI Commands", () => {
 
   it("E2E: ai-tools list shows detected tools", async () => {
     // This test verifies the ai-tools list command would work
-    // It relies on detectInstalledAgents() from @baton-dx/core
+    // It relies on detectInstalledAITools() from @baton-dx/core
 
-    const { detectInstalledAgents } = await import("@baton-dx/core");
+    const { detectInstalledAITools } = await import("@baton-dx/core");
 
-    // Detection should return array of installed agent keys
-    const detected = await detectInstalledAgents();
+    // Detection should return array of installed tool keys
+    const detected = await detectInstalledAITools();
 
     // At minimum, the array should be valid (even if empty)
     expect(Array.isArray(detected)).toBe(true);
 
     // We can't guarantee which agents are installed in CI
     // but we can verify the structure is correct
-    for (const agentKey of detected) {
-      expect(typeof agentKey).toBe("string");
+    for (const toolKey of detected) {
+      expect(typeof toolKey).toBe("string");
     }
   });
 

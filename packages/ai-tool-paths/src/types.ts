@@ -2,7 +2,7 @@
  * Configuration type union - represents all types of configurations
  * that can be managed by Baton
  */
-export type ConfigType = "skills" | "rules" | "agents" | "memory" | "settings" | "commands";
+export type ConfigType = "skills" | "rules" | "agents" | "memory" | "commands";
 
 /**
  * Scope for configuration items
@@ -85,17 +85,17 @@ export interface DetectionConfig {
 /**
  * Error thrown when an agent is not found in the registry
  */
-export class AgentNotFoundError extends Error {
+export class AIToolNotFoundError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "AgentNotFoundError";
+    this.name = "AIToolNotFoundError";
   }
 }
 
 /**
  * Path configuration for a single agent.
  */
-export interface AgentPathConfig {
+export interface AIToolPathConfig {
   /** Unique key identifying the agent (e.g., 'claude-code', 'cursor') */
   key: string;
   /** Human-readable name of the agent */
@@ -128,13 +128,6 @@ export interface AgentPathConfig {
     /** Global memory path */
     global: string;
   };
-  /** Paths for settings configuration */
-  settings: {
-    /** Project-level settings path */
-    project: string;
-    /** Global settings path */
-    global: string;
-  };
   /** Paths for commands/workflows */
   commands: {
     /** Project-level commands path */
@@ -150,7 +143,5 @@ export interface AgentPathConfig {
     rules?: string[];
     /** Legacy memory paths */
     memory?: string[];
-    /** Legacy settings paths */
-    settings?: string[];
   };
 }

@@ -48,7 +48,7 @@ export class VersionNotFoundError extends BatonError {
 /**
  * Thrown when an adapter is not found for a given agent key
  */
-export class AdapterNotFoundError extends BatonError {
+export class AIToolAdapterNotFoundError extends BatonError {
   constructor(message: string, cause?: unknown) {
     super("ADAPTER_NOT_FOUND_ERROR", message, cause);
   }

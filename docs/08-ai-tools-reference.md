@@ -40,7 +40,6 @@ Each tool supports these config types:
 | `rules` | Markdown rule files | `.claude/rules/coding-style.md` |
 | `agents` | Agent files with YAML frontmatter | `.claude/agents/reviewer.md` |
 | `memory` | Context memory files | `CLAUDE.md` |
-| `settings` | Tool settings (JSON) | `.claude/settings.json` |
 | `commands` | Slash command files | `.claude/commands/review.md` |
 
 Each config type has both **project** scope (in the project directory) and **global** scope (in the user's home directory).
@@ -81,7 +80,6 @@ Each config type has both **project** scope (in the project directory) and **glo
 ### Codex CLI
 
 - **Config dir:** `.codex/`
-- **Settings:** TOML format
 
 ## Path Patterns
 
@@ -97,11 +95,11 @@ Config paths use placeholders that get resolved at runtime:
 
 ## Adapter Architecture
 
-All adapters implement the `ToolAdapter` interface and most extend `BaseAdapter`:
+All adapters implement the `AIToolAdapter` interface and most extend `BaseAIToolAdapter`:
 
 ```
-ToolAdapter (interface)
-  └── BaseAdapter (abstract class — provides defaults)
+AIToolAdapter (interface)
+  └── BaseAIToolAdapter (abstract class — provides defaults)
         ├── ClaudeCodeAdapter
         ├── CursorAdapter (overrides: transformRule, getLegacyPaths, validate)
         ├── WindsurfAdapter (overrides: transformRule, getLegacyPaths, validate)
@@ -110,9 +108,9 @@ ToolAdapter (interface)
         └── ... (11 more adapters)
 ```
 
-The `BaseAdapter` provides:
-- `isInstalled()` — via `detectInstalledAgents()`
-- `getPath()` — via `getAgentPath()` from `@baton-dx/agent-paths`
+The `BaseAIToolAdapter` provides:
+- `isInstalled()` — via `detectInstalledAITools()`
+- `getPath()` — via `getAIToolPath()` from `@baton-dx/ai-tool-paths`
 - `getLegacyPaths()` — returns `[]`
 - `transform*()` — passthrough (return input unchanged)
 - `transformMemory()` — converts `MEMORY.md` to tool-specific filename

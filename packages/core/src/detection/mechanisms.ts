@@ -11,7 +11,7 @@ import type {
   JetbrainsPluginCheck,
   Platform,
   VscodeExtensionCheck,
-} from "@baton-dx/agent-paths";
+} from "@baton-dx/ai-tool-paths";
 
 /**
  * Execute a command and return stdout/stderr as a promise.

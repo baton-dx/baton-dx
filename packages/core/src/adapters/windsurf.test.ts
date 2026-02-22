@@ -56,7 +56,6 @@ describe("WindsurfAdapter", () => {
       expect(adapter.getLegacyPaths("agents")).toEqual([]);
       expect(adapter.getLegacyPaths("memory")).toEqual([]);
       expect(adapter.getLegacyPaths("commands")).toEqual([]);
-      expect(adapter.getLegacyPaths("settings")).toEqual([]);
     });
   });
 
@@ -329,14 +328,6 @@ This is content without closing delimiter`,
       };
 
       const result = adapter.validate("commands", validCommand);
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-    });
-
-    it("should validate settings", () => {
-      const validSettings = { theme: "dark", fontSize: 14 };
-
-      const result = adapter.validate("settings", validSettings);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
     });

@@ -30,18 +30,13 @@ describe("CodexAdapter", () => {
   test("getPath returns correct global path for skills", () => {
     const path = adapter.getPath("skills", "global", "test-skill");
     expect(path).toContain(".codex/skills/test-skill");
-    // Tilde is expanded to home directory by getAgentPath
+    // Tilde is expanded to home directory by getAIToolPath
     expect(path).toMatch(/^\/.*\.codex\/skills\/test-skill$/);
   });
 
   test("getPath returns correct path for memory", () => {
     const path = adapter.getPath("memory", "project", "AGENTS.md");
     expect(path).toBe("AGENTS.md");
-  });
-
-  test("getPath returns correct path for settings", () => {
-    const path = adapter.getPath("settings", "project", "config.toml");
-    expect(path).toContain(".codex/config.toml");
   });
 
   // --- Legacy Paths Tests ---
@@ -188,13 +183,6 @@ describe("CodexAdapter", () => {
       content: "# Command content",
     };
     const result = adapter.validate("commands", command);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual([]);
-  });
-
-  test("validate settings: valid object passes", () => {
-    const settings = { model: "gpt-4", temperature: 0.7 };
-    const result = adapter.validate("settings", settings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });

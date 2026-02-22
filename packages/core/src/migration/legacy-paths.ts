@@ -1,7 +1,7 @@
 import { access, copyFile, mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import type { ConfigType } from "@baton-dx/agent-paths";
-import { getAdapter, getAllAdapters } from "../adapters/registry.js";
+import type { ConfigType } from "@baton-dx/ai-tool-paths";
+import { getAIToolAdapter, getAllAIToolAdapters } from "../adapters/registry.js";
 
 /**
  * Legacy file detected in the project
@@ -13,8 +13,8 @@ export interface LegacyFile {
   newPath: string;
   /** Config type (rules, memory, etc.) */
   configType: ConfigType;
-  /** Agent key */
-  agentKey: string;
+  /** AI tool key */
+  toolKey: string;
 }
 
 /**
@@ -48,18 +48,11 @@ export async function detectLegacyPaths(projectRoot: string): Promise<LegacyFile
   const legacyFiles: LegacyFile[] = [];
 
   // Get all adapters to check their legacy paths
-  const adapters = getAllAdapters();
+  const adapters = getAllAIToolAdapters();
 
   for (const adapter of adapters) {
     // Check each config type for legacy paths
-    const configTypes: ConfigType[] = [
-      "skills",
-      "rules",
-      "agents",
-      "memory",
-      "settings",
-      "commands",
-    ];
+    const configTypes: ConfigType[] = ["skills", "rules", "agents", "memory", "commands"];
 
     for (const configType of configTypes) {
       const legacyPaths = adapter.getLegacyPaths(configType);
@@ -80,7 +73,7 @@ export async function detectLegacyPaths(projectRoot: string): Promise<LegacyFile
             legacyPath: absoluteLegacyPath,
             newPath: resolve(projectRoot, newPath),
             configType,
-            agentKey: adapter.key,
+            toolKey: adapter.key,
           });
         } catch {}
       }
@@ -200,7 +193,7 @@ export async function migrateCommonLegacyPaths(projectRoot: string): Promise<Mig
   const cursorrules = resolve(projectRoot, ".cursorrules");
   try {
     await access(cursorrules);
-    const cursorAdapter = getAdapter("cursor");
+    const cursorAdapter = getAIToolAdapter("cursor");
     const newPath = cursorAdapter.getPath("rules", "project", "cursorrules.md");
 
     const result = await migrateLegacyFile(
@@ -208,7 +201,7 @@ export async function migrateCommonLegacyPaths(projectRoot: string): Promise<Mig
         legacyPath: cursorrules,
         newPath: resolve(projectRoot, newPath),
         configType: "rules",
-        agentKey: "cursor",
+        toolKey: "cursor",
       },
       "copy",
     );
@@ -221,7 +214,7 @@ export async function migrateCommonLegacyPaths(projectRoot: string): Promise<Mig
   const windsurfrules = resolve(projectRoot, ".windsurfrules");
   try {
     await access(windsurfrules);
-    const windsurfAdapter = getAdapter("windsurf");
+    const windsurfAdapter = getAIToolAdapter("windsurf");
     const newPath = windsurfAdapter.getPath("rules", "project", "windsurfrules.md");
 
     const result = await migrateLegacyFile(
@@ -229,7 +222,7 @@ export async function migrateCommonLegacyPaths(projectRoot: string): Promise<Mig
         legacyPath: windsurfrules,
         newPath: resolve(projectRoot, newPath),
         configType: "rules",
-        agentKey: "windsurf",
+        toolKey: "windsurf",
       },
       "copy",
     );

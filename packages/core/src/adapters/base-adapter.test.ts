@@ -1,30 +1,30 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { clearAgentCache, setDetectedAgents } from "../detection/agent-detection.js";
-import { BaseAdapter } from "./base-adapter.js";
+import { clearAIToolCache, setDetectedAITools } from "../detection/ai-tool-detection.js";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 import type { AgentFile, CommandFile, MemoryFile, RuleFile, SkillDir } from "./types.js";
 
 /** Concrete test subclass */
-class TestAdapter extends BaseAdapter {
+class TestAdapter extends BaseAIToolAdapter {
   readonly key = "test-tool";
   readonly name = "Test Tool";
 }
 
-class CustomMemoryAdapter extends BaseAdapter {
+class CustomMemoryAdapter extends BaseAIToolAdapter {
   readonly key = "custom";
   readonly name = "Custom";
   protected override memoryFilename = "CUSTOM.md";
 }
 
-describe("BaseAdapter", () => {
+describe("BaseAIToolAdapter", () => {
   let adapter: TestAdapter;
 
   beforeEach(() => {
     adapter = new TestAdapter();
-    clearAgentCache();
+    clearAIToolCache();
   });
 
   afterEach(() => {
-    clearAgentCache();
+    clearAIToolCache();
   });
 
   describe("metadata", () => {
@@ -36,12 +36,12 @@ describe("BaseAdapter", () => {
 
   describe("isInstalled", () => {
     test("returns true when tool is detected", async () => {
-      setDetectedAgents(["test-tool"]);
+      setDetectedAITools(["test-tool"]);
       expect(await adapter.isInstalled()).toBe(true);
     });
 
     test("returns false when tool is not detected", async () => {
-      setDetectedAgents([]);
+      setDetectedAITools([]);
       expect(await adapter.isInstalled()).toBe(false);
     });
   });
@@ -170,16 +170,6 @@ describe("BaseAdapter", () => {
       const result = adapter.validate("commands", { content: "c" });
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Command must have a name");
-    });
-
-    test("validates settings as JSON object", () => {
-      expect(adapter.validate("settings", { a: 1 })).toEqual({ valid: true, errors: [] });
-    });
-
-    test("rejects settings if not object", () => {
-      const result = adapter.validate("settings", "not an object");
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain("Settings must be a valid JSON object");
     });
   });
 });

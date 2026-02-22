@@ -2,12 +2,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ProjectManifest, SourceManifest } from "@baton-dx/core";
 import {
-  clearAgentCache,
+  clearAIToolCache,
   clearIdeCache,
   cloneGitSource,
   collectComprehensivePatterns,
   computeIntersection,
-  detectInstalledAgents,
+  detectInstalledAITools,
   detectInstalledIdes,
   findSourceManifest,
   getDefaultGlobalSource,
@@ -244,8 +244,8 @@ async function autoScanAiTools(
   }
 
   spinner.start("Scanning for installed AI tools...");
-  clearAgentCache();
-  const detectedTools = await detectInstalledAgents();
+  clearAIToolCache();
+  const detectedTools = await detectInstalledAITools();
   spinner.stop(
     detectedTools.length > 0
       ? `Found ${detectedTools.length} AI tool${detectedTools.length !== 1 ? "s" : ""}: ${detectedTools.join(", ")}`

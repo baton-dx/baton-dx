@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
   FileNotFoundError,
-  getAllAdapters,
+  getAllAIToolAdapters,
   getDefaultGlobalSource,
   getGlobalAiTools,
   getGlobalIdePlatforms,
@@ -349,7 +349,7 @@ async function handleConfigureAiTools(cwd: string): Promise<void> {
   }
 
   // Customize: show multiselect
-  const allAdapters = getAllAdapters();
+  const allAdapters = getAllAIToolAdapters();
   const currentProjectTools = existing?.ai.useGlobal === false ? existing.ai.tools : globalTools;
 
   const options = allAdapters.map((adapter) => ({

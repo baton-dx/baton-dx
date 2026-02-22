@@ -52,7 +52,6 @@ describe("CursorAdapter", () => {
       expect(adapter.getLegacyPaths("agents")).toEqual([]);
       expect(adapter.getLegacyPaths("memory")).toEqual([]);
       expect(adapter.getLegacyPaths("commands")).toEqual([]);
-      expect(adapter.getLegacyPaths("settings")).toEqual([]);
     });
   });
 
@@ -297,16 +296,6 @@ describe("CursorAdapter", () => {
       };
       const result = adapter.validate("commands", validCommand);
       expect(result.valid).toBe(true);
-    });
-
-    it("should validate settings correctly", () => {
-      const validSettings = { setting1: "value1" };
-      const result = adapter.validate("settings", validSettings);
-      expect(result.valid).toBe(true);
-
-      const invalidSettings = "not an object";
-      const invalidResult = adapter.validate("settings", invalidSettings);
-      expect(invalidResult.valid).toBe(false);
     });
   });
 });

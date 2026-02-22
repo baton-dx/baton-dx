@@ -30,7 +30,7 @@ describe("AntigravityAdapter", () => {
   test("getPath returns correct global path for skills", () => {
     const path = adapter.getPath("skills", "global", "test-skill");
     expect(path).toContain(".gemini/antigravity/skills/test-skill");
-    // Tilde is expanded to home directory by getAgentPath
+    // Tilde is expanded to home directory by getAIToolPath
     expect(path).toMatch(/^\/.*\.gemini\/antigravity\/skills\/test-skill$/);
   });
 
@@ -193,13 +193,6 @@ describe("AntigravityAdapter", () => {
       content: "# Command content",
     };
     const result = adapter.validate("commands", command);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual([]);
-  });
-
-  test("validate settings: valid object passes", () => {
-    const settings = { model: "gemini-pro", temperature: 0.7 };
-    const result = adapter.validate("settings", settings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });

@@ -1,83 +1,67 @@
 # Ralph Progress Log
-Started: Thu Feb 19 17:08:21 CET 2026
+Started: Fri Feb 20 11:51:19 CET 2026
 
 ## Codebase Patterns
-- Lockfile module lives in `packages/core/src/lockfile/` — no barrel file existed before; created `index.ts` to re-export from `manager.ts` and `cleanup.ts`
-- Core public API is at `packages/core/src/index.ts` — all new exports from core must be added here
-- Tests use real temp directories (`mkdtemp`) with `beforeEach`/`afterEach` cleanup — no fs mocking
-- Biome enforces single-line formatting for short function signatures and ternaries — don't multi-line them
-- Import `.js` extensions required in all source files (ESM convention)
-- `placeFile()` returns absolute paths — always normalize with `relative(projectRoot, result.path)` before storing as lockfile keys
-- Must run `bun run build` before `bun run typecheck` — CLI resolves `@baton-dx/core` from built `dist/`, not source
-- `readLock()` throws `FileNotFoundError` for missing files — use try/catch to distinguish from parse errors
-- Use `removePlacedFiles()` from core for all file/directory deletion with cleanup — handles stat, ENOENT, and parent-dir cleanup
+- Schema fields use private `const xxxSchema` (no export) — only `ProfileManifest` via `z.infer` is exported publicly
+- Union schemas (`z.union([z.array(z.string()), z.record(...)])`) are the standard pattern for universal vs tool-specific targeting (used by rules, agents)
+- Zod's `.object()` strips unknown keys by default — existing tests may pass with invalid data in undeclared fields
+- Tests are co-located: `foo.test.ts` next to `foo.ts`, using `vitest` with `describe/it/expect`
+- Must run `bun run build` before `bun run typecheck` since CLI resolves `@baton-dx/core` from `dist/`
+- Merge functions follow identical structure: `mergeX()` wraps `mergeXWithWarnings()`, uses Map for dedup by composite key (`scope:name`), last-wins semantics
+- Export blocks in `core/src/index.ts` use 2-space indent, group functions + types together, comment header per block
+- Biome enforces 2-space indent — files written with tabs will fail lint
+- Biome sorts imports: `type` imports must come before value imports within an import block
+- The sync pipeline pattern is: Merge → Accumulate (into `contentAccumulator`) → Flush. New content types just need an accumulation loop and inclusion in the type union
+- `AgentFile.frontmatter` is REQUIRED (unlike `RuleFile.frontmatter` which is optional). Always provide a fallback: `{ name: agentEntry.name }`
+- The content flush at the end of sync handles any type in the accumulator generically — no flush changes needed when adding new content types
 
 ---
 
-## 2026-02-19T17:10 - US-001
-- Implemented `removePlacedFiles(filePaths, projectRoot)` in `packages/core/src/lockfile/cleanup.ts`
-- Uses `stat()` to distinguish files from directories, fixing the EISDIR bug where `unlink()` fails on directories
-- After each removal, walks up parent directories and removes empty ones up to (not including) projectRoot
-- ENOENT errors silently skipped for already-deleted paths
-- Created barrel file `packages/core/src/lockfile/index.ts` re-exporting from `manager.ts` and `cleanup.ts`
-- Added `removePlacedFiles` export to `packages/core/src/index.ts`
+## 2026-02-20 11:53 - US-001
+- Added `agentsSchema` to `packages/core/src/schemas/profile-manifest.ts` using the same `z.union` pattern as `rulesSchema`
+- Added `agents: agentsSchema.optional()` to `aiSectionSchema` alongside the existing `rules` field
+- Updated existing full profile test to use valid agents array format (was using skill item format which Zod previously stripped)
+- Added 7 new tests covering: array format, object format, mixed keys, empty array, missing field, non-string items rejection, nested objects rejection
 - Files changed:
-  - `packages/core/src/lockfile/cleanup.ts` (new)
-  - `packages/core/src/lockfile/cleanup.test.ts` (new — 10 tests)
-  - `packages/core/src/lockfile/index.ts` (new — barrel)
-  - `packages/core/src/index.ts` (added export)
-  - `scripts/ralph/prd.json` (US-001 passes: true)
+  - `packages/core/src/schemas/profile-manifest.ts` (added agentsSchema + agents field)
+  - `packages/core/src/schemas/profile-manifest.test.ts` (fixed existing test + 7 new tests)
 - **Learnings for future iterations:**
-  - The existing `cleanupOrphanedFiles()` in `sync.ts` (lines 270-296) only uses `unlink()` which fails on directories — that's the bug
-  - `core/src/index.ts` imports lockfile functions directly from `./lockfile/manager.js` — the new barrel doesn't change this to avoid churn; new exports use `./lockfile/cleanup.js`
-  - Run `bun run lint` to check Biome formatting — it's strict about line length and ternary formatting
+  - The existing "full profile" test at line 24 had `agents: [{ name: "reviewer", scope: "global" }]` which was silently stripped by Zod — adding the real `agents` field broke this test and required updating to valid format
+  - `rulesSchema` pattern is the canonical template: private, `z.union([z.array(z.string()), z.record(z.string(), z.array(z.string()).optional())])`
+  - No need to export new types — `ProfileManifest` via `z.infer` automatically picks up new fields
 ---
 
-## 2026-02-19T17:14 - US-002
-- Normalized lockfile integrity keys to use relative paths in `packages/cli/src/commands/sync.ts`
-- Two locations where `placeFile()` returns absolute `result.path` are now converted to relative using `isAbsolute()` check + `relative(projectRoot, result.path)`
-  - Content accumulator flush (memory+rules) — around line 1039
-  - Command placement — around line 1100
-- Other path sources (skills, files, IDE configs) already stored relative paths — no changes needed
-- `cleanupOrphanedFiles()` resolver already handles both absolute and relative via `startsWith("/")` check — backward compat preserved
-- Added `isAbsolute` and `relative` to the `node:path` import (line 2)
+## 2026-02-20 12:00 - US-002
+- Created `packages/core/src/merge/agents.ts` mirroring `rules.ts` structure exactly
+- Implements `mergeAgents()` and `mergeAgentsWithWarnings()` with `AgentEntry` and `MergeAgentsResult` interfaces
+- Updated `WeightConflictWarning.category` in `weight-sort.ts` to include `'agent'`
+- Added export block in `packages/core/src/index.ts` (after rules block)
+- 11 unit tests covering: array format, object format, universal key, last-wins, tool scopes, weight ordering, locking, same-weight warnings, empty arrays, missing sections
 - Files changed:
-  - `packages/cli/src/commands/sync.ts` (modified — 2 path normalization sites)
-  - `scripts/ralph/prd.json` (US-002 passes: true)
+  - `packages/core/src/merge/agents.ts` (new — 137 lines)
+  - `packages/core/src/merge/agents.test.ts` (new — 11 tests)
+  - `packages/core/src/merge/weight-sort.ts` (added `'agent'` to category union)
+  - `packages/core/src/index.ts` (added agent merge export block)
 - **Learnings for future iterations:**
-  - `placeFile()` in `packages/core/src/placement/engine.ts` always returns absolute paths via `resolveAbsolutePath()` — any code storing `result.path` as a lockfile key must normalize to relative
-  - Five path-storage sites in sync.ts: skills (line 906, already relative), content accumulator (line 1039, now fixed), commands (line 1100, now fixed), files (line 1153, already relative), IDE (line 1209, already relative)
-  - The `relative()` function from `node:path` was already imported in the original code but not used — the import line just needed `isAbsolute` added
+  - The `agents` field name is overloaded: `AgentEntry.agents` is `string[]` of target tool keys (empty = universal), not AI agents. This mirrors `RuleEntry.agents` — it means "which AI tools this entry targets"
+  - Biome auto-fix (`bunx biome check --write`) is the fastest way to fix formatting issues
+  - All merge functions access profile data via `profile.manifest.ai?.agents` (optional chaining on `ai`)
 ---
 
-## 2026-02-19T17:17 - US-003
-- Refactored `cleanupOrphanedFiles()` in `packages/cli/src/commands/sync.ts` to use `removePlacedFiles()` from `@baton-dx/core`
-- Replaced inline `unlink()` + `rmdir()` + parent-directory-cleanup loop (old lines 270-296) with a single `removePlacedFiles(orphanedPaths, projectRoot)` call
-- Removed unused imports: `unlink` and `rmdir` from `node:fs/promises`
-- Added `removePlacedFiles` to the `@baton-dx/core` import block
-- Orphan detection logic (Set difference), user prompt flow, spinner, and count reporting all unchanged
+## 2026-02-20 12:02 - US-003
+- Added agent processing to the `baton sync` pipeline in `packages/cli/src/commands/sync.ts`
+- Imports: Added `type AgentEntry`, `type AgentFile`, and `mergeAgentsWithWarnings` to the `@baton-dx/core` import block
+- Merge phase: Call `mergeAgentsWithWarnings(weightSortedProfiles)` after rules merge, push warnings to `allWeightWarnings`
+- Spinner message: Added agents count to merged configurations summary
+- Content accumulator: Extended type union to `'memory' | 'rules' | 'agents'`
+- Agent accumulation loop: Mirrors rules loop — filters universal vs tool-specific, resolves source from `{profileDir}/ai/agents/{subdir}/{name}.md`, parses frontmatter, builds `AgentFile` with required frontmatter fallback, transforms via `adapter.transformAgent()`, accumulates into `contentAccumulator`
+- Flush comment: Updated from `memory+rules` to `memory+rules+agents`
+- Dry-run summary: Added agents count line
 - Files changed:
-  - `packages/cli/src/commands/sync.ts` (modified — replaced inline deletion with shared function)
-  - `scripts/ralph/prd.json` (US-003 passes: true)
+  - `packages/cli/src/commands/sync.ts` (added agent processing — ~85 lines of new agent accumulation loop + imports/merge/summary changes)
 - **Learnings for future iterations:**
-  - When removing inline code that used fs imports, always check if those imports are still needed elsewhere in the file before removing them — `readdir` and `stat` were still used, `unlink` and `rmdir` were not
-  - The refactored cleanup function went from 30 lines to 3 lines — the shared `removePlacedFiles()` handles path resolution, stat-based file/dir detection, ENOENT skipping, and empty parent cleanup
-  - Must run `bun run build` before `bun run typecheck` — the CLI resolves `@baton-dx/core` from its built `dist/` output
----
-
-## 2026-02-19T17:20 - US-004
-- Added placed-file cleanup to `handleRemoveBaton()` in `packages/cli/src/commands/manage.ts`
-- Extracted `cleanupPlacedFilesFromLock()` helper that reads the lockfile, collects all integrity key paths, shows them to the user, and prompts for confirmation before calling `removePlacedFiles()`
-- Cleanup runs BEFORE deleting `baton.lock` (since we need to read it first)
-- Gracefully handles: missing lockfile (`FileNotFoundError`), invalid lockfile (caught generically), empty integrity entries (early return)
-- Removed the old "Note: Synced files were not removed" message since the feature now offers to remove them
-- Added imports: `FileNotFoundError`, `readLock`, `removePlacedFiles` from `@baton-dx/core`
-- Files changed:
-  - `packages/cli/src/commands/manage.ts` (modified — added placed-file cleanup)
-  - `scripts/ralph/prd.json` (US-004 passes: true)
-- **Learnings for future iterations:**
-  - Lockfile integrity paths are extracted via `Object.values(lockfile.packages).flatMap(pkg => Object.keys(pkg.integrity))`
-  - The `manage` command doesn't support `--yes` flag — it's a purely interactive wizard, so placed-file cleanup only prompts interactively
-  - `readLock()` throws `FileNotFoundError` for missing files — catch it explicitly to distinguish from parse errors
-  - `p.confirm()` with `initialValue: false` ensures destructive cleanup defaults to "no" for safety
+  - Biome import sorting requires `type` imports to come before value imports — `type AgentEntry` before `FileNotFoundError`
+  - The agent accumulation loop is a near-exact copy of the rules loop, with key differences: `AgentFile` has required `frontmatter` (fallback to `{ name }`) and optional `description` at top level
+  - The content flush is generic — no changes needed, it already handles any type string via `placeFile(content, adapter, entry.type, ...)`
+  - Gitignore patterns already cover agents via `collectComprehensivePatterns` which probes `adapter.getPath('agents', ...)` — no gitignore changes needed
 ---

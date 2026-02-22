@@ -1,27 +1,27 @@
 import { homedir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { getAgentConfig, getAgentPath, getAllAgentKeys, getLegacyPaths } from "./helpers.js";
-import { AgentNotFoundError } from "./types.js";
+import { getAIToolConfig, getAIToolPath, getAllAIToolKeys, getLegacyPaths } from "./helpers.js";
+import { AIToolNotFoundError } from "./types.js";
 
-describe("getAgentConfig", () => {
+describe("getAIToolConfig", () => {
   it("should return config for valid agent key", () => {
-    const config = getAgentConfig("claude-code");
+    const config = getAIToolConfig("claude-code");
     expect(config.key).toBe("claude-code");
     expect(config.name).toBe("Claude Code");
     expect(config.skills).toBeDefined();
   });
 
-  it("should throw AgentNotFoundError for unknown agent key", () => {
-    expect(() => getAgentConfig("unknown-agent")).toThrow(AgentNotFoundError);
-    expect(() => getAgentConfig("unknown-agent")).toThrow(
+  it("should throw AIToolNotFoundError for unknown agent key", () => {
+    expect(() => getAIToolConfig("unknown-agent")).toThrow(AIToolNotFoundError);
+    expect(() => getAIToolConfig("unknown-agent")).toThrow(
       "Agent with key 'unknown-agent' not found in registry",
     );
   });
 });
 
-describe("getAllAgentKeys", () => {
+describe("getAllAIToolKeys", () => {
   it("should return all 14 agent keys", () => {
-    const keys = getAllAgentKeys();
+    const keys = getAllAIToolKeys();
     expect(keys).toHaveLength(14);
     expect(keys).toContain("claude-code");
     expect(keys).toContain("cursor");
@@ -40,68 +40,64 @@ describe("getAllAgentKeys", () => {
   });
 });
 
-describe("getAgentPath", () => {
+describe("getAIToolPath", () => {
   it("should resolve project path without name placeholder", () => {
-    const path = getAgentPath("claude-code", "memory", "project");
+    const path = getAIToolPath("claude-code", "memory", "project");
     expect(path).toBe("CLAUDE.md");
   });
 
   it("should resolve global path with tilde expansion", () => {
-    const path = getAgentPath("claude-code", "memory", "global");
+    const path = getAIToolPath("claude-code", "memory", "global");
     expect(path).toBe(`${homedir()}/.claude/CLAUDE.md`);
   });
 
   it("should replace {name} placeholder with provided name", () => {
-    const path = getAgentPath("claude-code", "skills", "project", "code-review");
+    const path = getAIToolPath("claude-code", "skills", "project", "code-review");
     expect(path).toBe(".claude/skills/code-review");
   });
 
   it("should replace {name} placeholder in global path", () => {
-    const path = getAgentPath("cursor", "rules", "global", "my-rule");
+    const path = getAIToolPath("cursor", "rules", "global", "my-rule");
     expect(path).toBe(`${homedir()}/.cursor/rules/my-rule.mdc`);
   });
 
   it("should work for all config types", () => {
-    expect(getAgentPath("claude-code", "skills", "project", "test")).toBe(".claude/skills/test");
-    expect(getAgentPath("claude-code", "rules", "project", "test")).toBe(".claude/rules/test.md");
-    expect(getAgentPath("claude-code", "agents", "project", "test")).toBe(".claude/agents/test.md");
-    expect(getAgentPath("claude-code", "memory", "project")).toBe("CLAUDE.md");
-    expect(getAgentPath("claude-code", "settings", "project")).toBe(".claude/settings.json");
-    expect(getAgentPath("claude-code", "commands", "project", "test")).toBe(
+    expect(getAIToolPath("claude-code", "skills", "project", "test")).toBe(".claude/skills/test");
+    expect(getAIToolPath("claude-code", "rules", "project", "test")).toBe(".claude/rules/test.md");
+    expect(getAIToolPath("claude-code", "agents", "project", "test")).toBe(
+      ".claude/agents/test.md",
+    );
+    expect(getAIToolPath("claude-code", "memory", "project")).toBe("CLAUDE.md");
+    expect(getAIToolPath("claude-code", "commands", "project", "test")).toBe(
       ".claude/commands/test.md",
     );
   });
 
   it("should work for all agents", () => {
-    const agents = getAllAgentKeys();
+    const agents = getAllAIToolKeys();
     for (const agent of agents) {
-      expect(() => getAgentPath(agent, "memory", "project")).not.toThrow();
-      expect(() => getAgentPath(agent, "skills", "global", "test")).not.toThrow();
+      expect(() => getAIToolPath(agent, "memory", "project")).not.toThrow();
+      expect(() => getAIToolPath(agent, "skills", "global", "test")).not.toThrow();
     }
   });
 
   it("should handle cursor .mdc format", () => {
-    const path = getAgentPath("cursor", "rules", "project", "my-rule");
+    const path = getAIToolPath("cursor", "rules", "project", "my-rule");
     expect(path).toBe(".cursor/rules/my-rule.mdc");
   });
 
   it("should handle windsurf global path with .codeium prefix", () => {
-    const path = getAgentPath("windsurf", "memory", "global");
+    const path = getAIToolPath("windsurf", "memory", "global");
     expect(path).toBe(`${homedir()}/.codeium/windsurf/AGENTS.md`);
   });
 
-  it("should handle codex TOML settings", () => {
-    const path = getAgentPath("codex", "settings", "project");
-    expect(path).toBe(".codex/config.toml");
-  });
-
   it("should handle antigravity GEMINI.md memory", () => {
-    const path = getAgentPath("antigravity", "memory", "project");
+    const path = getAIToolPath("antigravity", "memory", "project");
     expect(path).toBe("GEMINI.md");
   });
 
-  it("should throw AgentNotFoundError for unknown agent", () => {
-    expect(() => getAgentPath("unknown", "memory", "project")).toThrow(AgentNotFoundError);
+  it("should throw AIToolNotFoundError for unknown agent", () => {
+    expect(() => getAIToolPath("unknown", "memory", "project")).toThrow(AIToolNotFoundError);
   });
 });
 
@@ -126,7 +122,7 @@ describe("getLegacyPaths", () => {
     expect(getLegacyPaths("cursor", "memory")).toEqual([]);
   });
 
-  it("should throw AgentNotFoundError for unknown agent", () => {
-    expect(() => getLegacyPaths("unknown", "rules")).toThrow(AgentNotFoundError);
+  it("should throw AIToolNotFoundError for unknown agent", () => {
+    expect(() => getLegacyPaths("unknown", "rules")).toThrow(AIToolNotFoundError);
   });
 });

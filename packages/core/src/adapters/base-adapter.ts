@@ -1,22 +1,22 @@
-import { getAgentPath } from "@baton-dx/agent-paths";
-import type { ConfigType, Scope } from "@baton-dx/agent-paths";
+import { getAIToolPath } from "@baton-dx/ai-tool-paths";
+import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
 
 import type {
+  AIToolAdapter,
   AgentFile,
   CommandFile,
   MemoryFile,
   RuleFile,
   SkillDir,
-  ToolAdapter,
   ValidationResult,
 } from "./types.js";
 
 /**
- * Base adapter with default implementations for the ToolAdapter interface.
+ * Base adapter with default implementations for the AIToolAdapter interface.
  *
  * Provides:
- * - isInstalled() via detectInstalledAgents()
- * - getPath() via getAgentPath()
+ * - isInstalled() via detectInstalledAITools()
+ * - getPath() via getAIToolPath()
  * - getLegacyPaths() returns []
  * - transform*() passthrough (return input unchanged)
  * - transformMemory() converts MEMORY.md to this.memoryFilename
@@ -25,7 +25,7 @@ import type {
  * Subclasses only need to define `key` and `name`.
  * Override `memoryFilename` for tools that don't use AGENTS.md.
  */
-export abstract class BaseAdapter implements ToolAdapter {
+export abstract class BaseAIToolAdapter implements AIToolAdapter {
   abstract readonly key: string;
   abstract readonly name: string;
 
@@ -34,8 +34,8 @@ export abstract class BaseAdapter implements ToolAdapter {
 
   async isInstalled(): Promise<boolean> {
     try {
-      const { detectInstalledAgents } = await import("../detection/agent-detection.js");
-      const installed = await detectInstalledAgents();
+      const { detectInstalledAITools } = await import("../detection/ai-tool-detection.js");
+      const installed = await detectInstalledAITools();
       return installed.includes(this.key);
     } catch {
       return false;
@@ -43,7 +43,7 @@ export abstract class BaseAdapter implements ToolAdapter {
   }
 
   getPath(type: ConfigType, scope: Scope, name: string): string {
-    return getAgentPath(this.key, type, scope, name);
+    return getAIToolPath(this.key, type, scope, name);
   }
 
   getLegacyPaths(_type: ConfigType): string[] {
@@ -88,11 +88,7 @@ export abstract class BaseAdapter implements ToolAdapter {
     const errors: string[] = [];
 
     if (typeof file !== "object" || file === null) {
-      if (type === "settings") {
-        errors.push("Settings must be a valid JSON object");
-      } else {
-        errors.push(`${type} must be a valid object`);
-      }
+      errors.push(`${type} must be a valid object`);
       return { valid: false, errors };
     }
 
@@ -130,10 +126,6 @@ export abstract class BaseAdapter implements ToolAdapter {
         if (!record.content) errors.push("Command must have content");
         break;
       }
-
-      case "settings":
-        // Already validated as object above
-        break;
     }
 
     return {

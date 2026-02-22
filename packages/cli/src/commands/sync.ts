@@ -1,6 +1,9 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
+  type AIToolAdapter,
+  type AgentEntry,
+  type AgentFile,
   FileNotFoundError,
   type LockFileEntry,
   type MemoryEntry,
@@ -8,21 +11,21 @@ import {
   type ProjectManifest,
   type RuleEntry,
   type RuleFile,
-  type ToolAdapter,
   type WeightConflictWarning,
   cloneGitSource,
   collectComprehensivePatterns,
-  detectInstalledAgents,
+  detectInstalledAITools,
   detectLegacyPaths,
   ensureBatonDirGitignored,
   generateLock,
-  getAdaptersForKeys,
+  getAIToolAdaptersForKeys,
   getIdePlatformTargetDir,
   getProfileWeight,
   isKnownIdePlatform,
   isLockedProfile,
   loadProfileManifest,
   loadProjectManifest,
+  mergeAgentsWithWarnings,
   mergeContentParts,
   mergeMemoryWithWarnings,
   mergeRulesWithWarnings,
@@ -421,6 +424,10 @@ export const syncCommand = defineCommand({
       const mergedRules: RuleEntry[] = rulesResult.rules;
       allWeightWarnings.push(...rulesResult.warnings);
 
+      const agentsResult = mergeAgentsWithWarnings(weightSortedProfiles);
+      const mergedAgents: AgentEntry[] = agentsResult.agents;
+      allWeightWarnings.push(...agentsResult.warnings);
+
       const memoryResult = mergeMemoryWithWarnings(weightSortedProfiles);
       const mergedMemory: MemoryEntry[] = memoryResult.entries;
       allWeightWarnings.push(...memoryResult.warnings);
@@ -532,7 +539,7 @@ export const syncCommand = defineCommand({
       const mergedIdeCount = ideMap.size;
 
       spinner.stop(
-        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
+        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
       );
 
       // Emit weight conflict warnings (same weight, conflicting values)
@@ -548,7 +555,7 @@ export const syncCommand = defineCommand({
       spinner.start("Computing tool intersection...");
 
       const prefs = await resolvePreferences(projectRoot);
-      const detectedAgents = await detectInstalledAgents();
+      const detectedAITools = await detectInstalledAITools();
 
       if (verbose) {
         p.log.info(
@@ -596,16 +603,16 @@ export const syncCommand = defineCommand({
         syncedIdePlatforms = [...aggregatedSyncedIde];
       } else {
         // No global config — fall back to detected agents for backward compatibility
-        syncedAiTools = detectedAgents;
+        syncedAiTools = detectedAITools;
         // No IDE filtering when no global config exists (place all IDE files)
         syncedIdePlatforms = null;
-        if (detectedAgents.length > 0) {
+        if (detectedAITools.length > 0) {
           p.log.warn("No AI tools configured. Run `baton ai-tools scan` to configure your tools.");
-          p.log.info(`Falling back to detected tools: ${detectedAgents.join(", ")}`);
+          p.log.info(`Falling back to detected tools: ${detectedAITools.join(", ")}`);
         }
       }
 
-      if (syncedAiTools.length === 0 && detectedAgents.length === 0) {
+      if (syncedAiTools.length === 0 && detectedAITools.length === 0) {
         spinner.stop("No AI tools available");
         p.cancel("No AI tools found. Install an AI coding tool first.");
         process.exit(1);
@@ -662,7 +669,7 @@ export const syncCommand = defineCommand({
       spinner.start("Processing configurations...");
 
       // Use intersection-filtered AI tools instead of all detected agents
-      const adapters = getAdaptersForKeys(syncedAiTools);
+      const adapters = getAIToolAdaptersForKeys(syncedAiTools);
 
       // Placement configuration
       const placementConfig = {
@@ -724,8 +731,8 @@ export const syncCommand = defineCommand({
         string,
         {
           parts: string[];
-          adapter: ToolAdapter;
-          type: "memory" | "rules";
+          adapter: AIToolAdapter;
+          type: "memory" | "rules" | "agents";
           name: string;
           profiles: Set<string>;
         }
@@ -878,6 +885,10 @@ export const syncCommand = defineCommand({
           }
           for (const ruleEntry of mergedRules) {
             try {
+              // Normalize: strip .md extension to prevent double-extension bug
+              // (manifest may declare "coding-standards.md", path template appends ".md" again)
+              const ruleName = ruleEntry.name.replace(/\.md$/, "");
+
               // Check if this rule should be placed for this adapter
               const isUniversal = ruleEntry.agents.length === 0;
               const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
@@ -898,7 +909,7 @@ export const syncCommand = defineCommand({
                 "ai",
                 "rules",
                 ruleSubdir,
-                `${ruleEntry.name}.md`,
+                `${ruleName}.md`,
               );
 
               // Read rule content
@@ -915,7 +926,7 @@ export const syncCommand = defineCommand({
 
               // Build canonical RuleFile
               const ruleFile: RuleFile = {
-                name: ruleEntry.name,
+                name: ruleName,
                 content: rawContent,
                 frontmatter:
                   Object.keys(parsed.data).length > 0
@@ -927,7 +938,7 @@ export const syncCommand = defineCommand({
               const transformed = adapter.transformRule(ruleFile);
 
               // Compute target path to detect shared file destinations
-              const targetPath = adapter.getPath("rules", "project", ruleEntry.name);
+              const targetPath = adapter.getPath("rules", "project", ruleName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -942,7 +953,7 @@ export const syncCommand = defineCommand({
                   parts: [transformed.content],
                   adapter,
                   type: "rules",
-                  name: ruleEntry.name,
+                  name: ruleName,
                   profiles: new Set([ruleEntry.profileName]),
                 });
               }
@@ -954,7 +965,101 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Flush accumulated content: write combined memory+rules to shared file paths
+      // Accumulate agent file content
+      if (!dryRun && syncAi) {
+        for (const adapter of adapters) {
+          if (verbose) {
+            p.log.step(`[${adapter.key}] Placing agents...`);
+          }
+          for (const agentEntry of mergedAgents) {
+            try {
+              // Normalize: strip .md extension to prevent double-extension bug
+              // (manifest may declare "code-reviewer.md", path template appends ".md" again)
+              const agentName = agentEntry.name.replace(/\.md$/, "");
+
+              // Check if this agent should be placed for this adapter
+              const isUniversal = agentEntry.agents.length === 0;
+              const isForThisAdapter = agentEntry.agents.includes(adapter.key);
+              if (!isUniversal && !isForThisAdapter) continue;
+
+              const profileDir = profileLocalPaths.get(agentEntry.profileName);
+              if (!profileDir) {
+                spinner.message(
+                  `Warning: Could not resolve local path for profile ${agentEntry.profileName}`,
+                );
+                continue;
+              }
+
+              // Determine source file path based on agent type
+              const agentSubdir = isUniversal ? "universal" : agentEntry.agents[0];
+              const agentSourcePath = resolve(
+                profileDir,
+                "ai",
+                "agents",
+                agentSubdir,
+                `${agentName}.md`,
+              );
+
+              // Read agent content
+              let rawContent: string;
+              try {
+                rawContent = await readFile(agentSourcePath, "utf-8");
+              } catch {
+                spinner.message(`Warning: Could not read agent file: ${agentSourcePath}`);
+                continue;
+              }
+
+              // Parse frontmatter
+              const parsed = parseFrontmatter(rawContent);
+
+              // Build canonical AgentFile (frontmatter is REQUIRED)
+              const frontmatter =
+                Object.keys(parsed.data).length > 0
+                  ? (parsed.data as AgentFile["frontmatter"])
+                  : { name: agentName };
+              const agentFile: AgentFile = {
+                name: agentName,
+                content: rawContent,
+                description: (frontmatter as Record<string, unknown>).description as
+                  | string
+                  | undefined,
+                frontmatter,
+              };
+
+              // Transform agent for this adapter
+              const transformed = adapter.transformAgent(agentFile);
+
+              // Compute target path to detect shared file destinations
+              const targetPath = adapter.getPath("agents", "project", agentName);
+              const absolutePath = targetPath.startsWith("/")
+                ? targetPath
+                : resolve(projectRoot, targetPath);
+
+              // Accumulate content for this target path
+              const existing = contentAccumulator.get(absolutePath);
+              if (existing) {
+                existing.parts.push(transformed.content);
+                existing.profiles.add(agentEntry.profileName);
+              } else {
+                contentAccumulator.set(absolutePath, {
+                  parts: [transformed.content],
+                  adapter,
+                  type: "agents",
+                  name: agentName,
+                  profiles: new Set([agentEntry.profileName]),
+                });
+              }
+            } catch (error) {
+              spinner.message(
+                `Error placing agent ${agentEntry.name} for ${adapter.name}: ${error}`,
+              );
+              stats.errors++;
+            }
+          }
+        }
+      }
+
+      // Flush accumulated content: write combined memory+rules+agents to shared file paths
       if (!dryRun && syncAi) {
         for (const [absolutePath, entry] of contentAccumulator) {
           try {
@@ -1200,6 +1305,7 @@ export const syncCommand = defineCommand({
         if (syncAi) {
           parts.push(`  • ${mergedSkills.length} skills`);
           parts.push(`  • ${mergedRules.length} rules`);
+          parts.push(`  • ${mergedAgents.length} agents`);
           parts.push(`  • ${mergedMemory.length} memory files`);
           parts.push(`  • ${mergedCommandCount} commands`);
         }

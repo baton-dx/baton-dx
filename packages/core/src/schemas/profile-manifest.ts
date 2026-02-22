@@ -39,6 +39,16 @@ const rulesSchema = z.union([
 ]);
 
 /**
+ * Agents in profile manifest - can be either an array or an object
+ */
+const agentsSchema = z.union([
+  // Array format: universal agents
+  z.array(z.string()),
+  // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
+  z.record(z.string(), z.array(z.string()).optional()),
+]);
+
+/**
  * Memory file configuration item
  *
  * Convention: Use "MEMORY.md" as source for generic memory that will be
@@ -57,14 +67,6 @@ const memoryItemSchema = z.object({
 const memorySectionSchema = z.array(memoryItemSchema).optional();
 
 /**
- * Settings configuration mapping agent key to settings filename
- */
-const settingsSchema = z.record(
-  z.string(), // agent key
-  z.string(), // settings filename
-);
-
-/**
  * AI section in profile manifest
  */
 const aiSectionSchema = z
@@ -72,8 +74,8 @@ const aiSectionSchema = z
     tools: z.array(z.string()).optional(), // Target AI tools (e.g., ["claude-code", "cursor"])
     skills: z.array(skillItemSchema).optional(),
     rules: rulesSchema.optional(),
+    agents: agentsSchema.optional(),
     memory: memorySectionSchema.optional(),
-    settings: settingsSchema.optional(),
     commands: z.array(z.string()).optional(),
   })
   .optional();
@@ -139,5 +141,5 @@ export type ProfileManifest = z.infer<typeof profileManifestSchema>;
  * Inferred types for nested structures
  */
 export type MergeStrategy = z.infer<typeof mergeStrategySchema>;
-// Scope type is exported from @baton-dx/agent-paths
+// Scope type is exported from @baton-dx/ai-tool-paths
 export type SkillItem = z.infer<typeof skillItemSchema>;

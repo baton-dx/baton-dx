@@ -14,6 +14,6 @@ export default defineConfig({
   inlineOnly: false,
   alias: {
     "@baton-dx/core": resolve(dir, "../core/src/index.ts"),
-    "@baton-dx/agent-paths": resolve(dir, "../agent-paths/src/index.ts"),
+    "@baton-dx/ai-tool-paths": resolve(dir, "../ai-tool-paths/src/index.ts"),
   },
 });

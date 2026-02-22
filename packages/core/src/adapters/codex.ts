@@ -1,5 +1,5 @@
-import type { ConfigType } from "@baton-dx/agent-paths";
-import { BaseAdapter } from "./base-adapter.js";
+import type { ConfigType } from "@baton-dx/ai-tool-paths";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 import type { ValidationResult } from "./types.js";
 
 /**
@@ -8,7 +8,7 @@ import type { ValidationResult } from "./types.js";
  * Uses AGENTS.md for memory. Custom validate() adds memory filename check.
  * Settings use TOML format (config.toml), not JSON.
  */
-export class CodexAdapter extends BaseAdapter {
+export class CodexAdapter extends BaseAIToolAdapter {
   readonly key = "codex";
   readonly name = "Codex CLI";
 

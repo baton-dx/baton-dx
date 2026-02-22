@@ -1,5 +1,5 @@
 import { readdir, stat } from "node:fs/promises";
-import { getAgentConfig, getAgentPath, getAllAgentKeys } from "@baton-dx/agent-paths";
+import { getAIToolConfig, getAIToolPath, getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
 import { getGlobalAiTools } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -28,49 +28,53 @@ export const aiToolsListCommand = defineCommand({
 
     // Load saved tools from global config
     const savedTools = await getGlobalAiTools();
-    const allAgentKeys = getAllAgentKeys();
+    const allAIToolKeys = getAllAIToolKeys();
 
     // Determine which tools to show
-    const keysToShow = args.all ? allAgentKeys : savedTools.length > 0 ? savedTools : allAgentKeys;
+    const keysToShow = args.all
+      ? allAIToolKeys
+      : savedTools.length > 0
+        ? savedTools
+        : allAIToolKeys;
 
-    const agentStatuses = await Promise.all(
-      keysToShow.map(async (agentKey) => {
-        const isSaved = savedTools.includes(agentKey);
+    const toolStatuses = await Promise.all(
+      keysToShow.map(async (toolKey) => {
+        const isSaved = savedTools.includes(toolKey);
 
-        // Count installed configs for this agent
+        // Count installed configs for this tool
         let skillCount = 0;
         let ruleCount = 0;
-        let agentCount = 0;
+        let aiToolConfigCount = 0;
         let memoryCount = 0;
         let commandCount = 0;
 
         if (isSaved) {
-          skillCount = await countConfigs(agentKey, "skills", "project");
-          ruleCount = await countConfigs(agentKey, "rules", "project");
-          agentCount = await countConfigs(agentKey, "agents", "project");
-          memoryCount = await countConfigs(agentKey, "memory", "project");
-          commandCount = await countConfigs(agentKey, "commands", "project");
+          skillCount = await countConfigs(toolKey, "skills", "project");
+          ruleCount = await countConfigs(toolKey, "rules", "project");
+          aiToolConfigCount = await countConfigs(toolKey, "agents", "project");
+          memoryCount = await countConfigs(toolKey, "memory", "project");
+          commandCount = await countConfigs(toolKey, "commands", "project");
         }
 
         // Get path locations for each config type
         const paths = {
-          skills: getAgentPath(agentKey, "skills", "project", ""),
-          rules: getAgentPath(agentKey, "rules", "project", ""),
-          agents: getAgentPath(agentKey, "agents", "project", ""),
-          memory: getAgentPath(agentKey, "memory", "project", ""),
-          commands: getAgentPath(agentKey, "commands", "project", ""),
+          skills: getAIToolPath(toolKey, "skills", "project", ""),
+          rules: getAIToolPath(toolKey, "rules", "project", ""),
+          agents: getAIToolPath(toolKey, "agents", "project", ""),
+          memory: getAIToolPath(toolKey, "memory", "project", ""),
+          commands: getAIToolPath(toolKey, "commands", "project", ""),
         };
 
-        const config = getAgentConfig(agentKey);
+        const config = getAIToolConfig(toolKey);
 
         return {
-          key: agentKey,
+          key: toolKey,
           name: config.name,
           saved: isSaved,
           counts: {
             skills: skillCount,
             rules: ruleCount,
-            agents: agentCount,
+            agents: aiToolConfigCount,
             memory: memoryCount,
             commands: commandCount,
           },
@@ -81,7 +85,7 @@ export const aiToolsListCommand = defineCommand({
 
     // JSON output
     if (args.json) {
-      console.log(JSON.stringify(agentStatuses, null, 2));
+      console.log(JSON.stringify(toolStatuses, null, 2));
       return;
     }
 
@@ -90,9 +94,9 @@ export const aiToolsListCommand = defineCommand({
       p.log.warn("No AI tools saved in global config.");
       p.log.info("Run 'baton ai-tools scan' to detect and save your AI tools.");
       console.log("");
-      p.log.info(`All ${allAgentKeys.length} supported tools:`);
-      for (const key of allAgentKeys) {
-        const config = getAgentConfig(key);
+      p.log.info(`All ${allAIToolKeys.length} supported tools:`);
+      for (const key of allAIToolKeys) {
+        const config = getAIToolConfig(key);
         console.log(`  \x1b[90m- ${config.name}\x1b[0m`);
       }
       p.outro("Run 'baton ai-tools scan' to get started.");
@@ -101,7 +105,7 @@ export const aiToolsListCommand = defineCommand({
 
     console.log(`\nSaved AI tools (${savedTools.length}):\n`);
 
-    for (const agent of agentStatuses) {
+    for (const agent of toolStatuses) {
       const statusColor = agent.saved ? "\x1b[32m" : "\x1b[90m";
       const status = agent.saved ? "✓" : "✗";
       const resetColor = "\x1b[0m";
@@ -138,15 +142,15 @@ export const aiToolsListCommand = defineCommand({
 });
 
 /**
- * Count config files of a given type for an agent
+ * Count config files of a given type for a tool
  */
 async function countConfigs(
-  agentKey: string,
+  toolKey: string,
   configType: "skills" | "rules" | "agents" | "memory" | "commands",
   scope: "project" | "global",
 ): Promise<number> {
   try {
-    const basePath = getAgentPath(agentKey, configType, scope, "");
+    const basePath = getAIToolPath(toolKey, configType, scope, "");
     const dirPath = basePath.replace(/{name}.*$/, "").replace(/\/$/, "");
 
     const stats = await stat(dirPath);
