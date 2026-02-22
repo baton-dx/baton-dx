@@ -23,7 +23,7 @@
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
@@ -41,7 +41,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
