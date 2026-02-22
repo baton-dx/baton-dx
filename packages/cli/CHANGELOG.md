@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.4.2
+
+### Patch Changes
+
+- [#39](https://github.com/baton-dx/baton-dx/pull/39) [`dfedc25`](https://github.com/baton-dx/baton-dx/commit/dfedc25b645d13b533ff74b42a1aba51bb5b7488) Thanks [@mantaray0](https://github.com/mantaray0)! - Remove dead config/cache code: `config list/get/set` subcommands, unused `cache` schema, `invalidateCache()`, and fix misleading `# Baton cache` gitignore comment
+
 ## 0.4.1
 
 ### Patch Changes
