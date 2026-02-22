@@ -1,9 +1,19 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CircularInheritanceError } from "../errors.js";
+import { expandSparseCheckout } from "../sources/git-clone.js";
+import type { CloneContext } from "./profile-chain.js";
 import { resolveProfileChain } from "./profile-chain.js";
+
+vi.mock("../sources/git-clone.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sources/git-clone.js")>();
+  return {
+    ...actual,
+    expandSparseCheckout: vi.fn(),
+  };
+});
 
 describe("inheritance/profile-chain", () => {
   let tempDir: string;
@@ -441,6 +451,136 @@ extends:
       // Root profile (not loaded via loadProfileFromSource) has no localPath
       expect(chain[1].name).toBe("child-profile");
       expect(chain[1].localPath).toBeUndefined();
+    });
+  });
+
+  describe("resolveProfileChain with CloneContext", () => {
+    beforeEach(() => {
+      vi.mocked(expandSparseCheckout).mockReset();
+    });
+
+    it("expands sparse-checkout and loads parent when profile not initially present", async () => {
+      // Create child profile that extends base (base doesn't exist yet — sparse-checkout)
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        `
+name: child-profile
+version: 1.0.0
+extends:
+  - ./profiles/base
+`,
+        "utf-8",
+      );
+
+      // Mock expandSparseCheckout to create the base profile (simulating git checkout expansion)
+      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
+        const basePath = join(cachePath, paths[0]);
+        await mkdir(basePath, { recursive: true });
+        await writeFile(
+          join(basePath, "baton.profile.yaml"),
+          "name: base-profile\nversion: 1.0.0\n",
+          "utf-8",
+        );
+      });
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/base"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+      const chain = await resolveProfileChain(
+        childManifest,
+        "./profiles/child",
+        tempDir,
+        cloneContext,
+      );
+
+      // expandSparseCheckout was called with the relative path to the missing parent
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/base"]);
+
+      // Chain includes both parent and child (base first, child last)
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[1].name).toBe("child-profile");
+    });
+
+    it("works unchanged without CloneContext (local sources)", async () => {
+      // Create base profile
+      const basePath = join(profilesDir, "base");
+      await mkdir(basePath, { recursive: true });
+      await writeFile(
+        join(basePath, "baton.profile.yaml"),
+        "name: base-profile\nversion: 1.0.0\n",
+        "utf-8",
+      );
+
+      // Create child profile
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/base\n",
+        "utf-8",
+      );
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/base"],
+      };
+
+      // No cloneContext — standard local resolution
+      const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
+
+      // expandSparseCheckout should NOT be called
+      expect(expandSparseCheckout).not.toHaveBeenCalled();
+
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("base-profile");
+      expect(chain[1].name).toBe("child-profile");
+    });
+
+    it("throws hard error from loadProfileFromSource when expansion does not help", async () => {
+      // Create child profile that extends a non-existent base
+      const childPath = join(profilesDir, "child");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/missing\n",
+        "utf-8",
+      );
+
+      // expandSparseCheckout is called but does NOT create the file (parent truly doesn't exist)
+      vi.mocked(expandSparseCheckout).mockResolvedValue(undefined);
+
+      const childManifest = {
+        name: "child-profile",
+        version: "1.0.0",
+        extends: ["./profiles/missing"],
+      };
+
+      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
+
+      // expandSparseCheckout is called (retry attempted)
+      // The FileNotFoundError is thrown from loadProfileFromSource after retry,
+      // but currently caught by resolveChainRecursive's catch block (US-003 will fix that)
+      const chain = await resolveProfileChain(
+        childManifest,
+        "./profiles/child",
+        tempDir,
+        cloneContext,
+      );
+
+      // expandSparseCheckout was called (expansion was attempted)
+      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/missing"]);
+
+      // Chain only contains child (parent was not loadable even after expansion)
+      expect(chain).toHaveLength(1);
+      expect(chain[0].name).toBe("child-profile");
     });
   });
 });

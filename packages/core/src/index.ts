@@ -188,6 +188,7 @@ export {
 // Export profile inheritance
 export {
   resolveProfileChain,
+  type CloneContext,
   type ResolvedProfile,
 } from "./inheritance/profile-chain.js";
 

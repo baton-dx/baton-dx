@@ -1,9 +1,19 @@
-import { resolve } from "node:path";
-import { CircularInheritanceError } from "../errors.js";
+import { relative, resolve } from "node:path";
+import { CircularInheritanceError, FileNotFoundError } from "../errors.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
-import { cloneGitSource } from "../sources/git-clone.js";
+import { cloneGitSource, expandSparseCheckout } from "../sources/git-clone.js";
 import { parseSource } from "../utils/source-parser.js";
 import { loadProfileManifest } from "../utils/yaml-parser.js";
+
+/**
+ * Context for sparse-checkout aware profile chain resolution
+ */
+export interface CloneContext {
+  /** Git repo root (cache directory) */
+  cachePath: string;
+  /** Whether the repo uses sparse-checkout */
+  sparseCheckout: boolean;
+}
 
 /**
  * Maximum depth for profile inheritance chain
@@ -31,18 +41,29 @@ export interface ResolvedProfile {
  * @param manifest - Root profile manifest
  * @param source - Source URL or path of root profile
  * @param baseDir - Base directory for resolving relative paths
+ * @param cloneContext - Optional clone context for sparse-checkout expansion
  * @returns Array of resolved profiles in merge order (base first, overrides last)
  */
 export async function resolveProfileChain(
   manifest: ProfileManifest,
   source: string,
   baseDir: string,
+  cloneContext?: CloneContext,
 ): Promise<ResolvedProfile[]> {
   const chain: ResolvedProfile[] = [];
   const visited = new Set<string>();
 
   // Start with the root profile
-  await resolveChainRecursive(manifest, source, baseDir, chain, visited, []);
+  await resolveChainRecursive(
+    manifest,
+    source,
+    baseDir,
+    chain,
+    visited,
+    [],
+    undefined,
+    cloneContext,
+  );
 
   return chain;
 }
@@ -57,6 +78,7 @@ export async function resolveProfileChain(
  * @param visited - Set of visited sources (for circular detection)
  * @param path - Current path (for error messages)
  * @param localPath - Resolved local directory path for this profile
+ * @param cloneContext - Optional clone context for sparse-checkout expansion
  */
 async function resolveChainRecursive(
   manifest: ProfileManifest,
@@ -66,6 +88,7 @@ async function resolveChainRecursive(
   visited: Set<string>,
   path: string[],
   localPath?: string,
+  cloneContext?: CloneContext,
 ): Promise<void> {
   // Check for maximum depth
   if (path.length >= MAX_CHAIN_DEPTH) {
@@ -91,7 +114,7 @@ async function resolveChainRecursive(
       try {
         // Load parent profile
         const { manifest: parentManifest, localPath: parentLocalPath } =
-          await loadProfileFromSource(extendSource, baseDir);
+          await loadProfileFromSource(extendSource, baseDir, cloneContext);
 
         // Recursively resolve parent chain with current visited set
         await resolveChainRecursive(
@@ -102,6 +125,7 @@ async function resolveChainRecursive(
           currentVisited,
           [...path],
           parentLocalPath,
+          cloneContext,
         );
       } catch (error) {
         // Re-throw critical errors that should not be swallowed
@@ -131,13 +155,18 @@ async function resolveChainRecursive(
 /**
  * Load a profile from a source (Git URL or local path)
  *
+ * When operating inside a sparse-checkout repo and the profile is not found,
+ * expands the sparse-checkout to include the profile path and retries.
+ *
  * @param source - Source URL or path
  * @param baseDir - Base directory for resolving relative paths
+ * @param cloneContext - Optional clone context for sparse-checkout expansion
  * @returns Loaded profile manifest and resolved local directory path
  */
 async function loadProfileFromSource(
   source: string,
   baseDir: string,
+  cloneContext?: CloneContext,
 ): Promise<{ manifest: ProfileManifest; localPath: string }> {
   const parsed = parseSource(source);
 
@@ -146,7 +175,17 @@ async function loadProfileFromSource(
     const absolutePath = resolve(baseDir, parsed.path);
     const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
-    return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+    try {
+      return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+    } catch (error) {
+      // If sparse-checkout is active and file not found, expand and retry
+      if (error instanceof FileNotFoundError && cloneContext?.sparseCheckout) {
+        const relativePath = relative(cloneContext.cachePath, absolutePath);
+        await expandSparseCheckout(cloneContext.cachePath, [relativePath]);
+        return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+      }
+      throw error;
+    }
   }
 
   if (parsed.provider === "file") {
@@ -154,7 +193,17 @@ async function loadProfileFromSource(
     const absolutePath = parsed.path.startsWith("/") ? parsed.path : resolve(baseDir, parsed.path);
     const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
-    return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+    try {
+      return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+    } catch (error) {
+      // If sparse-checkout is active and file not found, expand and retry
+      if (error instanceof FileNotFoundError && cloneContext?.sparseCheckout) {
+        const relativePath = relative(cloneContext.cachePath, absolutePath);
+        await expandSparseCheckout(cloneContext.cachePath, [relativePath]);
+        return { manifest: await loadProfileManifest(manifestPath), localPath: absolutePath };
+      }
+      throw error;
+    }
   }
 
   if (parsed.provider === "npm") {
