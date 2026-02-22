@@ -54,3 +54,15 @@ Started: Sun Feb 22 19:14:06 CET 2026
   - Error message format: `Failed to resolve extends '<source>' from profile '<name>': <cause>` — use regex matching with escaped special chars in test assertions
   - Biome auto-format (`npx biome check --write`) is the fastest way to fix formatting issues rather than manually adjusting
 ---
+
+## 2026-02-22T19:30 - US-004
+- What was implemented: Wired CloneContext from sync command to profile chain resolver. After `cloneGitSource()` returns in the remote source branch, a `CloneContext` is constructed from `cloned.cachePath` and `cloned.sparseCheckout`, then passed as the 4th argument to `resolveProfileChain()`. For local/file sources, `cloneContext` remains `undefined`.
+- Files changed:
+  - packages/cli/src/commands/sync.ts (added `type CloneContext` import, declared `cloneContext` variable, constructed it from cloned result, passed to `resolveProfileChain`)
+  - scripts/ralph/prd.json (US-004 passes: true)
+- **Learnings for future iterations:**
+  - This was a minimal wiring change (3 additions: import, variable declaration, parameter pass) — no new tests needed since it's pure integration glue
+  - Biome requires type imports to be sorted alphabetically within the import block — `CloneContext` slots between `AgentFile` and `FileNotFoundError`
+  - The `cloneContext` variable must be declared with `let` before the if/else branch so it's accessible in both the remote and local paths (undefined for local)
+  - The sync.ts file clones sources twice: once for chain resolution (~line 382) and again for file placement (~line 705). Both use `useCache: true`, so the second call hits the cache. CloneContext only needs to be passed for the first call.
+---

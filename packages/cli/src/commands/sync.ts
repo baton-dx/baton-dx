@@ -4,6 +4,7 @@ import {
   type AIToolAdapter,
   type AgentEntry,
   type AgentFile,
+  type CloneContext,
   FileNotFoundError,
   type LockFileEntry,
   type MemoryEntry,
@@ -350,6 +351,7 @@ export const syncCommand = defineCommand({
           const parsed = parseSource(profileSource.source);
 
           let manifestPath: string;
+          let cloneContext: CloneContext | undefined;
           if (parsed.provider === "local" || parsed.provider === "file") {
             const absolutePath = parsed.path.startsWith("/")
               ? parsed.path
@@ -385,11 +387,20 @@ export const syncCommand = defineCommand({
             });
             manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
             sourceShas.set(profileSource.source, cloned.sha);
+            cloneContext = {
+              cachePath: cloned.cachePath,
+              sparseCheckout: cloned.sparseCheckout,
+            };
           }
 
           const manifest = await loadProfileManifest(manifestPath);
           const profileDir = dirname(manifestPath);
-          const chain = await resolveProfileChain(manifest, profileSource.source, profileDir);
+          const chain = await resolveProfileChain(
+            manifest,
+            profileSource.source,
+            profileDir,
+            cloneContext,
+          );
           allProfiles.push(...chain);
         } catch (error) {
           spinner.stop(`Failed to resolve profile ${profileSource.source}: ${error}`);

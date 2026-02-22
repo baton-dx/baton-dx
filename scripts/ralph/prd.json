@@ -76,7 +76,7 @@
         "Tests pass"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "In sync.ts: cloneGitSource() is called at line 380-385, resolveProfileChain() is called at line 392. The flow: parse source URL → if remote, call cloneGitSource() → load manifest → call resolveProfileChain(). After cloneGitSource returns `cloned`, construct: const cloneContext: CloneContext = { cachePath: cloned.cachePath, sparseCheckout: cloned.sparseCheckout }. Then pass to resolveProfileChain(manifest, profileSource.source, profileDir, cloneContext). For local sources (the else branch), cloneContext stays undefined. Import type CloneContext from @baton-dx/core — add to the existing import block at lines 3-41. Biome requires type imports to come before value imports within an import block. This is a small wiring change — no new test file needed, but existing sync tests should still pass."
     },
     {
