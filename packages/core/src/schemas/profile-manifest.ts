@@ -150,5 +150,5 @@ export type ProfileManifest = z.infer<typeof profileManifestSchema>;
  * Inferred types for nested structures
  */
 export type MergeStrategy = z.infer<typeof mergeStrategySchema>;
-// Scope type is exported from @baton-dx/agent-paths
+// Scope type is exported from @baton-dx/ai-tool-paths
 export type SkillItem = z.infer<typeof skillItemSchema>;

@@ -1,6 +1,6 @@
-import type { ConfigType } from "@baton-dx/agent-paths";
+import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { parseFrontmatter } from "../utils/frontmatter.js";
-import { BaseAdapter } from "./base-adapter.js";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 import type { RuleFile, ValidationResult } from "./types.js";
 
 /**
@@ -11,7 +11,7 @@ import type { RuleFile, ValidationResult } from "./types.js";
  * - transformRule(): converts to .mdc with description, globs, alwaysApply
  * - validate(): adds Cursor-specific rules + memory checks
  */
-export class CursorAdapter extends BaseAdapter {
+export class CursorAdapter extends BaseAIToolAdapter {
   readonly key = "cursor";
   readonly name = "Cursor";
 

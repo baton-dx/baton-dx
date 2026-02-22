@@ -1,5 +1,5 @@
 {
-  "name": "@baton-dx/agent-paths",
+  "name": "@baton-dx/ai-tool-paths",
   "private": true,
   "version": "0.1.1",
   "description": "Path registry for 14+ AI tools - knows where each tool expects its configuration files",
@@ -21,7 +21,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/baton-dx/baton.git",
-    "directory": "packages/agent-paths"
+    "directory": "packages/ai-tool-paths"
   },
   "homepage": "https://github.com/baton-dx/baton#readme",
   "bugs": {

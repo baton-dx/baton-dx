@@ -1,5 +1,5 @@
 import {
-  getAllAdapters,
+  getAllAIToolAdapters,
   getGlobalAiTools,
   getGlobalIdePlatforms,
   getRegisteredIdePlatforms,
@@ -71,7 +71,7 @@ export async function promptFirstRunPreferences(
 
   if (aiMode === "customize") {
     const globalTools = await getGlobalAiTools();
-    const allAdapters = getAllAdapters();
+    const allAdapters = getAllAIToolAdapters();
 
     const selected = await p.multiselect({
       message: "Select AI tools for this project:",

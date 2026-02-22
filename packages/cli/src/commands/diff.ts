@@ -6,8 +6,8 @@ import {
   type RuleEntry,
   type RuleFile,
   cloneGitSource,
-  detectInstalledAgents,
-  getAdaptersForKeys,
+  detectInstalledAITools,
+  getAIToolAdaptersForKeys,
   getGlobalAiTools,
   getGlobalIdePlatforms,
   getIdePlatformTargetDir,
@@ -171,7 +171,7 @@ export const diffCommand = defineCommand({
       spinner.start("Computing tool intersection...");
 
       const globalAiTools = await getGlobalAiTools();
-      const detectedAgents = await detectInstalledAgents();
+      const detectedAITools = await detectInstalledAITools();
 
       let syncedAiTools: string[];
       if (globalAiTools.length > 0) {
@@ -196,7 +196,7 @@ export const diffCommand = defineCommand({
         }
         syncedAiTools = aggregatedSyncedAi.size > 0 ? [...aggregatedSyncedAi] : [];
       } else {
-        syncedAiTools = detectedAgents;
+        syncedAiTools = detectedAITools;
       }
 
       if (syncedAiTools.length === 0) {
@@ -205,7 +205,7 @@ export const diffCommand = defineCommand({
         process.exit(1);
       }
 
-      const adapters = getAdaptersForKeys(syncedAiTools);
+      const adapters = getAIToolAdaptersForKeys(syncedAiTools);
       spinner.stop(`Comparing for: ${syncedAiTools.join(", ")}`);
 
       // Step 4: Build expected file map (remote content → placed path)

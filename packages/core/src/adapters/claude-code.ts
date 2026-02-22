@@ -1,7 +1,7 @@
-import { BaseAdapter } from "./base-adapter.js";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 
 /**
- * Claude Code adapter — reference implementation for ToolAdapter interface.
+ * Claude Code adapter — reference implementation for AIToolAdapter interface.
  *
  * Uses canonical formats:
  * - Skills: 1:1 copy (SKILL.md with optional scripts/)
@@ -10,7 +10,7 @@ import { BaseAdapter } from "./base-adapter.js";
  * - Memory: CLAUDE.md or .claude/CLAUDE.md
  * - Commands: .claude/commands/{name}.md
  */
-export class ClaudeCodeAdapter extends BaseAdapter {
+export class ClaudeCodeAdapter extends BaseAIToolAdapter {
   readonly key = "claude-code";
   readonly name = "Claude Code";
   protected override memoryFilename = "CLAUDE.md";

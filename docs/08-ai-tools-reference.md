@@ -97,11 +97,11 @@ Config paths use placeholders that get resolved at runtime:
 
 ## Adapter Architecture
 
-All adapters implement the `ToolAdapter` interface and most extend `BaseAdapter`:
+All adapters implement the `AIToolAdapter` interface and most extend `BaseAIToolAdapter`:
 
 ```
-ToolAdapter (interface)
-  └── BaseAdapter (abstract class — provides defaults)
+AIToolAdapter (interface)
+  └── BaseAIToolAdapter (abstract class — provides defaults)
         ├── ClaudeCodeAdapter
         ├── CursorAdapter (overrides: transformRule, getLegacyPaths, validate)
         ├── WindsurfAdapter (overrides: transformRule, getLegacyPaths, validate)
@@ -110,9 +110,9 @@ ToolAdapter (interface)
         └── ... (11 more adapters)
 ```
 
-The `BaseAdapter` provides:
-- `isInstalled()` — via `detectInstalledAgents()`
-- `getPath()` — via `getAgentPath()` from `@baton-dx/agent-paths`
+The `BaseAIToolAdapter` provides:
+- `isInstalled()` — via `detectInstalledAITools()`
+- `getPath()` — via `getAIToolPath()` from `@baton-dx/ai-tool-paths`
 - `getLegacyPaths()` — returns `[]`
 - `transform*()` — passthrough (return input unchanged)
 - `transformMemory()` — converts `MEMORY.md` to tool-specific filename

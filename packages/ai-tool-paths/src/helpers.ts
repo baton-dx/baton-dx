@@ -1,18 +1,23 @@
 import { homedir } from "node:os";
-import { AGENT_PATHS } from "./registry.js";
-import { AgentNotFoundError, type AgentPathConfig, type ConfigType, type Scope } from "./types.js";
+import { AI_TOOL_PATHS } from "./registry.js";
+import {
+  AIToolNotFoundError,
+  type AIToolPathConfig,
+  type ConfigType,
+  type Scope,
+} from "./types.js";
 
 /**
  * Retrieves the full agent configuration for a given agent key.
  *
  * @param agentKey - The unique key of the agent (e.g., 'claude-code', 'cursor')
- * @returns The full AgentPathConfig for the agent
- * @throws AgentNotFoundError if the agent key is not found in the registry
+ * @returns The full AIToolPathConfig for the agent
+ * @throws AIToolNotFoundError if the agent key is not found in the registry
  */
-export function getAgentConfig(agentKey: string): AgentPathConfig {
-  const config = AGENT_PATHS.find((agent) => agent.key === agentKey);
+export function getAIToolConfig(agentKey: string): AIToolPathConfig {
+  const config = AI_TOOL_PATHS.find((agent) => agent.key === agentKey);
   if (!config) {
-    throw new AgentNotFoundError(`Agent with key '${agentKey}' not found in registry`);
+    throw new AIToolNotFoundError(`Agent with key '${agentKey}' not found in registry`);
   }
   return config;
 }
@@ -22,8 +27,8 @@ export function getAgentConfig(agentKey: string): AgentPathConfig {
  *
  * @returns Array of all agent keys
  */
-export function getAllAgentKeys(): string[] {
-  return AGENT_PATHS.map((agent) => agent.key);
+export function getAllAIToolKeys(): string[] {
+  return AI_TOOL_PATHS.map((agent) => agent.key);
 }
 
 /**
@@ -57,15 +62,15 @@ function resolvePath(template: string, name?: string): string {
  * @param scope - The scope (project or global)
  * @param name - Optional name to replace {name} placeholder
  * @returns Resolved path string
- * @throws AgentNotFoundError if the agent key is not found
+ * @throws AIToolNotFoundError if the agent key is not found
  */
-export function getAgentPath(
+export function getAIToolPath(
   agentKey: string,
   configType: ConfigType,
   scope: Scope,
   name?: string,
 ): string {
-  const config = getAgentConfig(agentKey);
+  const config = getAIToolConfig(agentKey);
   const pathConfig: { project: string; global: string } = config[configType];
   const pathTemplate = pathConfig[scope];
   return resolvePath(pathTemplate, name);
@@ -77,10 +82,10 @@ export function getAgentPath(
  * @param agentKey - The unique key of the agent
  * @param configType - The type of configuration (only rules, memory, settings have legacy paths)
  * @returns Array of legacy path strings (empty if none exist)
- * @throws AgentNotFoundError if the agent key is not found
+ * @throws AIToolNotFoundError if the agent key is not found
  */
 export function getLegacyPaths(agentKey: string, configType: ConfigType): string[] {
-  const config = getAgentConfig(agentKey);
+  const config = getAIToolConfig(agentKey);
   if (configType in config.legacy) {
     const legacyPaths = config.legacy[configType as keyof typeof config.legacy];
     return legacyPaths ?? [];

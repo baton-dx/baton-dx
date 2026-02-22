@@ -1,7 +1,7 @@
 import {
-  clearAgentCache,
-  detectInstalledAgents,
-  getAllAdapters,
+  clearAIToolCache,
+  detectInstalledAITools,
+  getAllAIToolAdapters,
   getGlobalAiTools,
   setGlobalAiTools,
 } from "@baton-dx/core";
@@ -27,17 +27,17 @@ export const aiToolsScanCommand = defineCommand({
     spinner.start("Scanning for AI tools...");
 
     // Clear cache to force fresh detection
-    clearAgentCache();
+    clearAIToolCache();
 
-    const detectedAgents = await detectInstalledAgents();
-    const allAdapters = getAllAdapters();
+    const detectedAITools = await detectInstalledAITools();
+    const allAdapters = getAllAIToolAdapters();
     const currentTools = await getGlobalAiTools();
 
     spinner.stop("Scan complete.");
 
-    if (detectedAgents.length > 0) {
+    if (detectedAITools.length > 0) {
       p.log.success(
-        `Found ${detectedAgents.length} AI tool${detectedAgents.length !== 1 ? "s" : ""} on your system.`,
+        `Found ${detectedAITools.length} AI tool${detectedAITools.length !== 1 ? "s" : ""} on your system.`,
       );
     } else {
       p.log.warn("No AI tools detected on your system.");
@@ -45,7 +45,7 @@ export const aiToolsScanCommand = defineCommand({
 
     // --yes flag: save only detected tools (preserves current behavior)
     if (args.yes) {
-      const detectedKeys = detectedAgents;
+      const detectedKeys = detectedAITools;
       const hasChanges =
         detectedKeys.length !== currentTools.length ||
         detectedKeys.some((key) => !currentTools.includes(key));
@@ -63,7 +63,7 @@ export const aiToolsScanCommand = defineCommand({
 
     // Interactive: show multiselect with all 14 tools
     const options = allAdapters.map((adapter) => {
-      const isDetected = detectedAgents.includes(adapter.key);
+      const isDetected = detectedAITools.includes(adapter.key);
       return {
         value: adapter.key,
         label: isDetected ? `${adapter.name} (detected)` : adapter.name,
@@ -73,7 +73,7 @@ export const aiToolsScanCommand = defineCommand({
     const selected = await p.multiselect({
       message: "Select which AI tools to save:",
       options,
-      initialValues: detectedAgents,
+      initialValues: detectedAITools,
     });
 
     if (p.isCancel(selected)) {

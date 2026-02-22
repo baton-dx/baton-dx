@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@baton-dx/agent-paths": "workspace:*",
+    "@baton-dx/ai-tool-paths": "workspace:*",
     "execa": "^9.6.1",
     "handlebars": "^4.7.8",
     "semver": "^7.7.4",

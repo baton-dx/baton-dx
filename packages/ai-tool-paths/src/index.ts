@@ -1,5 +1,5 @@
 export type {
-  AgentPathConfig,
+  AIToolPathConfig,
   AppBundleCheck,
   BinaryCheck,
   ConfigType,
@@ -11,11 +11,11 @@ export type {
   Scope,
   VscodeExtensionCheck,
 } from "./types.js";
-export { AgentNotFoundError } from "./types.js";
-export { AGENT_PATHS } from "./registry.js";
+export { AIToolNotFoundError } from "./types.js";
+export { AI_TOOL_PATHS } from "./registry.js";
 export {
-  getAgentConfig,
-  getAgentPath,
-  getAllAgentKeys,
+  getAIToolConfig,
+  getAIToolPath,
+  getAllAIToolKeys,
   getLegacyPaths,
 } from "./helpers.js";

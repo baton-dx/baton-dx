@@ -1,5 +1,5 @@
-import type { ConfigType } from "@baton-dx/agent-paths";
-import { BaseAdapter } from "./base-adapter.js";
+import type { ConfigType } from "@baton-dx/ai-tool-paths";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 import type { ValidationResult } from "./types.js";
 
 /**
@@ -8,7 +8,7 @@ import type { ValidationResult } from "./types.js";
  * Uses GEMINI.md for memory. Custom validate() adds memory filename check.
  * Paths: .agent/skills/, .agent/rules/, .agent/agents/, .agent/workflows/
  */
-export class AntigravityAdapter extends BaseAdapter {
+export class AntigravityAdapter extends BaseAIToolAdapter {
   readonly key = "antigravity";
   readonly name = "Antigravity";
   protected override memoryFilename = "GEMINI.md";

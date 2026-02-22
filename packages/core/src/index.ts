@@ -1,8 +1,8 @@
 export const PACKAGE_NAME = "@baton-dx/core";
 
-// Re-export types from agent-paths (to maintain backward compatibility)
-export type { ConfigType, Scope } from "@baton-dx/agent-paths";
-export { AgentNotFoundError } from "@baton-dx/agent-paths";
+// Re-export types from ai-tool-paths (to maintain backward compatibility)
+export type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
+export { AIToolNotFoundError } from "@baton-dx/ai-tool-paths";
 
 // Export all error classes
 export {
@@ -10,7 +10,7 @@ export {
   ManifestValidationError,
   GitSourceError,
   VersionNotFoundError,
-  AdapterNotFoundError,
+  AIToolAdapterNotFoundError,
   SourceParseError,
   CircularInheritanceError,
   FileNotFoundError,
@@ -116,7 +116,7 @@ export {
 
 // Export adapter types and type guards
 export type {
-  ToolAdapter,
+  AIToolAdapter,
   ValidationResult,
   SkillDir,
   RuleFile,
@@ -133,14 +133,14 @@ export {
 } from "./adapters/types.js";
 
 // Export base adapter
-export { BaseAdapter } from "./adapters/base-adapter.js";
+export { BaseAIToolAdapter } from "./adapters/base-adapter.js";
 
-// Export agent detection
+// Export AI tool detection
 export {
-  detectInstalledAgents,
-  clearAgentCache,
-  setDetectedAgents,
-} from "./detection/agent-detection.js";
+  detectInstalledAITools,
+  clearAIToolCache,
+  setDetectedAITools,
+} from "./detection/ai-tool-detection.js";
 
 // Export adapters
 export { ClaudeCodeAdapter } from "./adapters/claude-code.js";
@@ -160,9 +160,9 @@ export { TraeAdapter } from "./adapters/trae.js";
 
 // Export adapter registry
 export {
-  getAdapter,
-  getAllAdapters,
-  getAdaptersForKeys,
+  getAIToolAdapter,
+  getAllAIToolAdapters,
+  getAIToolAdaptersForKeys,
 } from "./adapters/registry.js";
 
 // Export placement engine

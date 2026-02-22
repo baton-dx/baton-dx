@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { clearAgentCache, setDetectedAgents } from "../detection/agent-detection.js";
+import { clearAIToolCache, setDetectedAITools } from "../detection/ai-tool-detection.js";
 import { ClaudeCodeAdapter } from "./claude-code.js";
 import type { AgentFile, CommandFile, MemoryFile, RuleFile, SkillDir } from "./types.js";
 
@@ -8,11 +8,11 @@ describe("ClaudeCodeAdapter", () => {
 
   beforeEach(() => {
     adapter = new ClaudeCodeAdapter();
-    clearAgentCache();
+    clearAIToolCache();
   });
 
   afterEach(() => {
-    clearAgentCache();
+    clearAIToolCache();
   });
 
   describe("metadata", () => {
@@ -24,13 +24,13 @@ describe("ClaudeCodeAdapter", () => {
 
   describe("isInstalled", () => {
     test("should return true when claude-code is detected", async () => {
-      setDetectedAgents(["claude-code"]);
+      setDetectedAITools(["claude-code"]);
       const result = await adapter.isInstalled();
       expect(result).toBe(true);
     });
 
     test("should return false when claude-code is not detected", async () => {
-      setDetectedAgents([]);
+      setDetectedAITools([]);
       const result = await adapter.isInstalled();
       expect(result).toBe(false);
     });

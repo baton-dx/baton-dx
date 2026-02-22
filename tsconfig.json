@@ -1,7 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/agent-paths" },
+    { "path": "packages/ai-tool-paths" },
     { "path": "packages/core" },
     { "path": "packages/cli" }
   ]

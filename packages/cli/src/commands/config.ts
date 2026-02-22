@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getAgentConfig } from "@baton-dx/agent-paths";
+import { getAIToolConfig } from "@baton-dx/ai-tool-paths";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
   getBatonHome,
@@ -83,7 +83,7 @@ async function showDashboard(): Promise<void> {
       if (resolvedAiTools.length > 0) {
         const toolNames = resolvedAiTools.map((key) => {
           try {
-            return getAgentConfig(key).name;
+            return getAIToolConfig(key).name;
           } catch {
             return key;
           }
@@ -105,7 +105,7 @@ async function showDashboard(): Promise<void> {
       if (aiTools.length > 0) {
         const toolNames = aiTools.map((key) => {
           try {
-            return getAgentConfig(key).name;
+            return getAIToolConfig(key).name;
           } catch {
             return key;
           }

@@ -5,8 +5,8 @@ export default defineConfig({
     projects: [
       {
         test: {
-          name: "@baton-dx/agent-paths",
-          root: "./packages/agent-paths",
+          name: "@baton-dx/ai-tool-paths",
+          root: "./packages/ai-tool-paths",
           environment: "node",
           include: ["src/**/*.test.ts"],
           coverage: {

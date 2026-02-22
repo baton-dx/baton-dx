@@ -3,13 +3,13 @@
 ## Architecture
 
 ```
-@baton-dx/agent-paths  ←  @baton-dx/core  ←  @baton-dx/cli
-(path registry)            (logic layer)       (user interface)
+@baton-dx/ai-tool-paths  ←  @baton-dx/core  ←  @baton-dx/cli
+(path registry)              (logic layer)       (user interface)
 ```
 
-**Dependency flow:** `agent-paths` has zero dependencies. `core` depends on `agent-paths`. `cli` depends on `core`. One direction only — never reverse.
+**Dependency flow:** `ai-tool-paths` has zero dependencies. `core` depends on `ai-tool-paths`. `cli` depends on `core`. One direction only — never reverse.
 
-**Publishing:** Only `@baton-dx/cli` is published to npm. `core` and `agent-paths` are `"private": true` — they are bundled into the CLI build via tsdown's `noExternal` + `alias` config (see `packages/cli/tsdown.config.ts`). The published CLI package has zero runtime dependencies; everything is self-contained in `dist/index.mjs`.
+**Publishing:** Only `@baton-dx/cli` is published to npm. `core` and `ai-tool-paths` are `"private": true` — they are bundled into the CLI build via tsdown's `noExternal` + `alias` config (see `packages/cli/tsdown.config.ts`). The published CLI package has zero runtime dependencies; everything is self-contained in `dist/index.mjs`.
 
 ## Packages
 
@@ -25,10 +25,10 @@ The user-facing CLI built with [citty](https://github.com/unjs/citty) + [@clack/
 
 All business logic lives here. No CLI or UI concerns.
 
-- **Adapters:** `src/adapters/` — 14 AI tool adapters implementing `ToolAdapter`
-  - `types.ts` — `ToolAdapter` interface and canonical data types
-  - `base-adapter.ts` — `BaseAdapter` abstract class with shared defaults
-  - `registry.ts` — `getAdapter()`, `getAllAdapters()`, `getAdaptersForKeys()`
+- **Adapters:** `src/adapters/` — 14 AI tool adapters implementing `AIToolAdapter`
+  - `types.ts` — `AIToolAdapter` interface and canonical data types
+  - `base-adapter.ts` — `BaseAIToolAdapter` abstract class with shared defaults
+  - `registry.ts` — `getAIToolAdapter()`, `getAllAIToolAdapters()`, `getAIToolAdaptersForKeys()`
   - One file per tool: `claude-code.ts`, `cursor.ts`, `windsurf.ts`, etc.
 - **Schemas:** `src/schemas/` — Zod schemas (single source of truth for all config validation)
 - **Merge:** `src/merge/` — merge strategies (replace, deep, append, prepend, skip, prompt, directory, import)
@@ -41,14 +41,14 @@ All business logic lives here. No CLI or UI concerns.
 - **Substitution:** `src/substitution/` — template variable replacement (`{{var}}`)
 - **Inheritance:** `src/inheritance/` — profile chain resolution
 
-### @baton-dx/agent-paths (`packages/agent-paths/`)
+### @baton-dx/ai-tool-paths (`packages/ai-tool-paths/`)
 
 Zero-dependency path registry for all 14 AI tools.
 
-- **Registry:** `src/registry.ts` — `AGENT_PATHS` array with path configs for each tool
+- **Registry:** `src/registry.ts` — `AI_TOOL_PATHS` array with path configs for each tool
 - **Config types:** skills, rules, agents, memory, settings, commands
 - **Scopes:** project (`.tool/`) and global (`~/.tool/`)
-- **Exports:** `getAgentPath()`, `getAgentPaths()`, `getAllAgentKeys()`
+- **Exports:** `getAIToolPath()`, `getAIToolPaths()`, `getAllAIToolKeys()`
 
 ## Key Schemas (Zod)
 
@@ -64,10 +64,10 @@ All schemas use Zod. Derive TypeScript types with `z.infer<typeof schema>`.
 
 ## Adapter Pattern
 
-Every AI tool adapter implements the `ToolAdapter` interface (`core/src/adapters/types.ts`):
+Every AI tool adapter implements the `AIToolAdapter` interface (`core/src/adapters/types.ts`):
 
 ```typescript
-interface ToolAdapter {
+interface AIToolAdapter {
   key: string;
   name: string;
   isInstalled(): Promise<boolean>;
@@ -82,7 +82,7 @@ interface ToolAdapter {
 }
 ```
 
-Most adapters extend `BaseAdapter` (`base-adapter.ts`) which provides sensible defaults. Override only what differs — e.g., Cursor overrides `transformRule()` for `.mdc` format, Windsurf strips frontmatter, Antigravity uses `GEMINI.md`, GitHub Copilot uses `copilot-instructions.md`.
+Most adapters extend `BaseAIToolAdapter` (`base-adapter.ts`) which provides sensible defaults. Override only what differs — e.g., Cursor overrides `transformRule()` for `.mdc` format, Windsurf strips frontmatter, Antigravity uses `GEMINI.md`, GitHub Copilot uses `copilot-instructions.md`.
 
 ## CLI Commands
 
@@ -137,10 +137,10 @@ On push to `main`: release workflow detects changeset files, creates a version b
 
 - **TypeScript strict mode** — no `any` types, use `unknown` + type narrowing
 - **Named exports only** — no `export default`
-- **Functional composition** — except adapters which use class inheritance (`BaseAdapter`)
+- **Functional composition** — except adapters which use class inheritance (`BaseAIToolAdapter`)
 - **Zod schemas as source of truth** — derive types with `z.infer<typeof schema>`
 - **Tests co-located** — `foo.test.ts` next to `foo.ts` (vitest)
 - **Async file I/O** — always `fs/promises`, never sync
-- **Conventional commits** — `feat(cli):`, `fix(core):`, `refactor(agent-paths):`
+- **Conventional commits** — `feat(cli):`, `fix(core):`, `refactor(ai-tool-paths):`
 - **Biome formatting** — run `bun run lint` before committing
 - **Import ordering** — Node built-ins → external packages → workspace packages → relative imports

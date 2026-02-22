@@ -16,7 +16,7 @@ vi.mock("node:os", () => ({
 
 import { execFile } from "node:child_process";
 import { access, readdir } from "node:fs/promises";
-import { AGENT_PATHS } from "@baton-dx/agent-paths";
+import { AI_TOOL_PATHS } from "@baton-dx/ai-tool-paths";
 import * as mechanisms from "./mechanisms.js";
 
 const {
@@ -670,7 +670,7 @@ describe("false positive regression tests", () => {
   });
 
   function getDetectionConfig(key: string) {
-    const entry = AGENT_PATHS.find((a) => a.key === key);
+    const entry = AI_TOOL_PATHS.find((a) => a.key === key);
     if (!entry?.detectionConfig) {
       throw new Error(`No detectionConfig for agent: ${key}`);
     }

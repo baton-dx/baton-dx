@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getAllAdapters } from "../adapters/registry.js";
+import { getAllAIToolAdapters } from "../adapters/registry.js";
 import { getIdePlatformTargetDir, getRegisteredIdePlatforms } from "../ide/platform-registry.js";
 
 /**
@@ -177,7 +177,7 @@ export function collectComprehensivePatterns(
   const { fileTargets } = options;
 
   // AI tool patterns: directories, memory files, and legacy paths for ALL known adapters
-  const allAdapters = getAllAdapters();
+  const allAdapters = getAllAIToolAdapters();
   for (const adapter of allAdapters) {
     const commandPath = adapter.getPath("commands", "project", "_probe");
     addDirPattern(patterns, commandPath);

@@ -30,7 +30,7 @@ describe("CodexAdapter", () => {
   test("getPath returns correct global path for skills", () => {
     const path = adapter.getPath("skills", "global", "test-skill");
     expect(path).toContain(".codex/skills/test-skill");
-    // Tilde is expanded to home directory by getAgentPath
+    // Tilde is expanded to home directory by getAIToolPath
     expect(path).toMatch(/^\/.*\.codex\/skills\/test-skill$/);
   });
 

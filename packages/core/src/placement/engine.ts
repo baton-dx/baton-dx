@@ -1,12 +1,12 @@
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import type { ConfigType, Scope } from "@baton-dx/agent-paths";
-import type { ToolAdapter } from "../adapters/types.js";
+import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
+import type { AIToolAdapter } from "../adapters/types.js";
 
 /**
  * Placement mode for file placement
- * - symlink: First installation creates canonical copy, subsequent agents get symlinks
- * - copy: Each agent gets an independent copy
+ * - symlink: First installation creates canonical copy, subsequent AI tools get symlinks
+ * - copy: Each AI tool gets an independent copy
  */
 export type PlacementMode = "symlink" | "copy";
 
@@ -41,10 +41,10 @@ export interface PlacementResult {
 const canonicalFiles = new Map<string, string>();
 
 /**
- * Place a file for a specific agent adapter
+ * Place a file for a specific AI tool adapter
  *
  * @param content - File content to write
- * @param adapter - Agent adapter
+ * @param adapter - AI tool adapter
  * @param type - Config type
  * @param scope - Scope (project or global)
  * @param name - File/directory name
@@ -53,7 +53,7 @@ const canonicalFiles = new Map<string, string>();
  */
 export async function placeFile(
   content: string,
-  adapter: ToolAdapter,
+  adapter: AIToolAdapter,
   type: ConfigType,
   scope: Scope,
   name: string,

@@ -35,7 +35,7 @@ baton --version
 ```
 baton-dx/
 ├── packages/
-│   ├── agent-paths/     # @baton-dx/agent-paths — Path registry (zero deps)
+│   ├── ai-tool-paths/   # @baton-dx/ai-tool-paths — Path registry (zero deps)
 │   ├── core/            # @baton-dx/core — Business logic
 │   └── cli/             # @baton-dx/cli — User-facing CLI
 ├── docs/                # Documentation
@@ -46,7 +46,7 @@ baton-dx/
     └── rules/           # Coding rules
 ```
 
-**Dependency flow:** `agent-paths` → `core` → `cli` (one direction only).
+**Dependency flow:** `ai-tool-paths` → `core` → `cli` (one direction only).
 
 ## Development Workflow
 
@@ -85,12 +85,12 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```bash
 git commit -m "feat(cli): add profile wizard"
 git commit -m "fix(core): handle empty manifest"
-git commit -m "refactor(agent-paths): simplify registry lookup"
+git commit -m "refactor(ai-tool-paths): simplify registry lookup"
 git commit -m "docs: update CLI reference"
 git commit -m "test(core): add cursor adapter tests"
 ```
 
-**Scopes:** `cli`, `core`, `agent-paths`, `docs`, `deps`
+**Scopes:** `cli`, `core`, `ai-tool-paths`, `docs`, `deps`
 
 ### 5. Submit Pull Request
 
@@ -116,7 +116,7 @@ baton sync
 
 The maintainer profile includes:
 
-- **Memory** — Full monorepo architecture (agent-paths → core → cli), adapter pattern, CLI commands, release workflow
+- **Memory** — Full monorepo architecture (ai-tool-paths → core → cli), adapter pattern, CLI commands, release workflow
 - **8 Skills** — `add-adapter`, `add-ide-platform`, `review-code`, `find-dead-code`, `find-redundancy`, `create-pr`, `run-release`, `run-review`
 - **2 Agents** — `code-quality-auditor` (deep analysis), `consolidation-scout` (redundancy detection)
 - **3 Rules** — `general` (commits, testing, async I/O), `coding-style` (TypeScript strict, Biome), `api-conventions` (citty, clack, Zod)
@@ -132,7 +132,7 @@ All configurations are automatically transformed and placed for whichever AI too
 
 Use the `add-adapter` skill for step-by-step guidance. Changes span all 3 packages:
 
-1. Add path config to `packages/agent-paths/src/registry.ts`
+1. Add path config to `packages/ai-tool-paths/src/registry.ts`
 2. Create adapter class in `packages/core/src/adapters/<tool>.ts`
 3. Register in `packages/core/src/adapters/registry.ts`
 4. Add tests in `packages/core/src/adapters/<tool>.test.ts`
@@ -192,7 +192,7 @@ bun run dead-code
 
 ### Adapter Pattern
 
-All AI tool adapters implement `ToolAdapter` (from `core/src/adapters/types.ts`) and most extend `BaseAdapter`. Override only what differs from the default behavior.
+All AI tool adapters implement `AIToolAdapter` (from `core/src/adapters/types.ts`) and most extend `BaseAIToolAdapter`. Override only what differs from the default behavior.
 
 ### Schema-First Design
 

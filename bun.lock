@@ -17,8 +17,8 @@
         "vitest": "^3.2.4",
       },
     },
-    "packages/agent-paths": {
-      "name": "@baton-dx/agent-paths",
+    "packages/ai-tool-paths": {
+      "name": "@baton-dx/ai-tool-paths",
       "version": "0.1.1",
     },
     "packages/cli": {
@@ -30,7 +30,7 @@
         "btx": "./dist/index.mjs",
       },
       "devDependencies": {
-        "@baton-dx/agent-paths": "workspace:*",
+        "@baton-dx/ai-tool-paths": "workspace:*",
         "@baton-dx/core": "workspace:*",
         "@clack/prompts": "^1.0.1",
         "citty": "^0.1.0",
@@ -43,7 +43,7 @@
       "name": "@baton-dx/core",
       "version": "0.2.0",
       "dependencies": {
-        "@baton-dx/agent-paths": "workspace:*",
+        "@baton-dx/ai-tool-paths": "workspace:*",
         "execa": "^9.6.1",
         "handlebars": "^4.7.8",
         "semver": "^7.7.4",
@@ -79,7 +79,7 @@
 
     "@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
 
-    "@baton-dx/agent-paths": ["@baton-dx/agent-paths@workspace:packages/agent-paths"],
+    "@baton-dx/ai-tool-paths": ["@baton-dx/ai-tool-paths@workspace:packages/ai-tool-paths"],
 
     "@baton-dx/cli": ["@baton-dx/cli@workspace:packages/cli"],
 

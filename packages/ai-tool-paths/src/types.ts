@@ -85,17 +85,17 @@ export interface DetectionConfig {
 /**
  * Error thrown when an agent is not found in the registry
  */
-export class AgentNotFoundError extends Error {
+export class AIToolNotFoundError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "AgentNotFoundError";
+    this.name = "AIToolNotFoundError";
   }
 }
 
 /**
  * Path configuration for a single agent.
  */
-export interface AgentPathConfig {
+export interface AIToolPathConfig {
   /** Unique key identifying the agent (e.g., 'claude-code', 'cursor') */
   key: string;
   /** Human-readable name of the agent */

@@ -1,10 +1,10 @@
-import type { AgentPathConfig } from "./types.js";
+import type { AIToolPathConfig } from "./types.js";
 
 /**
  * Registry of all supported AI agents and their path configurations.
  * Each agent defines where it expects skills, rules, agents, memory, settings, and commands.
  */
-export const AGENT_PATHS: readonly AgentPathConfig[] = [
+export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
   {
     key: "claude-code",
     name: "Claude Code",

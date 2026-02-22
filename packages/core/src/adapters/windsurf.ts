@@ -1,6 +1,6 @@
-import type { ConfigType } from "@baton-dx/agent-paths";
+import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { parseFrontmatter } from "../utils/frontmatter.js";
-import { BaseAdapter } from "./base-adapter.js";
+import { BaseAIToolAdapter } from "./base-adapter.js";
 import type { RuleFile, ValidationResult } from "./types.js";
 
 /**
@@ -11,7 +11,7 @@ import type { RuleFile, ValidationResult } from "./types.js";
  * - transformRule(): removes all YAML frontmatter
  * - validate(): adds Windsurf-specific rules + memory checks
  */
-export class WindsurfAdapter extends BaseAdapter {
+export class WindsurfAdapter extends BaseAIToolAdapter {
   readonly key = "windsurf";
   readonly name = "Windsurf";
 

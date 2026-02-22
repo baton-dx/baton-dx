@@ -30,7 +30,7 @@ describe("AntigravityAdapter", () => {
   test("getPath returns correct global path for skills", () => {
     const path = adapter.getPath("skills", "global", "test-skill");
     expect(path).toContain(".gemini/antigravity/skills/test-skill");
-    // Tilde is expanded to home directory by getAgentPath
+    // Tilde is expanded to home directory by getAIToolPath
     expect(path).toMatch(/^\/.*\.gemini\/antigravity\/skills\/test-skill$/);
   });
 

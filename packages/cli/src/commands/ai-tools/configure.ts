@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  getAllAdapters,
+  getAllAIToolAdapters,
   getGlobalAiTools,
   readProjectPreferences,
   setGlobalAiTools,
@@ -52,7 +52,7 @@ async function runGlobalMode(nonInteractive: boolean): Promise<void> {
     return;
   }
 
-  const allAdapters = getAllAdapters();
+  const allAdapters = getAllAIToolAdapters();
 
   const options = allAdapters.map((adapter) => {
     const isSaved = currentTools.includes(adapter.key);
@@ -159,7 +159,7 @@ async function runProjectMode(nonInteractive: boolean): Promise<void> {
   }
 
   // Customize: show multiselect
-  const allAdapters = getAllAdapters();
+  const allAdapters = getAllAIToolAdapters();
   const currentProjectTools = existing?.ai.useGlobal === false ? existing.ai.tools : globalTools;
 
   const options = allAdapters.map((adapter) => {

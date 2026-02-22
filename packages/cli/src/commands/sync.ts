@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
+  type AIToolAdapter,
   type AgentEntry,
   type AgentFile,
   FileNotFoundError,
@@ -10,15 +11,14 @@ import {
   type ProjectManifest,
   type RuleEntry,
   type RuleFile,
-  type ToolAdapter,
   type WeightConflictWarning,
   cloneGitSource,
   collectComprehensivePatterns,
-  detectInstalledAgents,
+  detectInstalledAITools,
   detectLegacyPaths,
   ensureBatonDirGitignored,
   generateLock,
-  getAdaptersForKeys,
+  getAIToolAdaptersForKeys,
   getIdePlatformTargetDir,
   getProfileWeight,
   isKnownIdePlatform,
@@ -461,7 +461,7 @@ export const syncCommand = defineCommand({
       }
       const mergedCommandCount = commandMap.size;
 
-      // Collect all settings from all profiles (deduplicated by agent key, last wins)
+      // Collect all settings from all profiles (deduplicated by tool key, last wins)
       // Respects weight lock: settings from weight -1 profiles cannot be overridden
       const settingsMap = new Map<string, { filename: string; profileName: string }>();
       const lockedSettings = new Set<string>();
@@ -471,13 +471,13 @@ export const syncCommand = defineCommand({
         const locked = isLockedProfile(profile);
         const settings = profile.manifest.ai?.settings;
         if (!settings) continue;
-        for (const [agentKey, filename] of Object.entries(settings)) {
-          if (lockedSettings.has(agentKey)) continue;
+        for (const [toolKey, filename] of Object.entries(settings)) {
+          if (lockedSettings.has(toolKey)) continue;
 
-          const existing = settingsOwner.get(agentKey);
+          const existing = settingsOwner.get(toolKey);
           if (existing && existing.weight === weight && existing.profileName !== profile.name) {
             allWeightWarnings.push({
-              key: agentKey,
+              key: toolKey,
               category: "settings",
               profileA: existing.profileName,
               profileB: profile.name,
@@ -485,9 +485,9 @@ export const syncCommand = defineCommand({
             });
           }
 
-          settingsMap.set(agentKey, { filename, profileName: profile.name });
-          settingsOwner.set(agentKey, { profileName: profile.name, weight });
-          if (locked) lockedSettings.add(agentKey);
+          settingsMap.set(toolKey, { filename, profileName: profile.name });
+          settingsOwner.set(toolKey, { profileName: profile.name, weight });
+          if (locked) lockedSettings.add(toolKey);
         }
       }
       const mergedSettingsCount = settingsMap.size;
@@ -586,7 +586,7 @@ export const syncCommand = defineCommand({
       spinner.start("Computing tool intersection...");
 
       const prefs = await resolvePreferences(projectRoot);
-      const detectedAgents = await detectInstalledAgents();
+      const detectedAITools = await detectInstalledAITools();
 
       if (verbose) {
         p.log.info(
@@ -634,16 +634,16 @@ export const syncCommand = defineCommand({
         syncedIdePlatforms = [...aggregatedSyncedIde];
       } else {
         // No global config — fall back to detected agents for backward compatibility
-        syncedAiTools = detectedAgents;
+        syncedAiTools = detectedAITools;
         // No IDE filtering when no global config exists (place all IDE files)
         syncedIdePlatforms = null;
-        if (detectedAgents.length > 0) {
+        if (detectedAITools.length > 0) {
           p.log.warn("No AI tools configured. Run `baton ai-tools scan` to configure your tools.");
-          p.log.info(`Falling back to detected tools: ${detectedAgents.join(", ")}`);
+          p.log.info(`Falling back to detected tools: ${detectedAITools.join(", ")}`);
         }
       }
 
-      if (syncedAiTools.length === 0 && detectedAgents.length === 0) {
+      if (syncedAiTools.length === 0 && detectedAITools.length === 0) {
         spinner.stop("No AI tools available");
         p.cancel("No AI tools found. Install an AI coding tool first.");
         process.exit(1);
@@ -700,7 +700,7 @@ export const syncCommand = defineCommand({
       spinner.start("Processing configurations...");
 
       // Use intersection-filtered AI tools instead of all detected agents
-      const adapters = getAdaptersForKeys(syncedAiTools);
+      const adapters = getAIToolAdaptersForKeys(syncedAiTools);
 
       // Placement configuration
       const placementConfig = {
@@ -762,7 +762,7 @@ export const syncCommand = defineCommand({
         string,
         {
           parts: string[];
-          adapter: ToolAdapter;
+          adapter: AIToolAdapter;
           type: "memory" | "rules" | "agents";
           name: string;
           profiles: Set<string>;

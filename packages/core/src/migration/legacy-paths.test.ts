@@ -32,7 +32,7 @@ describe("migration/legacy-paths", () => {
 
       const legacyFiles = await detectLegacyPaths(projectRoot);
 
-      const cursorFile = legacyFiles.find((f) => f.agentKey === "cursor");
+      const cursorFile = legacyFiles.find((f) => f.toolKey === "cursor");
       expect(cursorFile).toBeDefined();
       expect(cursorFile?.legacyPath).toBe(cursorrules);
       expect(cursorFile?.configType).toBe("rules");
@@ -44,7 +44,7 @@ describe("migration/legacy-paths", () => {
 
       const legacyFiles = await detectLegacyPaths(projectRoot);
 
-      const windsurfFile = legacyFiles.find((f) => f.agentKey === "windsurf");
+      const windsurfFile = legacyFiles.find((f) => f.toolKey === "windsurf");
       expect(windsurfFile).toBeDefined();
       expect(windsurfFile?.legacyPath).toBe(windsurfrules);
       expect(windsurfFile?.configType).toBe("rules");
@@ -65,8 +65,8 @@ describe("migration/legacy-paths", () => {
       const legacyFiles = await detectLegacyPaths(projectRoot);
 
       expect(legacyFiles.length).toBeGreaterThanOrEqual(2);
-      expect(legacyFiles.some((f) => f.agentKey === "cursor")).toBe(true);
-      expect(legacyFiles.some((f) => f.agentKey === "windsurf")).toBe(true);
+      expect(legacyFiles.some((f) => f.toolKey === "cursor")).toBe(true);
+      expect(legacyFiles.some((f) => f.toolKey === "windsurf")).toBe(true);
     });
   });
 
@@ -80,7 +80,7 @@ describe("migration/legacy-paths", () => {
           legacyPath,
           newPath: join(projectRoot, ".cursor/rules/cursorrules.md"),
           configType: "rules",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "skip",
       );
@@ -101,7 +101,7 @@ describe("migration/legacy-paths", () => {
           legacyPath,
           newPath,
           configType: "rules",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "copy",
       );
@@ -130,7 +130,7 @@ describe("migration/legacy-paths", () => {
           legacyPath,
           newPath,
           configType: "rules",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "migrate",
       );
@@ -164,7 +164,7 @@ describe("migration/legacy-paths", () => {
           legacyPath,
           newPath,
           configType: "rules",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "copy",
       );
@@ -185,7 +185,7 @@ describe("migration/legacy-paths", () => {
           legacyPath,
           newPath,
           configType: "rules",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "copy",
       );
@@ -209,7 +209,7 @@ describe("migration/legacy-paths", () => {
           legacyPath: legacyDir,
           newPath: newDir,
           configType: "skills",
-          agentKey: "cursor",
+          toolKey: "cursor",
         },
         "copy",
       );

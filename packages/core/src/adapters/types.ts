@@ -1,4 +1,4 @@
-import type { ConfigType, Scope } from "@baton-dx/agent-paths";
+import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
 
 /**
  * Type guards for config file types used in adapter validate() methods.
@@ -103,12 +103,12 @@ export interface CommandFile {
 }
 
 /**
- * ToolAdapter interface - all AI tool adapters implement this
+ * AIToolAdapter interface - all AI tool adapters implement this
  *
  * Each adapter handles the specifics of transforming canonical data formats
  * into the format expected by a specific AI tool (Claude Code, Cursor, etc.)
  */
-export interface ToolAdapter {
+export interface AIToolAdapter {
   /** Unique tool key (e.g., 'claude-code', 'cursor') */
   key: string;
 

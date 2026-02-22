@@ -5,7 +5,7 @@
  * to their target directories in the project root.
  */
 
-import type { DetectionConfig } from "@baton-dx/agent-paths";
+import type { DetectionConfig } from "@baton-dx/ai-tool-paths";
 
 export interface IdePlatformEntry {
   targetDir: string;
