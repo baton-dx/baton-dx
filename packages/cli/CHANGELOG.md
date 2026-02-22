@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- [#36](https://github.com/baton-dx/baton-dx/pull/36) [`1f687a6`](https://github.com/baton-dx/baton-dx/commit/1f687a6af361eaef55ada74160bdf28483836bfc) Thanks [@mantaray0](https://github.com/mantaray0)! - Remove dead `config list/get/set` subcommands and fix misleading help text in `ai-tools list`
+
 ## 0.4.0
 
 ### Minor Changes
