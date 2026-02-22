@@ -129,7 +129,7 @@
         "Tests pass"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "loadProfileManifestSafe() is NOT in source-discovery.ts directly — it's in packages/core/src/sources/load-profile-safe.ts (imported at source-discovery.ts line 5). The function is at load-profile-safe.ts lines 14-32. It currently catches ALL errors and returns null silently. Fix: split the catch into two cases. (1) Check for ENOENT: if (error.code === 'ENOENT' || (error instanceof Error && error.message.includes('ENOENT'))) return null silently. (2) For Zod validation errors: if (error instanceof z.ZodError) log console.warn with profile path and error.issues, return null. (3) For other errors: also log console.warn with the error message and profile path. The likely root cause of the bug: profiles with 'extends', 'skills', 'agents', or 'commands' fields may be failing Zod validation and being silently dropped. Check the profileManifestSchema to ensure these fields are all declared. After US-001 of the previous Ralph run, agents was added. Check if extends is in the schema — it should be (it's the inheritance mechanism). loadProfileManifestSafe is not exported from core/src/index.ts — it's internal, used only by source-discovery.ts."
     },
     {

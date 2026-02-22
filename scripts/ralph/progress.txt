@@ -19,6 +19,8 @@ Started: Sun Feb 22 19:14:06 CET 2026
 - Biome enforces alphabetical import sorting — `loadGlobalConfig` goes between `isLockedProfile` and `loadProfileManifest`
 - To convert a single-file command to a directory with subcommands: rename `config.ts` → `config/index.ts`, update import path in CLI entry to `./commands/config/index.js`
 - citty supports `subCommands` + `run()` on the same command: `run()` fires when no subcommand matches (default behavior)
+- `loadProfileManifestSafe` in load-profile-safe.ts is the gatekeeper for profile discovery — if it silently swallows errors, profiles become invisible in `baton init` and `baton manage`
+- To mock `readFile` from `node:fs/promises` while keeping dynamic import of the module under test, use `vi.mock()` before `await import()` pattern
 
 ---
 
@@ -104,4 +106,17 @@ Started: Sun Feb 22 19:14:06 CET 2026
   - citty allows both `subCommands` and `run()` on the same command definition — `run()` is the default handler when no subcommand matches
   - Converting a command file to a directory: rename `cmd.ts` to `cmd/index.ts`, update the import in the CLI entry point to include `/index.js`
   - The `saveGlobalConfig()` function validates via Zod before writing — this means `config set` gets free validation without needing to manually check the value type
+---
+
+## 2026-02-22T19:43 - US-007
+- What was implemented: Fixed `loadProfileManifestSafe()` to distinguish between ENOENT (file not found), Zod validation errors, and other errors. Previously all errors were silently caught, causing profiles with valid but complex manifests to be invisible during `baton init` and `baton manage`. Now: ENOENT returns null silently (expected), Zod errors log `console.warn` with the manifest path and specific validation issues, and other errors (YAML parse failures, permission issues) also log warnings.
+- Files changed:
+  - packages/core/src/sources/load-profile-safe.ts (split catch block into ENOENT/ZodError/other, added `z` import from zod)
+  - packages/core/src/sources/load-profile-safe.test.ts (new file: 8 unit tests covering valid manifests, extends/skills/agents/commands, ENOENT silent, ENOENT message, Zod validation warnings, validation issue details, YAML parse errors, permission errors)
+  - scripts/ralph/prd.json (US-007 passes: true)
+- **Learnings for future iterations:**
+  - The `yaml` npm library is very permissive — strings like `:::invalid yaml:::` parse successfully as plain strings. To test YAML parse errors, use genuinely malformed YAML like `name: [unterminated` (unterminated flow sequence)
+  - When a parsed YAML value is a string (not an object), Zod catches it as missing required fields (name, version) — this is a ZodError, not a YAML error
+  - Existing integration tests in profile-discovery.test.ts and source-discovery.test.ts now show the new `console.warn` messages in stderr — this is expected and confirms the fix works end-to-end
+  - The profileManifestSchema already supports `extends`, `ai.skills`, `ai.agents`, `ai.commands` — the schema was never the problem, only the silent error swallowing in loadProfileManifestSafe
 ---
