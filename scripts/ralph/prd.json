@@ -148,7 +148,7 @@
         "Tests pass"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Some of these tests may already be partially covered by individual stories (US-001, US-002, US-003). This story focuses on integration-level tests and any gaps. For profile-chain.test.ts: mock the file system and expandSparseCheckout to test the full chain resolution flow. The CloneContext param must be threaded through. For diamond inheritance: visited set in resolveChainRecursive (line 67) prevents duplicate processing. For git-clone.test.ts: mock simpleGit and fs/promises stat. Use vitest's vi.mock() for mocking. Tests are co-located: profile-chain.test.ts next to profile-chain.ts, git-clone.test.ts next to git-clone.ts. Check if these test files already exist — they may from previous stories. If so, add to them rather than creating new files. Must run 'bun run build' before 'bun run typecheck'."
     }
   ]
