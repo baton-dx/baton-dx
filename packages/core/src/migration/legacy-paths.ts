@@ -52,14 +52,7 @@ export async function detectLegacyPaths(projectRoot: string): Promise<LegacyFile
 
   for (const adapter of adapters) {
     // Check each config type for legacy paths
-    const configTypes: ConfigType[] = [
-      "skills",
-      "rules",
-      "agents",
-      "memory",
-      "settings",
-      "commands",
-    ];
+    const configTypes: ConfigType[] = ["skills", "rules", "agents", "memory", "commands"];
 
     for (const configType of configTypes) {
       const legacyPaths = adapter.getLegacyPaths(configType);

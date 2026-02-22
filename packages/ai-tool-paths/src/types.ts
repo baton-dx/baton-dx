@@ -2,7 +2,7 @@
  * Configuration type union - represents all types of configurations
  * that can be managed by Baton
  */
-export type ConfigType = "skills" | "rules" | "agents" | "memory" | "settings" | "commands";
+export type ConfigType = "skills" | "rules" | "agents" | "memory" | "commands";
 
 /**
  * Scope for configuration items
@@ -128,13 +128,6 @@ export interface AIToolPathConfig {
     /** Global memory path */
     global: string;
   };
-  /** Paths for settings configuration */
-  settings: {
-    /** Project-level settings path */
-    project: string;
-    /** Global settings path */
-    global: string;
-  };
   /** Paths for commands/workflows */
   commands: {
     /** Project-level commands path */
@@ -150,7 +143,5 @@ export interface AIToolPathConfig {
     rules?: string[];
     /** Legacy memory paths */
     memory?: string[];
-    /** Legacy settings paths */
-    settings?: string[];
   };
 }

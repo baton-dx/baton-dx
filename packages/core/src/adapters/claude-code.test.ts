@@ -66,11 +66,6 @@ describe("ClaudeCodeAdapter", () => {
       const path = adapter.getPath("commands", "project", "review");
       expect(path).toBe(".claude/commands/review.md");
     });
-
-    test("should return correct path for settings", () => {
-      const path = adapter.getPath("settings", "project", "settings");
-      expect(path).toBe(".claude/settings.json");
-    });
   });
 
   describe("getLegacyPaths", () => {
@@ -79,7 +74,6 @@ describe("ClaudeCodeAdapter", () => {
       expect(adapter.getLegacyPaths("rules")).toEqual([]);
       expect(adapter.getLegacyPaths("agents")).toEqual([]);
       expect(adapter.getLegacyPaths("memory")).toEqual([]);
-      expect(adapter.getLegacyPaths("settings")).toEqual([]);
       expect(adapter.getLegacyPaths("commands")).toEqual([]);
     });
   });
@@ -278,23 +272,6 @@ describe("ClaudeCodeAdapter", () => {
       const result = adapter.validate("commands", command);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Command must have a name");
-    });
-
-    test("should validate settings as JSON object", () => {
-      const settings = {
-        theme: "dark",
-        fontSize: 14,
-      };
-
-      const result = adapter.validate("settings", settings);
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-    });
-
-    test("should reject settings if not an object", () => {
-      const result = adapter.validate("settings", "not an object");
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain("Settings must be a valid JSON object");
     });
   });
 });

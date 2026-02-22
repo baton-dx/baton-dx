@@ -196,11 +196,4 @@ describe("AntigravityAdapter", () => {
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });
-
-  test("validate settings: valid object passes", () => {
-    const settings = { model: "gemini-pro", temperature: 0.7 };
-    const result = adapter.validate("settings", settings);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual([]);
-  });
 });

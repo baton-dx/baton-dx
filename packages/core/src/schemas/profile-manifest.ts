@@ -67,14 +67,6 @@ const memoryItemSchema = z.object({
 const memorySectionSchema = z.array(memoryItemSchema).optional();
 
 /**
- * Settings configuration mapping agent key to settings filename
- */
-const settingsSchema = z.record(
-  z.string(), // agent key
-  z.string(), // settings filename
-);
-
-/**
  * AI section in profile manifest
  */
 const aiSectionSchema = z
@@ -84,7 +76,6 @@ const aiSectionSchema = z
     rules: rulesSchema.optional(),
     agents: agentsSchema.optional(),
     memory: memorySectionSchema.optional(),
-    settings: settingsSchema.optional(),
     commands: z.array(z.string()).optional(),
   })
   .optional();

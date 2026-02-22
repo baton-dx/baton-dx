@@ -2,7 +2,7 @@ import type { AIToolPathConfig } from "./types.js";
 
 /**
  * Registry of all supported AI agents and their path configurations.
- * Each agent defines where it expects skills, rules, agents, memory, settings, and commands.
+ * Each agent defines where it expects skills, rules, agents, memory, and commands.
  */
 export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
   {
@@ -23,10 +23,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "CLAUDE.md",
       global: "~/.claude/CLAUDE.md",
-    },
-    settings: {
-      project: ".claude/settings.json",
-      global: "~/.claude/settings.json",
     },
     commands: {
       project: ".claude/commands/{name}.md",
@@ -58,10 +54,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.cursor/AGENTS.md",
-    },
-    settings: {
-      project: ".cursor/settings.json",
-      global: "~/.cursor/settings.json",
     },
     commands: {
       project: ".cursor/commands/{name}.md",
@@ -96,10 +88,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.codeium/windsurf/AGENTS.md",
-    },
-    settings: {
-      project: ".windsurf/settings.json",
-      global: "~/.codeium/windsurf/settings.json",
     },
     commands: {
       project: ".windsurf/workflows/{name}.md",
@@ -141,10 +129,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "GEMINI.md",
       global: "~/.gemini/antigravity/GEMINI.md",
     },
-    settings: {
-      project: ".agent/settings.json",
-      global: "~/.gemini/antigravity/settings.json",
-    },
     commands: {
       project: ".agent/workflows/{name}.md",
       global: "~/.gemini/antigravity/workflows/{name}.md",
@@ -184,10 +168,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "AGENTS.md",
       global: "~/.codex/AGENTS.md",
     },
-    settings: {
-      project: ".codex/config.toml",
-      global: "~/.codex/config.toml",
-    },
     commands: {
       project: ".codex/commands/{name}.md",
       global: "~/.codex/commands/{name}.md",
@@ -218,10 +198,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: ".github/copilot-instructions.md",
       global: "~/.github/copilot-instructions.md",
-    },
-    settings: {
-      project: ".github/copilot/settings.json",
-      global: "~/.github/copilot/settings.json",
     },
     commands: {
       project: ".github/copilot/commands/{name}.md",
@@ -267,10 +243,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "AGENTS.md",
       global: "~/.config/opencode/AGENTS.md",
     },
-    settings: {
-      project: ".opencode/settings.json",
-      global: "~/.config/opencode/settings.json",
-    },
     commands: {
       project: ".opencode/commands/{name}.md",
       global: "~/.config/opencode/commands/{name}.md",
@@ -308,10 +280,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "AGENTS.md",
       global: "~/.config/agents/AGENTS.md",
     },
-    settings: {
-      project: ".agents/settings.json",
-      global: "~/.config/agents/settings.json",
-    },
     commands: {
       project: ".agents/commands/{name}.md",
       global: "~/.config/agents/commands/{name}.md",
@@ -342,10 +310,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.kiro/AGENTS.md",
-    },
-    settings: {
-      project: ".kiro/settings.json",
-      global: "~/.kiro/settings.json",
     },
     commands: {
       project: ".kiro/commands/{name}.md",
@@ -378,10 +342,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.zed/AGENTS.md",
-    },
-    settings: {
-      project: ".zed/settings.json",
-      global: "~/.zed/settings.json",
     },
     commands: {
       project: ".zed/commands/{name}.md",
@@ -420,10 +380,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.cline/AGENTS.md",
-    },
-    settings: {
-      project: ".cline/settings.json",
-      global: "~/.cline/settings.json",
     },
     commands: {
       project: ".cline/commands/{name}.md",
@@ -468,10 +424,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "AGENTS.md",
       global: "~/.roo/AGENTS.md",
     },
-    settings: {
-      project: ".roo/settings.json",
-      global: "~/.roo/settings.json",
-    },
     commands: {
       project: ".roo/commands/{name}.md",
       global: "~/.roo/commands/{name}.md",
@@ -509,10 +461,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: "AGENTS.md",
       global: "~/.junie/AGENTS.md",
     },
-    settings: {
-      project: ".junie/settings.json",
-      global: "~/.junie/settings.json",
-    },
     commands: {
       project: ".junie/commands/{name}.md",
       global: "~/.junie/commands/{name}.md",
@@ -549,10 +497,6 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     memory: {
       project: "AGENTS.md",
       global: "~/.trae/AGENTS.md",
-    },
-    settings: {
-      project: ".trae/settings.json",
-      global: "~/.trae/settings.json",
     },
     commands: {
       project: ".trae/commands/{name}.md",

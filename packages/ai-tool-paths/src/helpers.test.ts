@@ -68,7 +68,6 @@ describe("getAIToolPath", () => {
       ".claude/agents/test.md",
     );
     expect(getAIToolPath("claude-code", "memory", "project")).toBe("CLAUDE.md");
-    expect(getAIToolPath("claude-code", "settings", "project")).toBe(".claude/settings.json");
     expect(getAIToolPath("claude-code", "commands", "project", "test")).toBe(
       ".claude/commands/test.md",
     );
@@ -90,11 +89,6 @@ describe("getAIToolPath", () => {
   it("should handle windsurf global path with .codeium prefix", () => {
     const path = getAIToolPath("windsurf", "memory", "global");
     expect(path).toBe(`${homedir()}/.codeium/windsurf/AGENTS.md`);
-  });
-
-  it("should handle codex TOML settings", () => {
-    const path = getAIToolPath("codex", "settings", "project");
-    expect(path).toBe(".codex/config.toml");
   });
 
   it("should handle antigravity GEMINI.md memory", () => {

@@ -171,15 +171,5 @@ describe("BaseAIToolAdapter", () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toContain("Command must have a name");
     });
-
-    test("validates settings as JSON object", () => {
-      expect(adapter.validate("settings", { a: 1 })).toEqual({ valid: true, errors: [] });
-    });
-
-    test("rejects settings if not object", () => {
-      const result = adapter.validate("settings", "not an object");
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain("Settings must be a valid JSON object");
-    });
   });
 });

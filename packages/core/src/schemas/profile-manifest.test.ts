@@ -30,9 +30,6 @@ describe("Schema Validation - Profile Manifest", () => {
             { source: "CLAUDE.md", merge: "append" },
             { source: "AGENTS.md", merge: "prepend" },
           ],
-          settings: {
-            "claude-code": ".claude/settings.json",
-          },
           commands: ["review", "test"],
         },
         files: [{ source: "biome.json", merge: "deep" }],

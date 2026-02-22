@@ -58,7 +58,7 @@ function resolvePath(template: string, name?: string): string {
  * Retrieves the resolved path for a given agent, config type, scope, and optional name.
  *
  * @param agentKey - The unique key of the agent
- * @param configType - The type of configuration (skills, rules, agents, memory, settings, commands)
+ * @param configType - The type of configuration (skills, rules, agents, memory, commands)
  * @param scope - The scope (project or global)
  * @param name - Optional name to replace {name} placeholder
  * @returns Resolved path string
@@ -80,7 +80,7 @@ export function getAIToolPath(
  * Retrieves legacy paths for a given agent and config type.
  *
  * @param agentKey - The unique key of the agent
- * @param configType - The type of configuration (only rules, memory, settings have legacy paths)
+ * @param configType - The type of configuration (only rules and memory have legacy paths)
  * @returns Array of legacy path strings (empty if none exist)
  * @throws AIToolNotFoundError if the agent key is not found
  */

@@ -46,7 +46,7 @@ All business logic lives here. No CLI or UI concerns.
 Zero-dependency path registry for all 14 AI tools.
 
 - **Registry:** `src/registry.ts` — `AI_TOOL_PATHS` array with path configs for each tool
-- **Config types:** skills, rules, agents, memory, settings, commands
+- **Config types:** skills, rules, agents, memory, commands
 - **Scopes:** project (`.tool/`) and global (`~/.tool/`)
 - **Exports:** `getAIToolPath()`, `getAIToolPaths()`, `getAllAIToolKeys()`
 

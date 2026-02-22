@@ -88,11 +88,7 @@ export abstract class BaseAIToolAdapter implements AIToolAdapter {
     const errors: string[] = [];
 
     if (typeof file !== "object" || file === null) {
-      if (type === "settings") {
-        errors.push("Settings must be a valid JSON object");
-      } else {
-        errors.push(`${type} must be a valid object`);
-      }
+      errors.push(`${type} must be a valid object`);
       return { valid: false, errors };
     }
 
@@ -130,10 +126,6 @@ export abstract class BaseAIToolAdapter implements AIToolAdapter {
         if (!record.content) errors.push("Command must have content");
         break;
       }
-
-      case "settings":
-        // Already validated as object above
-        break;
     }
 
     return {

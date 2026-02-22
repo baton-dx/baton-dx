@@ -123,7 +123,7 @@ export interface AIToolAdapter {
 
   /**
    * Get the path where a config file should be placed
-   * @param type - Config type (skills, rules, agents, memory, settings, commands)
+   * @param type - Config type (skills, rules, agents, memory, commands)
    * @param scope - Scope (project or global)
    * @param name - Name of the config item (for placeholder replacement)
    * @returns Absolute path where the file should be placed

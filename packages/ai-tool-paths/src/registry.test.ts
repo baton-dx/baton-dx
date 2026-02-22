@@ -32,7 +32,7 @@ describe("AI_TOOL_PATHS registry", () => {
   });
 
   describe("All agents should have valid structure", () => {
-    const configTypes = ["skills", "rules", "agents", "memory", "settings", "commands"] as const;
+    const configTypes = ["skills", "rules", "agents", "memory", "commands"] as const;
 
     for (const agent of AI_TOOL_PATHS) {
       describe(`${agent.name} (${agent.key})`, () => {
@@ -106,17 +106,10 @@ describe("AI_TOOL_PATHS registry", () => {
         expect(agent.memory.global).not.toContain("{name}");
       }
     });
-
-    it("should not use {name} placeholder in settings paths", () => {
-      for (const agent of AI_TOOL_PATHS) {
-        expect(agent.settings.project).not.toContain("{name}");
-        expect(agent.settings.global).not.toContain("{name}");
-      }
-    });
   });
 
   describe("Global paths should use tilde prefix", () => {
-    const configTypes = ["skills", "rules", "agents", "memory", "settings", "commands"] as const;
+    const configTypes = ["skills", "rules", "agents", "memory", "commands"] as const;
 
     for (const configType of configTypes) {
       it(`should use ~/ prefix for global ${configType} paths`, () => {
@@ -129,7 +122,7 @@ describe("AI_TOOL_PATHS registry", () => {
   });
 
   describe("Project paths should use dot prefix", () => {
-    const configTypes = ["skills", "rules", "agents", "settings", "commands"] as const;
+    const configTypes = ["skills", "rules", "agents", "commands"] as const;
 
     for (const configType of configTypes) {
       it(`should use . prefix for most project ${configType} paths`, () => {
@@ -180,12 +173,6 @@ describe("AI_TOOL_PATHS registry", () => {
         const agent = AI_TOOL_PATHS.find((a) => a.key === key);
         expect(agent?.memory.project).toBe("AGENTS.md");
       }
-    });
-
-    it("should use config.toml for codex settings", () => {
-      const codex = AI_TOOL_PATHS.find((a) => a.key === "codex");
-      expect(codex?.settings.project).toContain("config.toml");
-      expect(codex?.settings.global).toContain("config.toml");
     });
 
     it("should use .codeium/windsurf/ for windsurf global paths", () => {
@@ -301,7 +288,6 @@ describe("AI_TOOL_PATHS registry", () => {
         "rules",
         "agents",
         "memory",
-        "settings",
         "commands",
         "legacy",
       ];

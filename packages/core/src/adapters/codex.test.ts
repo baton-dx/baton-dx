@@ -39,11 +39,6 @@ describe("CodexAdapter", () => {
     expect(path).toBe("AGENTS.md");
   });
 
-  test("getPath returns correct path for settings", () => {
-    const path = adapter.getPath("settings", "project", "config.toml");
-    expect(path).toContain(".codex/config.toml");
-  });
-
   // --- Legacy Paths Tests ---
   test("getLegacyPaths returns empty array", () => {
     const paths = adapter.getLegacyPaths("rules");
@@ -188,13 +183,6 @@ describe("CodexAdapter", () => {
       content: "# Command content",
     };
     const result = adapter.validate("commands", command);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual([]);
-  });
-
-  test("validate settings: valid object passes", () => {
-    const settings = { model: "gpt-4", temperature: 0.7 };
-    const result = adapter.validate("settings", settings);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });

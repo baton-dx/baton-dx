@@ -40,7 +40,6 @@ Each tool supports these config types:
 | `rules` | Markdown rule files | `.claude/rules/coding-style.md` |
 | `agents` | Agent files with YAML frontmatter | `.claude/agents/reviewer.md` |
 | `memory` | Context memory files | `CLAUDE.md` |
-| `settings` | Tool settings (JSON) | `.claude/settings.json` |
 | `commands` | Slash command files | `.claude/commands/review.md` |
 
 Each config type has both **project** scope (in the project directory) and **global** scope (in the user's home directory).
@@ -81,7 +80,6 @@ Each config type has both **project** scope (in the project directory) and **glo
 ### Codex CLI
 
 - **Config dir:** `.codex/`
-- **Settings:** TOML format
 
 ## Path Patterns
 

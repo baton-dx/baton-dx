@@ -461,37 +461,6 @@ export const syncCommand = defineCommand({
       }
       const mergedCommandCount = commandMap.size;
 
-      // Collect all settings from all profiles (deduplicated by tool key, last wins)
-      // Respects weight lock: settings from weight -1 profiles cannot be overridden
-      const settingsMap = new Map<string, { filename: string; profileName: string }>();
-      const lockedSettings = new Set<string>();
-      const settingsOwner = new Map<string, { profileName: string; weight: number }>();
-      for (const profile of weightSortedProfiles) {
-        const weight = getProfileWeight(profile);
-        const locked = isLockedProfile(profile);
-        const settings = profile.manifest.ai?.settings;
-        if (!settings) continue;
-        for (const [toolKey, filename] of Object.entries(settings)) {
-          if (lockedSettings.has(toolKey)) continue;
-
-          const existing = settingsOwner.get(toolKey);
-          if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-            allWeightWarnings.push({
-              key: toolKey,
-              category: "settings",
-              profileA: existing.profileName,
-              profileB: profile.name,
-              weight,
-            });
-          }
-
-          settingsMap.set(toolKey, { filename, profileName: profile.name });
-          settingsOwner.set(toolKey, { profileName: profile.name, weight });
-          if (locked) lockedSettings.add(toolKey);
-        }
-      }
-      const mergedSettingsCount = settingsMap.size;
-
       // Collect all files from all profiles (deduplicated by target path, last wins)
       // Respects weight lock: files from weight -1 profiles cannot be overridden
       const fileMap = new Map<string, { source: string; target: string; profileName: string }>();
@@ -570,7 +539,7 @@ export const syncCommand = defineCommand({
       const mergedIdeCount = ideMap.size;
 
       spinner.stop(
-        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedSettingsCount} settings, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
+        `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
       );
 
       // Emit weight conflict warnings (same weight, conflicting values)
@@ -1195,65 +1164,6 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Place settings files (ai/settings/<agent-key>/<filename> -> adapter settings path)
-      if (!dryRun && syncAi) {
-        for (const adapter of adapters) {
-          const settingsEntry = settingsMap.get(adapter.key);
-          if (!settingsEntry) continue;
-
-          try {
-            const profileDir = profileLocalPaths.get(settingsEntry.profileName);
-            if (!profileDir) continue;
-
-            const settingsSourcePath = resolve(
-              profileDir,
-              "ai",
-              "settings",
-              adapter.key,
-              settingsEntry.filename,
-            );
-
-            let content: string;
-            try {
-              content = await readFile(settingsSourcePath, "utf-8");
-            } catch {
-              spinner.message(`Warning: Could not read settings file: ${settingsSourcePath}`);
-              continue;
-            }
-
-            const targetPath = adapter.getPath("settings", "project", "");
-            const absoluteTarget = targetPath.startsWith("/")
-              ? targetPath
-              : resolve(projectRoot, targetPath);
-
-            // Ensure target directory exists
-            await mkdir(dirname(absoluteTarget), { recursive: true });
-
-            // Idempotency: skip if content is identical
-            const existing = await readFile(absoluteTarget, "utf-8").catch(() => undefined);
-            if (existing !== content) {
-              await writeFile(absoluteTarget, content, "utf-8");
-              stats.created++;
-              if (verbose) {
-                p.log.info(`  -> ${targetPath} (created)`);
-              }
-            } else if (verbose) {
-              p.log.info(`  -> ${targetPath} (unchanged, skipped)`);
-            }
-
-            // Track content for lockfile integrity
-            const settingsRelPath = isAbsolute(absoluteTarget)
-              ? relative(projectRoot, absoluteTarget)
-              : targetPath;
-            const pf = getOrCreatePlacedFiles(placedFiles, settingsEntry.profileName);
-            pf[settingsRelPath] = { content, tool: adapter.key, category: "ai" };
-          } catch (error) {
-            spinner.message(`Error placing settings for ${adapter.name}: ${error}`);
-            stats.errors++;
-          }
-        }
-      }
-
       // Place project files (files/ -> project root)
       if (!dryRun && syncFiles) {
         for (const fileEntry of fileMap.values()) {
@@ -1398,7 +1308,6 @@ export const syncCommand = defineCommand({
           parts.push(`  • ${mergedAgents.length} agents`);
           parts.push(`  • ${mergedMemory.length} memory files`);
           parts.push(`  • ${mergedCommandCount} commands`);
-          parts.push(`  • ${mergedSettingsCount} settings`);
         }
         if (syncFiles) {
           parts.push(`  • ${mergedFileCount} files`);
