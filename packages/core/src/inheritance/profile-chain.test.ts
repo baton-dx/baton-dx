@@ -761,12 +761,7 @@ extends:
       };
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
-      const chain = await resolveProfileChain(
-        manifestC,
-        "./profiles/c",
-        tempDir,
-        cloneContext,
-      );
+      const chain = await resolveProfileChain(manifestC, "./profiles/c", tempDir, cloneContext);
 
       // Both B and A should be expanded via sparse-checkout
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/b"]);
@@ -827,12 +822,7 @@ extends:
       };
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
-      const chain = await resolveProfileChain(
-        manifestD,
-        "./profiles/d",
-        tempDir,
-        cloneContext,
-      );
+      const chain = await resolveProfileChain(manifestD, "./profiles/d", tempDir, cloneContext);
 
       // Diamond: D extends B and C, both extend A
       // Each subtree has its own visited set, so A appears in both paths
