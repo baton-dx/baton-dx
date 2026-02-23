@@ -38,7 +38,10 @@ export function getOrCreatePlacedFiles(
  * Recursively copy all files from sourceDir to targetDir.
  * Returns the number of files written (skips identical content).
  */
-export async function copyDirectoryRecursive(sourceDir: string, targetDir: string): Promise<number> {
+export async function copyDirectoryRecursive(
+  sourceDir: string,
+  targetDir: string,
+): Promise<number> {
   await mkdir(targetDir, { recursive: true });
   const entries = await readdir(sourceDir, { withFileTypes: true });
   let placed = 0;

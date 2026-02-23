@@ -23,7 +23,6 @@ import {
   getProfileWeight,
   isKnownIdePlatform,
   isLockedProfile,
-  loadGlobalConfig,
   loadProfileManifest,
   loadProjectManifest,
   mergeAgentsWithWarnings,

@@ -197,7 +197,9 @@ export const syncCommand = defineCommand({
             try {
               resolvedRef = await resolveVersion(url, "latest");
               if (verbose) {
-                p.log.info(`Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`);
+                p.log.info(
+                  `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
+                );
               }
             } catch {
               // Fallback to profileSource.version if resolution fails
