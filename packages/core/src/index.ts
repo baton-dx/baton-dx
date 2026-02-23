@@ -338,3 +338,12 @@ export {
   type LatestVersionResult,
   type UpdateCheckResult,
 } from "./self-update/index.js";
+
+// Export source validation
+export { validateSource } from "./validation/index.js";
+export type {
+  ValidationIssue,
+  ValidationReport,
+  ValidationSeverity,
+  ValidationSummary,
+} from "./validation/index.js";
