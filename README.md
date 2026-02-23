@@ -67,6 +67,10 @@ Baton's own configurations are published as [`baton-dx-source`](https://github.c
 - [IDE Platforms](docs/09-ide-platforms-reference.md) — Supported IDE platforms
 - [Merge Strategies](docs/10-merge-strategies.md) — Deep dive into merge strategies
 
+## Built with AI, Verified by Humans
+
+Baton is proudly built with the help of AI tools. We believe AI-assisted development is a powerful accelerator — and as a tool that manages AI coding configurations, we practice what we preach. At the same time, human review, testing, and judgment are essential for every contribution. We do not accept pull requests from fully autonomous bots (e.g., OpenClaw).
+
 ## Contributing
 
 See [Contributing Guide](docs/11-contributing.md) for development setup, coding conventions, and PR workflow.

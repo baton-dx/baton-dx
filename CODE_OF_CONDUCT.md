@@ -24,6 +24,12 @@ Examples of unacceptable behavior:
 - Publishing others' private information without explicit permission
 - Other conduct which could reasonably be considered inappropriate in a professional setting
 
+## AI Tools & Human Responsibility
+
+This project embraces the use of AI tools in development. We believe AI-assisted coding accelerates innovation and improves developer experience. However, the human factor remains essential — every contribution must be reviewed, tested, and understood by a human before it is accepted.
+
+We do not accept code or pull requests generated entirely by autonomous bots (e.g., OpenClaw or similar fully automated agents). Contributions must involve meaningful human oversight, judgment, and accountability.
+
 ## Enforcement
 
 Instances of unacceptable behavior may be reported to the project maintainers.
