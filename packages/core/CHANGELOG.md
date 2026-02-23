@@ -1,5 +1,14 @@
 # @baton-dx/core
 
+## 0.8.2
+
+### Patch Changes
+
+- [#74](https://github.com/baton-dx/baton-dx/pull/74) [`c5923a4`](https://github.com/baton-dx/baton-dx/commit/c5923a4eb08c19f746c9cbd5ba3453fc99a153ab) Thanks [@mantaray0](https://github.com/mantaray0)! - Stop gitignoring project files (e.g. biome.json, .editorconfig) placed by profiles — they should be committed so the project works without Baton.
+
+- Updated dependencies [[`c5923a4`](https://github.com/baton-dx/baton-dx/commit/c5923a4eb08c19f746c9cbd5ba3453fc99a153ab)]:
+  - @baton-dx/ai-tool-paths@0.8.2
+
 ## 0.8.1
 
 ### Patch Changes
