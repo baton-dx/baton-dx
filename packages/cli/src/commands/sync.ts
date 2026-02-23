@@ -21,7 +21,6 @@ import {
   getProfileWeight,
   isKnownIdePlatform,
   isLockedProfile,
-  loadGlobalConfig,
   loadProfileManifest,
   loadProjectManifest,
   mergeAgentsWithWarnings,
@@ -35,6 +34,7 @@ import {
   readLock,
   resolvePreferences,
   resolveProfileChain,
+  resolveVersion,
   sortProfilesByWeight,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -57,7 +57,7 @@ import {
 export const syncCommand = defineCommand({
   meta: {
     name: "sync",
-    description: "Sync all profiles, skills, agents, and rules to installed AI tools",
+    description: "Fetch latest versions, sync all configurations, and update lockfile",
   },
   args: {
     "dry-run": {
@@ -81,18 +81,12 @@ export const syncCommand = defineCommand({
       description: "Show detailed output for each placed file",
       default: false,
     },
-    fresh: {
-      type: "boolean",
-      description: "Force an immediate source refresh (ignore cache TTL)",
-      default: false,
-    },
   },
   async run({ args }) {
     const dryRun = args["dry-run"];
     const categoryArg = args.category as string | undefined;
     const autoYes = args.yes;
     const verbose = args.verbose;
-    const fresh = args.fresh;
 
     // Validate --category flag
     let category: SyncCategory | undefined;
@@ -139,16 +133,6 @@ export const syncCommand = defineCommand({
 
       // Step 0a: First-run preferences check
       await promptFirstRunPreferences(projectRoot, !!args.yes);
-
-      // Step 0c: Compute source cache TTL
-      let cacheTtlHours = 24;
-      try {
-        const globalConfig = await loadGlobalConfig();
-        cacheTtlHours = globalConfig.sync?.cacheTtlHours ?? 24;
-      } catch {
-        // Best-effort — proceed with default 24h if config can't be loaded
-      }
-      const maxCacheAgeMs = fresh ? 0 : cacheTtlHours * 60 * 60 * 1000;
 
       // Step 0b: Read existing lockfile to detect orphaned files later
       const previousPaths = new Set<string>();
@@ -208,12 +192,26 @@ export const syncCommand = defineCommand({
               throw new Error(`Invalid source: ${profileSource.source}`);
             }
 
+            // Always resolve to latest version
+            let resolvedRef: string;
+            try {
+              resolvedRef = await resolveVersion(url, "latest");
+              if (verbose) {
+                p.log.info(`Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`);
+              }
+            } catch {
+              // Fallback to profileSource.version if resolution fails
+              resolvedRef = profileSource.version || "HEAD";
+              if (verbose) {
+                p.log.warn(`Could not resolve latest for ${url}, using ${resolvedRef}`);
+              }
+            }
+
             const cloned = await cloneGitSource({
               url,
-              ref: profileSource.version,
+              ref: resolvedRef,
               subpath: "subpath" in parsed ? parsed.subpath : undefined,
-              useCache: true,
-              maxCacheAgeMs,
+              useCache: false,
             });
             manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
             sourceShas.set(profileSource.source, cloned.sha);
@@ -543,12 +541,15 @@ export const syncCommand = defineCommand({
           parsed.provider === "git"
         ) {
           const url = parsed.provider === "git" ? parsed.url : parsed.url;
+
+          // Use the already-resolved SHA from sourceShas (resolved in Step 1)
+          const resolvedSha = sourceShas.get(profileSource.source);
+
           const cloned = await cloneGitSource({
             url,
-            ref: profileSource.version,
+            ref: resolvedSha || profileSource.version,
             subpath: "subpath" in parsed ? parsed.subpath : undefined,
             useCache: true,
-            maxCacheAgeMs,
           });
           for (const prof of allProfiles) {
             if (prof.source === profileSource.source) {
