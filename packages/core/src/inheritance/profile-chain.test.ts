@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CircularInheritanceError } from "../errors.js";
 import { expandSparseCheckout } from "../sources/git-clone.js";
+import { resolveNpmSource } from "../sources/npm-resolver.js";
 import type { CloneContext } from "./profile-chain.js";
 import { resolveProfileChain } from "./profile-chain.js";
 
@@ -14,6 +15,10 @@ vi.mock("../sources/git-clone.js", async (importOriginal) => {
     expandSparseCheckout: vi.fn(),
   };
 });
+
+vi.mock("../sources/npm-resolver.js", () => ({
+  resolveNpmSource: vi.fn(),
+}));
 
 describe("inheritance/profile-chain", () => {
   let tempDir: string;
@@ -838,6 +843,60 @@ extends:
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/b"]);
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/c"]);
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/a"]);
+    });
+  });
+
+  describe("NPM source resolution in inheritance", () => {
+    beforeEach(() => {
+      vi.mocked(resolveNpmSource).mockReset();
+    });
+
+    it("resolves npm: extends via resolveNpmSource", async () => {
+      // Create a child profile that extends an npm source
+      const childPath = join(profilesDir, "child-npm");
+      await mkdir(childPath, { recursive: true });
+      await writeFile(
+        join(childPath, "baton.profile.yaml"),
+        "name: child-npm-profile\nversion: 1.0.0\nextends:\n  - npm:@test/base-profile\n",
+        "utf-8",
+      );
+
+      // Create a fake NPM-resolved directory with a profile manifest
+      const npmProfilePath = join(tempDir, "npm-resolved");
+      await mkdir(npmProfilePath, { recursive: true });
+      await writeFile(
+        join(npmProfilePath, "baton.profile.yaml"),
+        "name: npm-base-profile\nversion: 2.0.0\n",
+        "utf-8",
+      );
+
+      // Mock resolveNpmSource to return the fake directory
+      vi.mocked(resolveNpmSource).mockResolvedValue({
+        localPath: npmProfilePath,
+        packageManager: "npm",
+        version: "2.0.0",
+        fromCache: false,
+      });
+
+      const childManifest = {
+        name: "child-npm-profile",
+        version: "1.0.0",
+        extends: ["npm:@test/base-profile"],
+      };
+
+      const chain = await resolveProfileChain(childManifest, "./profiles/child-npm", tempDir);
+
+      expect(chain).toHaveLength(2);
+      expect(chain[0].name).toBe("npm-base-profile");
+      expect(chain[0].localPath).toBe(npmProfilePath);
+      expect(chain[1].name).toBe("child-npm-profile");
+
+      expect(resolveNpmSource).toHaveBeenCalledWith({
+        source: expect.objectContaining({
+          provider: "npm",
+          package: "@test/base-profile",
+        }),
+      });
     });
   });
 });
