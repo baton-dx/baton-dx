@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#51](https://github.com/baton-dx/baton-dx/pull/51) [`52a00fe`](https://github.com/baton-dx/baton-dx/commit/52a00fe02c1fcdded95f6123c365b2cb6d7ab03a) Thanks [@mantaray0](https://github.com/mantaray0)! - feat: add `baton self-update` command for updating Baton to the latest stable version. Auto-detects installation method (npm, pnpm, bun, Homebrew) and runs the appropriate update command.
+
 ## 0.5.0
 
 ### Minor Changes
