@@ -1,0 +1,354 @@
+locked_at: 2026-02-23T11:09:40.469Z
+packages:
+  base:
+    source: ../base
+    resolved: ../base
+    version: 0.1.0
+    sha: unknown
+    integrity:
+      CLAUDE.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: claude-code
+        category: ai
+      AGENTS.md:
+        hash: 271c36cbd44f334c4ac533c07c0f8c2a6b57229240e6dbfa6ba8e10bf8b30d3b
+        tool: windsurf
+        category: ai
+      GEMINI.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: antigravity
+        category: ai
+      .github/copilot-instructions.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: github-copilot
+        category: ai
+  maintainer:
+    source: github:baton-dx/baton-dx-source/profiles/maintainer
+    resolved: github:baton-dx/baton-dx-source/profiles/maintainer
+    version: 0.1.0
+    sha: 53c093b4cca74b190dedbfb143909bee89124754
+    integrity:
+      .claude/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: claude-code
+        category: ai
+      .claude/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: claude-code
+        category: ai
+      .claude/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: claude-code
+        category: ai
+      .claude/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: claude-code
+        category: ai
+      .claude/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: claude-code
+        category: ai
+      .claude/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: claude-code
+        category: ai
+      .claude/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: claude-code
+        category: ai
+      .claude/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: claude-code
+        category: ai
+      .windsurf/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: windsurf
+        category: ai
+      .windsurf/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: windsurf
+        category: ai
+      .windsurf/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: windsurf
+        category: ai
+      .windsurf/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: windsurf
+        category: ai
+      .windsurf/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: windsurf
+        category: ai
+      .windsurf/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: windsurf
+        category: ai
+      .windsurf/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: windsurf
+        category: ai
+      .windsurf/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: windsurf
+        category: ai
+      .agent/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: antigravity
+        category: ai
+      .agent/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: antigravity
+        category: ai
+      .agent/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: antigravity
+        category: ai
+      .agent/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: antigravity
+        category: ai
+      .agent/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: antigravity
+        category: ai
+      .agent/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: antigravity
+        category: ai
+      .agent/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: antigravity
+        category: ai
+      .agent/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: antigravity
+        category: ai
+      .codex/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: codex
+        category: ai
+      .codex/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: codex
+        category: ai
+      .codex/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: codex
+        category: ai
+      .codex/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: codex
+        category: ai
+      .codex/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: codex
+        category: ai
+      .codex/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: codex
+        category: ai
+      .codex/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: codex
+        category: ai
+      .codex/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: codex
+        category: ai
+      .github/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: github-copilot
+        category: ai
+      .github/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: github-copilot
+        category: ai
+      .github/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: github-copilot
+        category: ai
+      .github/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: github-copilot
+        category: ai
+      .github/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: github-copilot
+        category: ai
+      .github/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: github-copilot
+        category: ai
+      .github/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: github-copilot
+        category: ai
+      .github/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: github-copilot
+        category: ai
+      .opencode/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: opencode
+        category: ai
+      .opencode/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: opencode
+        category: ai
+      .opencode/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: opencode
+        category: ai
+      .opencode/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: opencode
+        category: ai
+      .opencode/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: opencode
+        category: ai
+      .opencode/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: opencode
+        category: ai
+      .opencode/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: opencode
+        category: ai
+      .opencode/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: opencode
+        category: ai
+      .trae/skills/add-adapter:
+        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        tool: trae
+        category: ai
+      .trae/skills/add-ide-platform:
+        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
+        tool: trae
+        category: ai
+      .trae/skills/review-code:
+        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
+        tool: trae
+        category: ai
+      .trae/skills/find-dead-code:
+        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
+        tool: trae
+        category: ai
+      .trae/skills/find-redundancy:
+        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
+        tool: trae
+        category: ai
+      .trae/skills/create-pr:
+        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
+        tool: trae
+        category: ai
+      .trae/skills/run-release:
+        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
+        tool: trae
+        category: ai
+      .trae/skills/run-review:
+        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        tool: trae
+        category: ai
+      CLAUDE.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: claude-code
+        category: ai
+      AGENTS.md:
+        hash: 271c36cbd44f334c4ac533c07c0f8c2a6b57229240e6dbfa6ba8e10bf8b30d3b
+        tool: windsurf
+        category: ai
+      GEMINI.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: antigravity
+        category: ai
+      .github/copilot-instructions.md:
+        hash: a7eba2e2afe30d55205d480805fc529b884465895c57bb01942ec8f93eacd950
+        tool: github-copilot
+        category: ai
+      .claude/commands/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: claude-code
+        category: ai
+      .claude/commands/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: claude-code
+        category: ai
+      .claude/commands/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: claude-code
+        category: ai
+      .windsurf/workflows/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: windsurf
+        category: ai
+      .windsurf/workflows/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: windsurf
+        category: ai
+      .windsurf/workflows/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: windsurf
+        category: ai
+      .agent/workflows/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: antigravity
+        category: ai
+      .agent/workflows/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: antigravity
+        category: ai
+      .agent/workflows/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: antigravity
+        category: ai
+      .codex/commands/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: codex
+        category: ai
+      .codex/commands/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: codex
+        category: ai
+      .codex/commands/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: codex
+        category: ai
+      .github/copilot/commands/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: github-copilot
+        category: ai
+      .github/copilot/commands/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: github-copilot
+        category: ai
+      .github/copilot/commands/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: github-copilot
+        category: ai
+      .opencode/commands/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: opencode
+        category: ai
+      .opencode/commands/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: opencode
+        category: ai
+      .opencode/commands/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: opencode
+        category: ai
+      .trae/commands/build.md:
+        hash: b0d072c9328a8b82b5c04bb1055f75ec4eb32aeda428ea2b69fa77953e3e4d85
+        tool: trae
+        category: ai
+      .trae/commands/quality.md:
+        hash: 841a64bae992a91ca65608fa3d0fef3e438aa0af5066b14ab9df7c719b818adf
+        tool: trae
+        category: ai
+      .trae/commands/verify.md:
+        hash: 09f325248544fa9aba80c878497352be44652ecd403cc1e9ad1ccbd62b0023d0
+        tool: trae
+        category: ai
