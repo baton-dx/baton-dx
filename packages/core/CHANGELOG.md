@@ -1,5 +1,19 @@
 # @baton-dx/core
 
+## 0.9.1
+
+### Patch Changes
+
+- [#96](https://github.com/baton-dx/baton-dx/pull/96) [`d0711a2`](https://github.com/baton-dx/baton-dx/commit/d0711a2777a737d06b7e891e4de495de612e3e97) Thanks [@mantaray0](https://github.com/mantaray0)! - Add scope system for all config types
+
+  - Add `resolveScope()` helper with 3-tier cascade: item → profile → "project" default
+  - Support optional `scope` field on profile manifest, rules, agents, memory, and skills
+  - Replace hardcoded "project" scope in sync, apply, and diff commands
+  - Backward-compatible: existing profiles without scope continue to default to "project"
+
+- Updated dependencies []:
+  - @baton-dx/ai-tool-paths@0.9.1
+
 ## 0.9.0
 
 ### Minor Changes
