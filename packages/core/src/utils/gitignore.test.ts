@@ -203,7 +203,7 @@ describe("removeGitignoreManagedSection", () => {
 
 describe("collectComprehensivePatterns", () => {
   it("includes patterns for all known AI tools", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     // Claude Code
     expect(result).toContain(".claude/commands/");
     expect(result).toContain(".claude/rules/");
@@ -229,46 +229,45 @@ describe("collectComprehensivePatterns", () => {
   });
 
   it("includes patterns for all known IDE platforms", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     expect(result).toContain(".vscode/");
     expect(result).toContain(".idea/");
   });
 
-  it("includes file targets when provided", () => {
-    const result = collectComprehensivePatterns({
-      fileTargets: ["biome.json", ".editorconfig"],
-    });
-    expect(result).toContain("biome.json");
-    expect(result).toContain(".editorconfig");
+  it("does not include project file targets (they should be committed)", () => {
+    const result = collectComprehensivePatterns();
+    expect(result).not.toContain("biome.json");
+    expect(result).not.toContain(".editorconfig");
+    expect(result).not.toContain(".prettierrc");
   });
 
   it("does not include baton.lock (lockfile should be committed)", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     expect(result).not.toContain("baton.lock");
   });
 
   it("returns sorted, deduplicated patterns", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     const sorted = [...result].sort();
     expect(result).toEqual(sorted);
     expect(result.length).toBe(new Set(result).size);
   });
 
   it("produces stable output across multiple calls", () => {
-    const first = collectComprehensivePatterns({ fileTargets: ["a.json"] });
-    const second = collectComprehensivePatterns({ fileTargets: ["a.json"] });
+    const first = collectComprehensivePatterns();
+    const second = collectComprehensivePatterns();
     expect(first).toEqual(second);
   });
 
   it("deduplicates shared memory files (e.g., AGENTS.md)", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     // Multiple tools share AGENTS.md — should appear only once
     const agentsCount = result.filter((p) => p === "AGENTS.md").length;
     expect(agentsCount).toBe(1);
   });
 
   it("uses full file paths for static adapter paths (not parent directories)", () => {
-    const result = collectComprehensivePatterns({ fileTargets: [] });
+    const result = collectComprehensivePatterns();
     // GitHub Copilot memory/rules are static: .github/copilot-instructions.md
     // Should NOT produce the broad ".github/" pattern
     expect(result).toContain(".github/copilot-instructions.md");

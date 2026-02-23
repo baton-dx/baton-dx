@@ -188,7 +188,7 @@ export const initCommand = defineCommand({
 
     // If gitignore enabled, write comprehensive patterns for all known tools
     if (gitignoreSetting) {
-      const patterns = collectComprehensivePatterns({ fileTargets: [] });
+      const patterns = collectComprehensivePatterns();
       await updateGitignore(cwd, patterns);
       spinner.stop("✅ Updated .gitignore with managed file patterns");
     } else {
