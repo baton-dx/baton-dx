@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.8.3
+
+### Patch Changes
+
+- [#76](https://github.com/baton-dx/baton-dx/pull/76) [`a8444b9`](https://github.com/baton-dx/baton-dx/commit/a8444b9deff15407c666aca729227ec6c3a77d9c) Thanks [@mantaray0](https://github.com/mantaray0)! - Always fetch fresh sources in interactive profile selection, init, and intersection display so newly added profiles are immediately visible.
+
 ## 0.8.2
 
 ### Patch Changes
