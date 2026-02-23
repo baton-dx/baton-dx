@@ -1,5 +1,11 @@
 # @baton-dx/core
 
+## 0.3.2
+
+### Patch Changes
+
+- [#69](https://github.com/baton-dx/baton-dx/pull/69) [`e81d9a6`](https://github.com/baton-dx/baton-dx/commit/e81d9a6a8c1af45329cb5647d809855cb9a000ab) Thanks [@mantaray0](https://github.com/mantaray0)! - Remove unused `merge` field from file config items in profile manifest schema. Files are deduplicated by target path (last-wins by weight), not merged. Merge strategies only apply to memory items.
+
 ## 0.3.1
 
 ### Patch Changes
