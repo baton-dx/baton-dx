@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "baton-dx/baton-dx" }],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@baton-dx/cli", "@baton-dx/core", "@baton-dx/ai-tool-paths"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
