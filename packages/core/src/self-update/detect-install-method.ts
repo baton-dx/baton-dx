@@ -25,15 +25,15 @@ export async function detectInstallMethod(): Promise<InstallMethod> {
   }
 
   if (normalized.includes("node_modules/.pnpm") || normalized.includes(".pnpm")) {
-    return { type: "pnpm", bin: "pnpm", args: ["update", "-g", "@baton-dx/cli"] };
+    return { type: "pnpm", bin: "pnpm", args: ["update", "-g", "@baton-dx/cli", "--latest"] };
   }
 
   if (normalized.includes(".bun") || normalized.includes("/bun/")) {
-    return { type: "bun", bin: "bun", args: ["update", "-g", "@baton-dx/cli"] };
+    return { type: "bun", bin: "bun", args: ["update", "-g", "@baton-dx/cli", "--latest"] };
   }
 
   if (normalized.includes("node_modules") || normalized.includes("npm")) {
-    return { type: "npm", bin: "npm", args: ["update", "-g", "@baton-dx/cli"] };
+    return { type: "npm", bin: "npm", args: ["install", "-g", "@baton-dx/cli@latest"] };
   }
 
   return { type: "unknown" };
