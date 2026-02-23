@@ -53,11 +53,8 @@ ai:
 
 files:
   - source: .editorconfig
-    merge: replace
   - source: biome.json
-    merge: deep
   - source: .prettierrc
-    merge: replace
 
 ide:
   vscode:

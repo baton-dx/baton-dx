@@ -82,11 +82,13 @@ const aiSectionSchema = z
 
 /**
  * File configuration item with optional target mapping
+ *
+ * Note: Files are deduplicated by target path (last-wins by weight),
+ * not merged. Merge strategies only apply to memory items.
  */
 const fileConfigItemSchema = z.object({
   source: z.string(), // e.g., "biome.json", "company/policy.md"
   target: z.string().optional(), // Optional target path. If not specified, uses source as target
-  merge: mergeStrategySchema,
 });
 
 /**
