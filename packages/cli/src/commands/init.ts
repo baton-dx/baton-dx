@@ -349,6 +349,7 @@ async function showProfileIntersections(profileSources: string[]): Promise<void>
           url: parsed.url,
           ref: parsed.ref,
           useCache: true,
+          maxCacheAgeMs: 0,
         });
         repoRoot = repoClone.localPath;
         profileDir = parsed.subpath ? resolve(repoRoot, parsed.subpath) : repoRoot;

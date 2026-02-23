@@ -26,6 +26,7 @@ export async function selectProfileFromSource(sourceString: string): Promise<str
         url: parsedSource.url,
         ref: parsedSource.ref,
         useCache: true,
+        maxCacheAgeMs: 0,
       });
 
       spinner.stop("✅ Repository cloned");
@@ -149,6 +150,7 @@ export async function selectMultipleProfilesFromSource(
         url: parsedSource.url,
         ref: parsedSource.ref,
         useCache: true,
+        maxCacheAgeMs: 0,
       });
 
       spinner.stop("✅ Repository cloned");
