@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.6.1
+
+### Patch Changes
+
+- [#54](https://github.com/baton-dx/baton-dx/pull/54) [`6860d6a`](https://github.com/baton-dx/baton-dx/commit/6860d6a0912b93e7d9d92e28a4b78ffd0b2de672) Thanks [@mantaray0](https://github.com/mantaray0)! - Default sync prompt to "No" when connecting a new source to prevent accidental global profile sync
+
 ## 0.6.0
 
 ### Minor Changes
