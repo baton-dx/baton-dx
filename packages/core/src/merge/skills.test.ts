@@ -526,4 +526,55 @@ describe("mergeSkills", () => {
 
     expect(result.warnings).toHaveLength(0);
   });
+
+  it("skill without scope inherits profile scope", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        name: "global-profile",
+        source: "github:org/global",
+        manifest: {
+          name: "global-profile",
+          version: "1.0.0",
+          scope: "global",
+          ai: {
+            skills: [{ name: "code-review" }],
+          },
+        } as ProfileManifest,
+      },
+    ];
+
+    const result = mergeSkills(profiles);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      name: "code-review",
+      scope: "global",
+      profileName: "global-profile",
+    });
+  });
+
+  it("skill without scope and no profile scope defaults to 'project'", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        name: "base",
+        source: "github:org/base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          ai: {
+            skills: [{ name: "code-review" }],
+          },
+        } as ProfileManifest,
+      },
+    ];
+
+    const result = mergeSkills(profiles);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      name: "code-review",
+      scope: "project",
+      profileName: "base",
+    });
+  });
 });

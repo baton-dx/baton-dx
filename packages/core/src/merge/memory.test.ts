@@ -45,11 +45,13 @@ describe("mergeMemory", () => {
         {
           filename: "CLAUDE.md",
           mergeStrategy: "append",
+          scope: "project",
           contributions: [{ profileName: "base", mergeStrategy: "append" }],
         },
         {
           filename: "AGENTS.md",
           mergeStrategy: "replace",
+          scope: "project",
           contributions: [{ profileName: "base", mergeStrategy: "replace" }],
         },
       ]),
@@ -89,11 +91,13 @@ describe("mergeMemory", () => {
         {
           filename: "CLAUDE.md",
           mergeStrategy: "append",
+          scope: "project",
           contributions: [{ profileName: "base", mergeStrategy: "append" }],
         },
         {
           filename: "AGENTS.md",
           mergeStrategy: "prepend",
+          scope: "project",
           contributions: [{ profileName: "child", mergeStrategy: "prepend" }],
         },
       ]),
@@ -131,6 +135,7 @@ describe("mergeMemory", () => {
     expect(result[0]).toEqual({
       filename: "CLAUDE.md",
       mergeStrategy: "import", // most-specific profile wins
+      scope: "project",
       contributions: [
         { profileName: "base", mergeStrategy: "append" },
         { profileName: "override", mergeStrategy: "import" },
@@ -224,16 +229,19 @@ describe("mergeMemory", () => {
         {
           filename: "CLAUDE.md",
           mergeStrategy: "append",
+          scope: "project",
           contributions: [{ profileName: "base", mergeStrategy: "append" }],
         },
         {
           filename: "AGENTS.md",
           mergeStrategy: "prepend",
+          scope: "project",
           contributions: [{ profileName: "middle", mergeStrategy: "prepend" }],
         },
         {
           filename: "GEMINI.md",
           mergeStrategy: "replace",
+          scope: "project",
           contributions: [{ profileName: "leaf", mergeStrategy: "replace" }],
         },
       ]),
@@ -314,6 +322,7 @@ describe("mergeMemory", () => {
     expect(result[0]).toEqual({
       filename: "CLAUDE.md",
       mergeStrategy: "append",
+      scope: "project",
       contributions: [{ profileName: "with-memory", mergeStrategy: "append" }],
     });
   });
@@ -356,6 +365,7 @@ describe("mergeMemory", () => {
     expect(claudeEntry).toEqual({
       filename: "CLAUDE.md",
       mergeStrategy: "import", // child's strategy wins
+      scope: "project",
       contributions: [
         { profileName: "parent", mergeStrategy: "append" },
         { profileName: "child", mergeStrategy: "import" },
@@ -366,6 +376,7 @@ describe("mergeMemory", () => {
     expect(agentsEntry).toEqual({
       filename: "AGENTS.md",
       mergeStrategy: "replace",
+      scope: "project",
       contributions: [{ profileName: "parent", mergeStrategy: "replace" }],
     });
   });
@@ -412,6 +423,7 @@ describe("mergeMemory", () => {
     expect(result[0]).toEqual({
       filename: "MEMORY.md",
       mergeStrategy: "append",
+      scope: "project",
       contributions: [
         { profileName: "base", mergeStrategy: "append" },
         { profileName: "middle", mergeStrategy: "append" },
@@ -661,5 +673,67 @@ describe("mergeMemory", () => {
     const result = mergeMemoryWithWarnings(sorted);
 
     expect(result.warnings).toHaveLength(0);
+  });
+
+  it("memory item with scope 'global' gets scope 'global'", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "local",
+        name: "base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append", scope: "global" }],
+          },
+        },
+      },
+    ];
+
+    const result = mergeMemory(profiles);
+    expect(result).toHaveLength(1);
+    expect(result[0].scope).toBe("global");
+  });
+
+  it("memory item scope overrides profile scope", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "local",
+        name: "base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          scope: "global",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append", scope: "project" }],
+          },
+        },
+      },
+    ];
+
+    const result = mergeMemory(profiles);
+    expect(result).toHaveLength(1);
+    expect(result[0].scope).toBe("project");
+  });
+
+  it("memory inherits profile scope when item scope is not set", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "local",
+        name: "base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          scope: "global",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append" }],
+          },
+        },
+      },
+    ];
+
+    const result = mergeMemory(profiles);
+    expect(result).toHaveLength(1);
+    expect(result[0].scope).toBe("global");
   });
 });

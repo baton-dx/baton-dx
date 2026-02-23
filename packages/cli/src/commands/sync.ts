@@ -12,6 +12,7 @@ import {
   type ProjectManifest,
   type RuleEntry,
   type RuleFile,
+  type Scope,
   type WeightConflictWarning,
   cloneGitSource,
   detectInstalledAITools,
@@ -34,6 +35,7 @@ import {
   resolveNpmSource,
   resolvePreferences,
   resolveProfileChain,
+  resolveScope,
   resolveVersion,
   sortProfilesByWeight,
 } from "@baton-dx/core";
@@ -596,6 +598,7 @@ export const syncCommand = defineCommand({
           adapter: AIToolAdapter;
           type: "memory" | "rules" | "agents";
           name: string;
+          scope: Scope;
           profiles: Set<string>;
         }
       >();
@@ -640,7 +643,7 @@ export const syncCommand = defineCommand({
               });
 
               // Compute target path to detect shared file destinations
-              const targetPath = adapter.getPath("memory", "project", transformed.filename);
+              const targetPath = adapter.getPath("memory", memoryEntry.scope, transformed.filename);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -658,6 +661,7 @@ export const syncCommand = defineCommand({
                   adapter,
                   type: "memory",
                   name: transformed.filename,
+                  scope: memoryEntry.scope,
                   profiles,
                 });
               }
@@ -797,7 +801,7 @@ export const syncCommand = defineCommand({
               const transformed = adapter.transformRule(ruleFile);
 
               // Compute target path to detect shared file destinations
-              const targetPath = adapter.getPath("rules", "project", ruleName);
+              const targetPath = adapter.getPath("rules", ruleEntry.scope, ruleName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -813,6 +817,7 @@ export const syncCommand = defineCommand({
                   adapter,
                   type: "rules",
                   name: ruleName,
+                  scope: ruleEntry.scope,
                   profiles: new Set([ruleEntry.profileName]),
                 });
               }
@@ -889,7 +894,7 @@ export const syncCommand = defineCommand({
               const transformed = adapter.transformAgent(agentFile);
 
               // Compute target path to detect shared file destinations
-              const targetPath = adapter.getPath("agents", "project", agentName);
+              const targetPath = adapter.getPath("agents", agentEntry.scope, agentName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -905,6 +910,7 @@ export const syncCommand = defineCommand({
                   adapter,
                   type: "agents",
                   name: agentName,
+                  scope: agentEntry.scope,
                   profiles: new Set([agentEntry.profileName]),
                 });
               }
@@ -927,7 +933,7 @@ export const syncCommand = defineCommand({
               combinedContent,
               entry.adapter,
               entry.type,
-              "project",
+              entry.scope,
               entry.name,
               placementConfig,
             );
@@ -997,7 +1003,7 @@ export const syncCommand = defineCommand({
                   content,
                   adapter,
                   "commands",
-                  "project",
+                  resolveScope(undefined, profile.manifest.scope),
                   commandName,
                   placementConfig,
                 );

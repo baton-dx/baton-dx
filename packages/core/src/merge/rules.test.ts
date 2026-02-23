@@ -39,11 +39,13 @@ describe("mergeRules", () => {
     expect(result).toContainEqual({
       name: "coding-standards",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "security",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -72,11 +74,13 @@ describe("mergeRules", () => {
     expect(result).toContainEqual({
       name: "code-review",
       agents: ["claude-code"],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "cursor-style",
       agents: ["cursor"],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -104,11 +108,13 @@ describe("mergeRules", () => {
     expect(result).toContainEqual({
       name: "coding-standards",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "security",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -145,11 +151,13 @@ describe("mergeRules", () => {
     expect(result).toContainEqual({
       name: "base-rule",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "override-rule",
       agents: [],
+      scope: "project",
       profileName: "override",
     });
   });
@@ -388,11 +396,13 @@ describe("mergeRules", () => {
     expect(result).toContainEqual({
       name: "universal-rule",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "cursor-rule",
       agents: ["cursor"],
+      scope: "project",
       profileName: "override",
     });
   });
@@ -685,5 +695,32 @@ describe("mergeRules", () => {
     const result = mergeRulesWithWarnings(sorted);
 
     expect(result.warnings).toHaveLength(0);
+  });
+
+  test("rules from profile with scope 'global' get scope 'global'", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "./global-profile",
+        name: "global-profile",
+        manifest: {
+          name: "global-profile",
+          version: "1.0.0",
+          scope: "global",
+          ai: {
+            rules: ["coding-standards"],
+          },
+        } as ProfileManifest,
+      },
+    ];
+
+    const result = mergeRules(profiles);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      name: "coding-standards",
+      agents: [],
+      scope: "global",
+      profileName: "global-profile",
+    });
   });
 });

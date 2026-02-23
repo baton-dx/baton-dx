@@ -25,7 +25,7 @@ export const scopeSchema = z.enum(["project", "global"]);
  */
 export const skillItemSchema = z.object({
   name: z.string(),
-  scope: scopeSchema,
+  scope: scopeSchema.optional(),
 });
 
 /**
@@ -59,6 +59,7 @@ const agentsSchema = z.union([
 const memoryItemSchema = z.object({
   source: z.string(), // e.g., "MEMORY.md", "CLAUDE.md", "AGENTS.md"
   merge: mergeStrategySchema,
+  scope: scopeSchema.optional(),
 });
 
 /**
@@ -122,6 +123,7 @@ export const profileManifestSchema = z.object({
     .transform((val) => (typeof val === "string" ? [val] : val))
     .optional(),
   weight: weightSchema.optional(),
+  scope: scopeSchema.optional(),
   ai: aiSectionSchema,
   files: filesSectionSchema,
   ide: ideSectionSchema,
@@ -145,3 +147,4 @@ export type ProfileManifest = z.infer<typeof profileManifestSchema>;
 export type MergeStrategy = z.infer<typeof mergeStrategySchema>;
 // Scope type is exported from @baton-dx/ai-tool-paths
 export type SkillItem = z.infer<typeof skillItemSchema>;
+export type MemoryItem = z.infer<typeof memoryItemSchema>;

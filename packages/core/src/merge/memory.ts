@@ -1,5 +1,7 @@
+import type { Scope } from "@baton-dx/ai-tool-paths";
 import type { ResolvedProfile } from "../inheritance/profile-chain.js";
 import type { MergeStrategy } from "../schemas/profile-manifest.js";
+import { resolveScope } from "./scope-resolution.js";
 import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 import type { WeightConflictWarning } from "./weight-sort.js";
 
@@ -18,6 +20,7 @@ export interface MemoryContribution {
 export interface MemoryEntry {
   filename: string; // e.g., "CLAUDE.md", "AGENTS.md", "GEMINI.md"
   mergeStrategy: MergeStrategy; // from the most-specific (last) profile
+  scope: Scope; // Resolved scope for placement
   contributions: MemoryContribution[]; // all profiles, in merge order (base first)
 }
 
@@ -94,6 +97,7 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
           }
 
           existing.mergeStrategy = item.merge;
+          existing.scope = resolveScope(item.scope, profile.manifest.scope);
           strategyOwner.set(item.source, { profileName: profile.name, weight });
 
           if (locked) {
@@ -104,6 +108,7 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
         memoryMap.set(item.source, {
           filename: item.source,
           mergeStrategy: item.merge,
+          scope: resolveScope(item.scope, profile.manifest.scope),
           contributions: [contribution],
         });
         strategyOwner.set(item.source, { profileName: profile.name, weight });
