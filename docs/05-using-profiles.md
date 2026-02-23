@@ -151,7 +151,7 @@ The merge order is: `base` (0) -> `frontend` (10) -> `strict` (100). If `base` a
 
 ## Syncing
 
-The `baton sync` command applies all configured profiles to your project. It fetches sources, resolves profiles, merges configurations, and writes the result to your working directory.
+The `baton sync` command **always fetches the latest versions** of all sources, resolves profiles, merges configurations, and writes the result to your working directory. After syncing, the lockfile (`baton.lock`) is updated with the resolved commit SHAs.
 
 ```bash
 baton sync
@@ -160,12 +160,12 @@ baton sync
 What happens during sync:
 
 1. Baton reads `baton.yaml`.
-2. Sources are fetched (or read from cache).
+2. Sources are fetched at their **latest version** (always fresh, no cache).
 3. Profiles are resolved and sorted by weight.
 4. AI configurations are generated for each targeted tool.
 5. Files are placed according to their merge strategies.
 6. IDE settings are written.
-7. The lockfile (`baton.lock`) is updated.
+7. The lockfile (`baton.lock`) is updated with exact commit SHAs.
 
 ### Dry run
 
@@ -177,13 +177,45 @@ baton sync --dry-run
 
 ---
 
+## Applying (Deterministic)
+
+The `baton apply` command uses the **locked SHAs from `baton.lock`** to reproduce the exact same configuration every time. This is the command you should use in CI/CD pipelines and for onboarding new team members.
+
+```bash
+baton apply
+```
+
+What happens during apply:
+
+1. Baton reads `baton.yaml` and `baton.lock`.
+2. Sources are fetched at the **exact SHA recorded in the lockfile**.
+3. Everything else works the same as sync (resolve, merge, transform, place).
+
+### When to use which
+
+| Scenario | Command |
+| -------- | ------- |
+| Get the latest versions from sources | `baton sync` |
+| Reproduce the exact locked state (CI, onboarding) | `baton apply` |
+| First-time setup after `baton init` | `baton sync` |
+
+### Cache bypass
+
+If you need to force re-cloning even when a cached copy exists:
+
+```bash
+baton apply --fresh
+```
+
+---
+
 ## Lockfile (`baton.lock`)
 
-After every sync, Baton writes a `baton.lock` file that records the exact versions and commit hashes of every source that was resolved.
+After every sync or apply, Baton writes a `baton.lock` file that records the exact versions and commit hashes of every source that was resolved.
 
 ### Purpose
 
-The lockfile ensures **reproducibility**. When another team member clones the project and runs `baton sync`, they get the exact same configuration, even if the source repository has received new commits.
+The lockfile ensures **reproducibility**. When another team member clones the project and runs `baton apply`, they get the exact same configuration, even if the source repository has received new commits since the last sync.
 
 ### Commit to version control
 
@@ -196,28 +228,29 @@ git commit -m "chore: update baton lockfile"
 
 ### Lockfile behavior
 
-| Command       | Lockfile behavior                                              |
-| ------------- | -------------------------------------------------------------- |
-| `baton sync`  | Respects the lockfile. Uses locked versions if available.      |
-| `baton update`| Ignores the lockfile. Fetches latest versions and rewrites it. |
+| Command       | Lockfile behavior                                                  |
+| ------------- | ------------------------------------------------------------------ |
+| `baton sync`  | Fetches latest versions, then **writes** the lockfile.             |
+| `baton apply` | **Reads** the lockfile. Uses locked SHAs for deterministic builds. |
+| `baton update`| *(deprecated)* Delegates to `baton sync`.                          |
 
 ---
 
-## Updating
+## Updating (Deprecated)
 
-The `baton update` command fetches the latest versions of all sources, bypassing the lockfile.
+> **Note:** `baton update` is deprecated. Use `baton sync` instead.
+
+The `baton update` command now shows a deprecation warning and delegates to `baton sync`.
 
 ```bash
+# Deprecated — use baton sync instead
 baton update
+
+# Equivalent:
+baton sync
 ```
 
-You can update a specific profile:
-
-```bash
-baton update github:my-org/dx-configs/frontend
-```
-
-After updating, review the changes:
+After syncing, review the changes:
 
 ```bash
 baton diff
@@ -303,7 +336,7 @@ baton init --profile github:baton-dx/baton-dx-source/consumer
 baton sync
 ```
 
-This gives your AI tools full context about `baton init`, `baton sync`, `baton update`, `baton diff`, and other CLI commands — so they can help you manage your Baton configuration effectively.
+This gives your AI tools full context about `baton init`, `baton sync`, `baton apply`, `baton diff`, and other CLI commands — so they can help you manage your Baton configuration effectively.
 
 ---
 
