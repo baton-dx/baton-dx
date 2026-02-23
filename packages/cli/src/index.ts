@@ -10,6 +10,7 @@ import { idesCommand } from "./commands/ides/index.js";
 import { initCommand } from "./commands/init.js";
 import { manageCommand } from "./commands/manage.js";
 import { profileCommand } from "./commands/profile/index.js";
+import { selfUpdateCommand } from "./commands/self-update.js";
 import { sourceCommand } from "./commands/source/index.js";
 import { syncCommand } from "./commands/sync.js";
 import { updateCommand } from "./commands/update.js";
@@ -61,6 +62,7 @@ const main = defineCommand({
     profile: profileCommand,
     "ai-tools": aiToolsCommand,
     ides: idesCommand,
+    "self-update": selfUpdateCommand,
   },
   run({ args }) {
     // Show help when no arguments provided
@@ -86,6 +88,9 @@ const main = defineCommand({
       console.log("  profile    Manage profiles (create, list, remove)");
       console.log("  ai-tools   Manage AI tool detection and configuration");
       console.log("  ides       Manage IDE platform detection and configuration");
+      console.log("");
+      console.log("Maintenance:");
+      console.log("  self-update  Update Baton to the latest stable version");
       console.log("");
       console.log("Global Options:");
       console.log("  --help, -h         Show this help message");
