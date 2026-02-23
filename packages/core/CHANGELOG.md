@@ -1,5 +1,11 @@
 # @baton-dx/core
 
+## 0.3.1
+
+### Patch Changes
+
+- [#60](https://github.com/baton-dx/baton-dx/pull/60) [`b9369b2`](https://github.com/baton-dx/baton-dx/commit/b9369b2e45b38bb7805f7a001ee2dde789c3af10) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix self-update not actually updating to latest version by adding `--latest` flag for bun/pnpm and using `install @latest` for npm
+
 ## 0.3.0
 
 ### Minor Changes

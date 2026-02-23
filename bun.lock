@@ -41,7 +41,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
