@@ -19,6 +19,7 @@ import {
   mergeSkills,
   parseFrontmatter,
   parseSource,
+  resolveNpmSource,
   resolveProfileChain,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -78,8 +79,13 @@ export const diffCommand = defineCommand({
               : resolve(projectRoot, parsed.path);
             profileManifestPath = resolve(localPath, "baton.profile.yaml");
           } else if (parsed.provider === "npm") {
-            spinner.message("NPM provider not yet supported for diff");
-            continue;
+            const resolved = await resolveNpmSource({
+              source: parsed,
+              basePath: projectRoot,
+              useCache: false, // Always fetch fresh for diff comparison
+            });
+            localPath = resolved.localPath;
+            profileManifestPath = resolve(resolved.localPath, "baton.profile.yaml");
           } else {
             const url = parsed.url;
             const subpath =
