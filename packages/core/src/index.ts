@@ -71,6 +71,7 @@ export {
 // Export NPM resolver
 export {
   resolveNpmSource,
+  type NpmCacheMeta,
   type NpmResolverOptions,
   type ResolvedNpmSource,
   type PackageManager,
