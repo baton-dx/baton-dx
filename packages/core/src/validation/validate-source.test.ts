@@ -333,7 +333,7 @@ describe("validateSource", () => {
   it("warns when files/ source is missing", async () => {
     const profileDir = join(TEST_DIR, "profiles", "default");
     await writeProfileManifest(profileDir, {
-      files: [{ source: "biome.json", merge: "deep" }],
+      files: [{ source: "biome.json" }],
     });
     await writeSourceManifest(TEST_DIR, {
       profiles: [{ name: "default", path: "profiles/default" }],
@@ -529,7 +529,7 @@ describe("validateSource", () => {
         memory: [{ source: "MEMORY.md", merge: "append" }],
         commands: ["review"],
       },
-      files: [{ source: "biome.json", merge: "deep" }],
+      files: [{ source: "biome.json" }],
       ide: {
         vscode: ["settings.json"],
       },

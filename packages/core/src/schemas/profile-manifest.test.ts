@@ -32,7 +32,7 @@ describe("Schema Validation - Profile Manifest", () => {
           ],
           commands: ["review", "test"],
         },
-        files: [{ source: "biome.json", merge: "deep" }],
+        files: [{ source: "biome.json" }],
         ide: {
           vscode: [".vscode/settings.json"],
           jetbrains: [".idea/settings.xml"],
