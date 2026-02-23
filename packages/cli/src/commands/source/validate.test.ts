@@ -35,7 +35,10 @@ ai:
       merge: "append"
 `,
     );
-    await writeFile(join(testDir, "profiles", "default", "ai", "memory", "MEMORY.md"), "# Memory\n");
+    await writeFile(
+      join(testDir, "profiles", "default", "ai", "memory", "MEMORY.md"),
+      "# Memory\n",
+    );
 
     const report = await validateSource(testDir);
     expect(report.valid).toBe(true);

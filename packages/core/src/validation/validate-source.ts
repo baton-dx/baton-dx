@@ -23,20 +23,19 @@ async function pathExists(filePath: string): Promise<boolean> {
  */
 async function collectMdFiles(dir: string): Promise<string[]> {
   const results: string[] = [];
-  let entries: Awaited<ReturnType<typeof readdir>>;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    return results;
-  }
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const nested = await collectMdFiles(fullPath);
-      results.push(...nested);
-    } else if (entry.name.endsWith(".md")) {
-      results.push(fullPath);
+    const entries = await readdir(dir, { withFileTypes: true, encoding: "utf-8" });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const nested = await collectMdFiles(fullPath);
+        results.push(...nested);
+      } else if (entry.name.endsWith(".md")) {
+        results.push(fullPath);
+      }
     }
+  } catch {
+    // Skip directories that can't be read
   }
   return results;
 }
@@ -400,24 +399,22 @@ async function discoverProfiles(
   const profilesDir = join(sourceRoot, "profiles");
   const results: Array<{ name: string; path: string }> = [];
 
-  let entries: Awaited<ReturnType<typeof readdir>>;
   try {
-    entries = await readdir(profilesDir, { withFileTypes: true });
+    const entries = await readdir(profilesDir, { withFileTypes: true, encoding: "utf-8" });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) {
+        continue;
+      }
+      const manifestPath = join(profilesDir, entry.name, "baton.profile.yaml");
+      if (await pathExists(manifestPath)) {
+        results.push({
+          name: entry.name,
+          path: join("profiles", entry.name),
+        });
+      }
+    }
   } catch {
-    return results;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith(".")) {
-      continue;
-    }
-    const manifestPath = join(profilesDir, entry.name, "baton.profile.yaml");
-    if (await pathExists(manifestPath)) {
-      results.push({
-        name: entry.name,
-        path: join("profiles", entry.name),
-      });
-    }
+    // profiles/ directory doesn't exist — that's fine
   }
 
   return results;
