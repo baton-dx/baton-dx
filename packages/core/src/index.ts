@@ -318,3 +318,14 @@ export {
   resolvePreferences,
   type ResolvedPreferences,
 } from "./preferences/index.js";
+
+// Export self-update utilities
+export {
+  detectInstallMethod,
+  formatInstallCommand,
+  checkLatestVersion,
+  isUpdateAvailable,
+  type InstallMethod,
+  type LatestVersionResult,
+  type UpdateCheckResult,
+} from "./self-update/index.js";
