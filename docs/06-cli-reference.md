@@ -40,7 +40,7 @@ baton init --force
 
 ### `baton sync`
 
-Resolve, merge, transform, and place all configurations from your profiles into the project.
+Fetch the latest versions of all sources, merge, transform, and place configurations into the project. Always fetches fresh — does not use cached or locked versions.
 
 ```bash
 baton sync
@@ -54,26 +54,45 @@ baton sync --category ai
 | `--category <type>` | Filter by category: `ai`, `files`, or `ide` |
 
 **Process:**
-1. Fetches/resolves all profile sources
+1. Fetches **latest versions** of all profile sources (always fresh)
 2. Loads and validates profile manifests
 3. Merges profiles in order (respecting weight and inheritance)
 4. Transforms configs for each AI tool's format
 5. Places files in correct locations
-6. Updates `baton.lock` with resolved versions
+6. Updates `baton.lock` with resolved commit SHAs
 
 ---
 
-### `baton update`
+### `baton apply`
 
-Check for and apply updates to installed profiles.
+Apply locked configurations from `baton.lock` for deterministic, reproducible builds. Uses exact commit SHAs from the lockfile instead of fetching latest.
 
 ```bash
-baton update
-baton update --dry-run
-baton update --yes
+baton apply
+baton apply --dry-run
+baton apply --verbose
+baton apply --category ai
+baton apply --fresh
 ```
 
-Compares the locked versions in `baton.lock` against the latest available versions from sources. Shows a summary of available updates and prompts for confirmation.
+| Flag | Description |
+|------|-------------|
+| `--category <type>` | Filter by category: `ai`, `files`, or `ide` |
+| `--fresh` | Force cache bypass (re-clone even if cached) |
+
+**Use cases:** CI/CD pipelines, onboarding new team members, reproducible builds.
+
+---
+
+### `baton update` *(deprecated)*
+
+> Use `baton sync` instead.
+
+Shows a deprecation warning and delegates to `baton sync`.
+
+```bash
+baton update        # → shows warning, runs baton sync
+```
 
 ---
 

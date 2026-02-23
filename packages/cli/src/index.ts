@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineCommand, runMain } from "citty";
 import { aiToolsCommand } from "./commands/ai-tools/index.js";
+import { applyCommand } from "./commands/apply.js";
 import { configCommand } from "./commands/config/index.js";
 import { diffCommand } from "./commands/diff.js";
 import { idesCommand } from "./commands/ides/index.js";
@@ -50,6 +51,7 @@ const main = defineCommand({
   },
   subCommands: {
     init: initCommand,
+    apply: applyCommand,
     sync: syncCommand,
     update: updateCommand,
     diff: diffCommand,
@@ -72,8 +74,9 @@ const main = defineCommand({
       console.log("");
       console.log("Available commands:");
       console.log("  init       Initialize Baton in your project");
-      console.log("  sync       Sync all configurations to installed AI tools");
-      console.log("  update     Check for and apply updates to installed packages");
+      console.log("  apply      Apply locked configurations (deterministic, reproducible)");
+      console.log("  sync       Fetch latest versions, sync, and update lockfile");
+      console.log("  update     (deprecated) Use 'baton sync' instead");
       console.log("  diff       Compare local files with remote source versions");
       console.log("  manage     Interactive project management wizard");
       console.log("  config     Show dashboard overview or configure settings");

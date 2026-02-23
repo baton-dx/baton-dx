@@ -6,9 +6,11 @@ import {
   type AgentFile,
   type CloneContext,
   FileNotFoundError,
+  type LockFile,
   type LockFileEntry,
   type MemoryEntry,
   type MergedSkillItem,
+  type ParsedSource,
   type ProjectManifest,
   type RuleEntry,
   type RuleFile,
@@ -34,7 +36,6 @@ import {
   readLock,
   resolvePreferences,
   resolveProfileChain,
-  resolveVersion,
   sortProfilesByWeight,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -54,10 +55,24 @@ import {
   writeLockData,
 } from "./sync-pipeline.js";
 
-export const syncCommand = defineCommand({
+/** Extract the package name from a source string for lockfile lookup. */
+function getPackageNameFromSource(source: string, parsed: ParsedSource): string {
+  if (parsed.provider === "github" || parsed.provider === "gitlab") {
+    return `${parsed.org}/${parsed.repo}`;
+  }
+  if (parsed.provider === "npm") {
+    return parsed.scope ? `${parsed.scope}/${parsed.package}` : parsed.package;
+  }
+  if (parsed.provider === "git") {
+    return parsed.url;
+  }
+  return source;
+}
+
+export const applyCommand = defineCommand({
   meta: {
-    name: "sync",
-    description: "Fetch latest versions, sync all configurations, and update lockfile",
+    name: "apply",
+    description: "Apply locked configurations to the project (deterministic, reproducible)",
   },
   args: {
     "dry-run": {
@@ -67,7 +82,7 @@ export const syncCommand = defineCommand({
     },
     category: {
       type: "string",
-      description: "Sync only a specific category: ai, files, or ide",
+      description: "Apply only a specific category: ai, files, or ide",
       required: false,
     },
     yes: {
@@ -81,12 +96,18 @@ export const syncCommand = defineCommand({
       description: "Show detailed output for each placed file",
       default: false,
     },
+    fresh: {
+      type: "boolean",
+      description: "Force cache bypass (re-clone even if cached)",
+      default: false,
+    },
   },
   async run({ args }) {
     const dryRun = args["dry-run"];
     const categoryArg = args.category as string | undefined;
     const autoYes = args.yes;
     const verbose = args.verbose;
+    const fresh = args.fresh;
 
     // Validate --category flag
     let category: SyncCategory | undefined;
@@ -104,7 +125,7 @@ export const syncCommand = defineCommand({
     const syncFiles = !category || category === "files";
     const syncIde = !category || category === "ide";
 
-    p.intro(category ? `🔄 Baton Sync (category: ${category})` : "🔄 Baton Sync");
+    p.intro(category ? `📦 Baton Apply (category: ${category})` : "📦 Baton Apply");
 
     // Statistics tracking
     const stats: SyncStats = {
@@ -134,18 +155,29 @@ export const syncCommand = defineCommand({
       // Step 0a: First-run preferences check
       await promptFirstRunPreferences(projectRoot, !!args.yes);
 
-      // Step 0b: Read existing lockfile to detect orphaned files later
-      const previousPaths = new Set<string>();
+      // Step 0b: Read lockfile for locked SHAs
+      const lockfilePath = resolve(projectRoot, "baton.lock");
+      let lockfile: LockFile | null = null;
       try {
-        const lockfilePath = resolve(projectRoot, "baton.lock");
-        const previousLock = await readLock(lockfilePath);
-        for (const pkg of Object.values(previousLock.packages)) {
+        lockfile = await readLock(lockfilePath);
+      } catch {
+        // No lockfile — fall back to manifest versions
+        if (verbose) {
+          p.log.warn("No lockfile found. Falling back to manifest versions.");
+        }
+      }
+
+      // Step 0c: Compute cache TTL (apply uses cache by default, --fresh bypasses)
+      const maxCacheAgeMs = fresh ? 0 : undefined;
+
+      // Step 0d: Read existing lockfile to detect orphaned files later
+      const previousPaths = new Set<string>();
+      if (lockfile) {
+        for (const pkg of Object.values(lockfile.packages)) {
           for (const filePath of Object.keys(pkg.integrity)) {
             previousPaths.add(filePath);
           }
         }
-      } catch {
-        // No existing lockfile — nothing to clean up
       }
 
       // Step 1: Resolve profile chain
@@ -192,28 +224,25 @@ export const syncCommand = defineCommand({
               throw new Error(`Invalid source: ${profileSource.source}`);
             }
 
-            // Always resolve to latest version
-            let resolvedRef: string;
-            try {
-              resolvedRef = await resolveVersion(url, "latest");
-              if (verbose) {
-                p.log.info(
-                  `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
-                );
-              }
-            } catch {
-              // Fallback to profileSource.version if resolution fails
-              resolvedRef = profileSource.version || "HEAD";
-              if (verbose) {
-                p.log.warn(`Could not resolve latest for ${url}, using ${resolvedRef}`);
+            // Determine ref: use locked SHA if available, otherwise profileSource.version
+            let ref = profileSource.version;
+            if (lockfile) {
+              const packageName = getPackageNameFromSource(profileSource.source, parsed);
+              const lockedPkg = lockfile.packages[packageName];
+              if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
+                ref = lockedPkg.sha;
+                if (verbose) {
+                  p.log.info(`Using locked SHA for ${profileSource.source}: ${ref.slice(0, 12)}`);
+                }
               }
             }
 
             const cloned = await cloneGitSource({
               url,
-              ref: resolvedRef,
+              ref,
               subpath: "subpath" in parsed ? parsed.subpath : undefined,
-              useCache: false,
+              useCache: true,
+              maxCacheAgeMs,
             });
             manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
             sourceShas.set(profileSource.source, cloned.sha);
@@ -240,21 +269,18 @@ export const syncCommand = defineCommand({
 
       if (allProfiles.length === 0) {
         spinner.stop("No profiles configured");
-        p.outro("Nothing to sync. Run `baton manage` to add a profile.");
+        p.outro("Nothing to apply. Run `baton manage` to add a profile.");
         process.exit(2);
       }
 
       spinner.stop(`Resolved ${allProfiles.length} profile(s)`);
 
       // Step 1b: Sort profiles by weight for merge ordering
-      // Higher-weight profiles appear later → win in "last-wins" merge logic
-      // Stable sort preserves declaration order for same-weight profiles
       const weightSortedProfiles = sortProfilesByWeight(allProfiles);
 
       // Step 2: Merge configurations
       spinner.start("Merging configurations...");
 
-      // Collect all weight conflict warnings across merge operations
       const allWeightWarnings: WeightConflictWarning[] = [];
 
       const skillsResult = mergeSkillsWithWarnings(weightSortedProfiles);
@@ -274,7 +300,6 @@ export const syncCommand = defineCommand({
       allWeightWarnings.push(...memoryResult.warnings);
 
       // Collect all commands from all profiles (deduplicated by name, last wins)
-      // Respects weight lock: commands from weight -1 profiles cannot be overridden
       const commandMap = new Map<string, string>();
       const lockedCommands = new Set<string>();
       const commandOwner = new Map<string, { profileName: string; weight: number }>();
@@ -303,7 +328,6 @@ export const syncCommand = defineCommand({
       const mergedCommandCount = commandMap.size;
 
       // Collect all files from all profiles (deduplicated by target path, last wins)
-      // Respects weight lock: files from weight -1 profiles cannot be overridden
       const fileMap = new Map<string, { source: string; target: string; profileName: string }>();
       const lockedFiles = new Set<string>();
       const fileOwner = new Map<string, { profileName: string; weight: number }>();
@@ -332,9 +356,7 @@ export const syncCommand = defineCommand({
       }
       const mergedFileCount = fileMap.size;
 
-      // Collect all IDE configs from all profiles (deduplicated by target path, last wins)
-      // Uses central IDE platform registry for key → directory mapping
-      // Respects weight lock: IDE configs from weight -1 profiles cannot be overridden
+      // Collect all IDE configs from all profiles
       const ideMap = new Map<
         string,
         { ideKey: string; fileName: string; targetDir: string; profileName: string }
@@ -383,7 +405,7 @@ export const syncCommand = defineCommand({
         `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
       );
 
-      // Emit weight conflict warnings (same weight, conflicting values)
+      // Emit weight conflict warnings
       if (allWeightWarnings.length > 0) {
         for (const w of allWeightWarnings) {
           p.log.warn(
@@ -407,8 +429,6 @@ export const syncCommand = defineCommand({
         );
       }
 
-      // Compute aggregated intersection across all profiles
-      // A tool/platform is "synced" if the developer has it AND at least one profile supports it
       let syncedAiTools: string[];
       let syncedIdePlatforms: string[] | null = null;
       let allIntersections: Map<string, import("@baton-dx/core").IntersectionResult> | null = null;
@@ -443,9 +463,7 @@ export const syncCommand = defineCommand({
         syncedAiTools = aggregatedSyncedAi.size > 0 ? [...aggregatedSyncedAi] : [];
         syncedIdePlatforms = [...aggregatedSyncedIde];
       } else {
-        // No global config — fall back to detected agents for backward compatibility
         syncedAiTools = detectedAITools;
-        // No IDE filtering when no global config exists (place all IDE files)
         syncedIdePlatforms = null;
         if (detectedAITools.length > 0) {
           p.log.warn("No AI tools configured. Run `baton ai-tools scan` to configure your tools.");
@@ -468,7 +486,6 @@ export const syncCommand = defineCommand({
         process.exit(1);
       }
 
-      // Show intersection or synced tools
       if (allIntersections) {
         for (const [source, intersection] of allIntersections) {
           if (verbose) {
@@ -476,7 +493,7 @@ export const syncCommand = defineCommand({
             displayIntersection(intersection);
           } else {
             const summary = formatIntersectionSummary(intersection);
-            p.log.info(`Syncing for: ${summary}`);
+            p.log.info(`Applying for: ${summary}`);
           }
         }
       }
@@ -485,7 +502,7 @@ export const syncCommand = defineCommand({
         syncedIdePlatforms && syncedIdePlatforms.length > 0
           ? ` | IDE platforms: ${syncedIdePlatforms.join(", ")}`
           : "";
-      spinner.stop(`Syncing AI tools: ${syncedAiTools.join(", ")}${ideSummary}`);
+      spinner.stop(`Applying to AI tools: ${syncedAiTools.join(", ")}${ideSummary}`);
 
       // Step 4: Migrate legacy paths
       spinner.start("Checking for legacy paths...");
@@ -509,21 +526,16 @@ export const syncCommand = defineCommand({
       // Step 5-7: Transform, Place, and Link
       spinner.start("Processing configurations...");
 
-      // Use intersection-filtered AI tools instead of all detected agents
       const adapters = getAIToolAdaptersForKeys(syncedAiTools);
 
-      // Placement configuration
       const placementConfig = {
-        mode: "copy" as const, // Start with copy mode (symlink can be added later)
+        mode: "copy" as const,
         projectRoot,
       };
 
-      // Track placed file contents per profile for lockfile integrity hashes
-      // Each entry includes content, tool key, and category for precise tool-to-file tracking
       const placedFiles = new Map<string, Record<string, LockFileEntry>>();
 
       // Build a map from profile name to local directory path
-      // This is needed because profile.source may be a remote URL (e.g., "github:org/repo/subpath")
       const profileLocalPaths = new Map<string, string>();
       for (const profileSource of projectManifest.profiles || []) {
         const parsed = parseSource(profileSource.source);
@@ -531,7 +543,6 @@ export const syncCommand = defineCommand({
           const localPath = parsed.path.startsWith("/")
             ? parsed.path
             : resolve(projectRoot, parsed.path);
-          // Discover which profile name lives at this path
           for (const prof of allProfiles) {
             if (prof.source === profileSource.source) {
               profileLocalPaths.set(prof.name, localPath);
@@ -544,14 +555,22 @@ export const syncCommand = defineCommand({
         ) {
           const url = parsed.provider === "git" ? parsed.url : parsed.url;
 
-          // Use the already-resolved SHA from sourceShas (resolved in Step 1)
-          const resolvedSha = sourceShas.get(profileSource.source);
+          // Use locked SHA for deterministic clone
+          let ref = profileSource.version;
+          if (lockfile) {
+            const packageName = getPackageNameFromSource(profileSource.source, parsed);
+            const lockedPkg = lockfile.packages[packageName];
+            if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
+              ref = lockedPkg.sha;
+            }
+          }
 
           const cloned = await cloneGitSource({
             url,
-            ref: resolvedSha || profileSource.version,
+            ref,
             subpath: "subpath" in parsed ? parsed.subpath : undefined,
             useCache: true,
+            maxCacheAgeMs,
           });
           for (const prof of allProfiles) {
             if (prof.source === profileSource.source) {
@@ -562,7 +581,6 @@ export const syncCommand = defineCommand({
       }
 
       // Register local paths for inherited profiles (from extends chains)
-      // These profiles are not in baton.yaml but were resolved via resolveProfileChain
       for (const prof of allProfiles) {
         if (!profileLocalPaths.has(prof.name) && prof.localPath) {
           profileLocalPaths.set(prof.name, prof.localPath);
@@ -570,8 +588,6 @@ export const syncCommand = defineCommand({
       }
 
       // Content accumulator for files that may receive content from multiple categories
-      // (e.g., GitHub Copilot uses .github/copilot-instructions.md for both memory AND rules)
-      // Key: absolute target path, Value: { parts, adapter, profiles }
       const contentAccumulator = new Map<
         string,
         {
@@ -591,7 +607,6 @@ export const syncCommand = defineCommand({
           }
           for (const memoryEntry of mergedMemory) {
             try {
-              // Read content from all contributing profiles
               const contentParts: string[] = [];
               for (const contribution of memoryEntry.contributions) {
                 const profileDir = profileLocalPaths.get(contribution.profileName);
@@ -613,22 +628,18 @@ export const syncCommand = defineCommand({
 
               if (contentParts.length === 0) continue;
 
-              // Merge content according to strategy
               const mergedContent = mergeContentParts(contentParts, memoryEntry.mergeStrategy);
 
-              // Transform memory file for this adapter
               const transformed = adapter.transformMemory({
                 filename: memoryEntry.filename,
                 content: mergedContent,
               });
 
-              // Compute target path to detect shared file destinations
               const targetPath = adapter.getPath("memory", "project", transformed.filename);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
 
-              // Accumulate content for this target path
               const existing = contentAccumulator.get(absolutePath);
               if (existing) {
                 existing.parts.push(transformed.content);
@@ -672,7 +683,6 @@ export const syncCommand = defineCommand({
 
               const skillSourceDir = resolve(profileDir, "ai", "skills", skillItem.name);
 
-              // Check if skill directory exists
               try {
                 await stat(skillSourceDir);
               } catch {
@@ -680,17 +690,14 @@ export const syncCommand = defineCommand({
                 continue;
               }
 
-              // Resolve target skill directory
               const targetSkillPath = adapter.getPath("skills", skillItem.scope, skillItem.name);
               const absoluteTargetDir = targetSkillPath.startsWith("/")
                 ? targetSkillPath
                 : resolve(projectRoot, targetSkillPath);
 
-              // Recursively copy skill files
               const placed = await copyDirectoryRecursive(skillSourceDir, absoluteTargetDir);
               stats.created += placed;
 
-              // Track skill directory for lockfile integrity
               const profileFiles = getOrCreatePlacedFiles(placedFiles, skillItem.profileName);
               try {
                 const entryContent = await readFile(resolve(skillSourceDir, "index.md"), "utf-8");
@@ -700,7 +707,6 @@ export const syncCommand = defineCommand({
                   category: "ai",
                 };
               } catch {
-                // Fallback: use skill name as marker
                 profileFiles[targetSkillPath] = {
                   content: skillItem.name,
                   tool: adapter.key,
@@ -730,11 +736,8 @@ export const syncCommand = defineCommand({
           }
           for (const ruleEntry of mergedRules) {
             try {
-              // Normalize: strip .md extension to prevent double-extension bug
-              // (manifest may declare "coding-standards.md", path template appends ".md" again)
               const ruleName = ruleEntry.name.replace(/\.md$/, "");
 
-              // Check if this rule should be placed for this adapter
               const isUniversal = ruleEntry.agents.length === 0;
               const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
               if (!isUniversal && !isForThisAdapter) continue;
@@ -747,7 +750,6 @@ export const syncCommand = defineCommand({
                 continue;
               }
 
-              // Determine source file path based on rule type
               const ruleSubdir = isUniversal ? "universal" : ruleEntry.agents[0];
               const ruleSourcePath = resolve(
                 profileDir,
@@ -757,7 +759,6 @@ export const syncCommand = defineCommand({
                 `${ruleName}.md`,
               );
 
-              // Read rule content
               let rawContent: string;
               try {
                 rawContent = await readFile(ruleSourcePath, "utf-8");
@@ -766,10 +767,8 @@ export const syncCommand = defineCommand({
                 continue;
               }
 
-              // Parse frontmatter
               const parsed = parseFrontmatter(rawContent);
 
-              // Build canonical RuleFile
               const ruleFile: RuleFile = {
                 name: ruleName,
                 content: rawContent,
@@ -779,16 +778,13 @@ export const syncCommand = defineCommand({
                     : undefined,
               };
 
-              // Transform rule for this adapter
               const transformed = adapter.transformRule(ruleFile);
 
-              // Compute target path to detect shared file destinations
               const targetPath = adapter.getPath("rules", "project", ruleName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
 
-              // Accumulate content for this target path
               const existing = contentAccumulator.get(absolutePath);
               if (existing) {
                 existing.parts.push(transformed.content);
@@ -818,11 +814,8 @@ export const syncCommand = defineCommand({
           }
           for (const agentEntry of mergedAgents) {
             try {
-              // Normalize: strip .md extension to prevent double-extension bug
-              // (manifest may declare "code-reviewer.md", path template appends ".md" again)
               const agentName = agentEntry.name.replace(/\.md$/, "");
 
-              // Check if this agent should be placed for this adapter
               const isUniversal = agentEntry.agents.length === 0;
               const isForThisAdapter = agentEntry.agents.includes(adapter.key);
               if (!isUniversal && !isForThisAdapter) continue;
@@ -835,7 +828,6 @@ export const syncCommand = defineCommand({
                 continue;
               }
 
-              // Determine source file path based on agent type
               const agentSubdir = isUniversal ? "universal" : agentEntry.agents[0];
               const agentSourcePath = resolve(
                 profileDir,
@@ -845,7 +837,6 @@ export const syncCommand = defineCommand({
                 `${agentName}.md`,
               );
 
-              // Read agent content
               let rawContent: string;
               try {
                 rawContent = await readFile(agentSourcePath, "utf-8");
@@ -854,10 +845,8 @@ export const syncCommand = defineCommand({
                 continue;
               }
 
-              // Parse frontmatter
               const parsed = parseFrontmatter(rawContent);
 
-              // Build canonical AgentFile (frontmatter is REQUIRED)
               const frontmatter =
                 Object.keys(parsed.data).length > 0
                   ? (parsed.data as AgentFile["frontmatter"])
@@ -871,16 +860,13 @@ export const syncCommand = defineCommand({
                 frontmatter,
               };
 
-              // Transform agent for this adapter
               const transformed = adapter.transformAgent(agentFile);
 
-              // Compute target path to detect shared file destinations
               const targetPath = adapter.getPath("agents", "project", agentName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
 
-              // Accumulate content for this target path
               const existing = contentAccumulator.get(absolutePath);
               if (existing) {
                 existing.parts.push(transformed.content);
@@ -904,7 +890,7 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Flush accumulated content: write combined memory+rules+agents to shared file paths
+      // Flush accumulated content
       if (!dryRun && syncAi) {
         for (const [absolutePath, entry] of contentAccumulator) {
           try {
@@ -922,7 +908,6 @@ export const syncCommand = defineCommand({
               stats.created++;
             }
 
-            // Track content for lockfile integrity (normalize to relative path)
             const relPath = isAbsolute(result.path)
               ? relative(projectRoot, result.path)
               : result.path;
@@ -970,7 +955,6 @@ export const syncCommand = defineCommand({
                 try {
                   content = await readFile(commandSourcePath, "utf-8");
                 } catch {
-                  // Gracefully skip missing command files
                   continue;
                 }
 
@@ -987,7 +971,6 @@ export const syncCommand = defineCommand({
                   stats.created++;
                 }
 
-                // Track content for lockfile integrity (normalize to relative path)
                 const cmdRelPath = isAbsolute(result.path)
                   ? relative(projectRoot, result.path)
                   : result.path;
@@ -1009,7 +992,7 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Place project files (files/ -> project root)
+      // Place project files
       if (!dryRun && syncFiles) {
         for (const fileEntry of fileMap.values()) {
           try {
@@ -1022,16 +1005,13 @@ export const syncCommand = defineCommand({
             try {
               content = await readFile(fileSourcePath, "utf-8");
             } catch {
-              // Gracefully skip missing files directories
               continue;
             }
 
             const targetPath = resolve(projectRoot, fileEntry.target);
 
-            // Ensure target directory exists
             await mkdir(dirname(targetPath), { recursive: true });
 
-            // Idempotency: skip if content is identical
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
             if (existing !== content) {
               await writeFile(targetPath, content, "utf-8");
@@ -1043,7 +1023,6 @@ export const syncCommand = defineCommand({
               p.log.info(`  -> ${fileEntry.target} (unchanged, skipped)`);
             }
 
-            // Track content for lockfile integrity
             const fpf = getOrCreatePlacedFiles(placedFiles, fileEntry.profileName);
             fpf[fileEntry.target] = { content, category: "files" };
           } catch (error) {
@@ -1053,12 +1032,10 @@ export const syncCommand = defineCommand({
         }
       }
 
-      // Place IDE config files (ide/vscode/ -> .vscode/, ide/jetbrains/ -> .idea/)
-      // Only place files for IDE platforms in the intersection (if intersection is available)
+      // Place IDE config files
       if (!dryRun && syncIde) {
         for (const ideEntry of ideMap.values()) {
           try {
-            // Filter by intersection: skip IDE platforms not in the developer's synced set
             if (syncedIdePlatforms !== null && !syncedIdePlatforms.includes(ideEntry.ideKey)) {
               if (verbose) {
                 p.log.info(
@@ -1077,16 +1054,13 @@ export const syncCommand = defineCommand({
             try {
               content = await readFile(ideSourcePath, "utf-8");
             } catch {
-              // Gracefully skip missing IDE config files
               continue;
             }
 
             const targetPath = resolve(projectRoot, ideEntry.targetDir, ideEntry.fileName);
 
-            // Ensure target directory exists
             await mkdir(dirname(targetPath), { recursive: true });
 
-            // Idempotency: skip if content is identical
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
             if (existing !== content) {
               await writeFile(targetPath, content, "utf-8");
@@ -1098,7 +1072,6 @@ export const syncCommand = defineCommand({
               p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (unchanged, skipped)`);
             }
 
-            // Track content for lockfile integrity
             const ideRelPath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
             const ipf = getOrCreatePlacedFiles(placedFiles, ideEntry.profileName);
             ipf[ideRelPath] = {
@@ -1158,7 +1131,6 @@ export const syncCommand = defineCommand({
           parts.push(`  • ${mergedFileCount} files`);
         }
         if (syncIde) {
-          // Show filtered count when intersection is active
           const filteredIdeCount =
             syncedIdePlatforms !== null
               ? [...ideMap.values()].filter((e) => syncedIdePlatforms.includes(e.ideKey)).length
@@ -1167,16 +1139,16 @@ export const syncCommand = defineCommand({
         }
         const categoryLabel = category ? ` (category: ${category})` : "";
         p.outro(
-          `[Dry Run${categoryLabel}] Would sync:\n${parts.join("\n")}\n\nFor ${adapters.length} agent(s): ${syncedAiTools.join(", ")}`,
+          `[Dry Run${categoryLabel}] Would apply:\n${parts.join("\n")}\n\nFor ${adapters.length} agent(s): ${syncedAiTools.join(", ")}`,
         );
       } else {
         const categoryLabel = category ? ` (category: ${category})` : "";
-        p.outro(`✅ Sync complete${categoryLabel}! Configurations updated.`);
+        p.outro(`✅ Apply complete${categoryLabel}! Locked configurations applied.`);
       }
 
       process.exit(stats.errors > 0 ? 1 : 0);
     } catch (error) {
-      p.cancel(`Sync failed: ${error}`);
+      p.cancel(`Apply failed: ${error}`);
       process.exit(1);
     }
   },
