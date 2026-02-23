@@ -23,7 +23,7 @@
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
