@@ -211,7 +211,7 @@ export const initCommand = defineCommand({
     if (profileSources.length > 0) {
       const shouldSync = isInteractive
         ? await p.confirm({
-            message: "Sync profiles now?",
+            message: "Fetch profiles and sync now?",
             initialValue: true,
           })
         : true; // --yes mode: auto-sync
@@ -219,7 +219,7 @@ export const initCommand = defineCommand({
       if (!p.isCancel(shouldSync) && shouldSync) {
         await runBatonSync(cwd);
       } else {
-        p.log.info("Run 'baton sync' later to apply your profiles.");
+        p.log.info("Run 'baton sync' later to fetch and apply your profiles.");
       }
     }
 
