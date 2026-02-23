@@ -95,9 +95,9 @@ export const selfUpdateCommand = defineCommand({
       p.log.message(
         [
           "Please update manually using one of:",
-          "  npm update -g @baton-dx/cli",
-          "  pnpm update -g @baton-dx/cli",
-          "  bun update -g @baton-dx/cli",
+          "  npm install -g @baton-dx/cli@latest",
+          "  pnpm update -g @baton-dx/cli --latest",
+          "  bun update -g @baton-dx/cli --latest",
           "  brew upgrade baton-dx",
         ].join("\n"),
       );

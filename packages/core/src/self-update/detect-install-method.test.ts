@@ -69,7 +69,7 @@ describe("detectInstallMethod", () => {
     expect(result).toEqual({
       type: "pnpm",
       bin: "pnpm",
-      args: ["update", "-g", "@baton-dx/cli"],
+      args: ["update", "-g", "@baton-dx/cli", "--latest"],
     });
 
     vi.unstubAllGlobals();
@@ -85,7 +85,7 @@ describe("detectInstallMethod", () => {
     expect(result).toEqual({
       type: "bun",
       bin: "bun",
-      args: ["update", "-g", "@baton-dx/cli"],
+      args: ["update", "-g", "@baton-dx/cli", "--latest"],
     });
 
     vi.unstubAllGlobals();
@@ -101,7 +101,7 @@ describe("detectInstallMethod", () => {
     expect(result).toEqual({
       type: "npm",
       bin: "npm",
-      args: ["update", "-g", "@baton-dx/cli"],
+      args: ["install", "-g", "@baton-dx/cli@latest"],
     });
 
     vi.unstubAllGlobals();
@@ -176,9 +176,9 @@ describe("formatInstallCommand", () => {
     const method: InstallMethod = {
       type: "npm",
       bin: "npm",
-      args: ["update", "-g", "@baton-dx/cli"],
+      args: ["install", "-g", "@baton-dx/cli@latest"],
     };
-    expect(formatInstallCommand(method)).toBe("npm update -g @baton-dx/cli");
+    expect(formatInstallCommand(method)).toBe("npm install -g @baton-dx/cli@latest");
   });
 
   it("returns empty string for unknown", () => {
