@@ -28,7 +28,7 @@ describe("Lockfile Manager", () => {
           sha: "abc123",
           files: {
             "baton.profile.yaml": "name: test",
-            "CLAUDE.md": "# Test",
+            "memory/MEMORY.md": "# Test",
           },
         },
       };
@@ -67,12 +67,11 @@ describe("Lockfile Manager", () => {
       // Different content should produce different hashes
       expect(integrity["file1.txt"].hash).not.toBe(integrity["file2.md"].hash);
 
-      // Plain string files have no tool/category metadata
-      expect(integrity["file1.txt"].tool).toBeUndefined();
-      expect(integrity["file1.txt"].category).toBeUndefined();
+      // Plain string files have no type metadata
+      expect(integrity["file1.txt"].type).toBeUndefined();
     });
 
-    it("should generate hashes with tool and category metadata", () => {
+    it("should generate hashes with canonical type metadata", () => {
       const packages = {
         "test-pkg": {
           source: "github:org/repo",
@@ -80,19 +79,21 @@ describe("Lockfile Manager", () => {
           version: "1.0.0",
           sha: "abc123",
           files: {
-            ".claude/CLAUDE.md": {
+            "memory/MEMORY.md": {
               content: "# Memory",
-              tool: "claude-code",
-              category: "ai" as const,
+              type: "memory" as const,
             },
-            ".vscode/settings.json": {
-              content: '{"editor.fontSize": 14}',
-              tool: "vscode",
-              category: "ide" as const,
+            "skills/add-adapter": {
+              content: "# Skill content",
+              type: "skills" as const,
             },
-            Makefile: {
+            "files/Makefile": {
               content: "all: build",
-              category: "files" as const,
+              type: "files" as const,
+            },
+            "ide/vscode/settings.json": {
+              content: '{"editor.fontSize": 14}',
+              type: "ide" as const,
             },
           },
         },
@@ -101,18 +102,17 @@ describe("Lockfile Manager", () => {
       const lockfile = generateLock(packages);
       const integrity = lockfile.packages["test-pkg"].integrity;
 
-      // Check AI file metadata
-      expect(integrity[".claude/CLAUDE.md"].hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(integrity[".claude/CLAUDE.md"].tool).toBe("claude-code");
-      expect(integrity[".claude/CLAUDE.md"].category).toBe("ai");
+      // Check canonical type metadata
+      expect(integrity["memory/MEMORY.md"].hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(integrity["memory/MEMORY.md"].type).toBe("memory");
 
-      // Check IDE file metadata
-      expect(integrity[".vscode/settings.json"].tool).toBe("vscode");
-      expect(integrity[".vscode/settings.json"].category).toBe("ide");
+      expect(integrity["skills/add-adapter"].type).toBe("skills");
+      expect(integrity["files/Makefile"].type).toBe("files");
+      expect(integrity["ide/vscode/settings.json"].type).toBe("ide");
 
-      // Check files category (no tool)
-      expect(integrity.Makefile.category).toBe("files");
-      expect(integrity.Makefile.tool).toBeUndefined();
+      // No legacy tool/category fields in new entries
+      expect(integrity["memory/MEMORY.md"].tool).toBeUndefined();
+      expect(integrity["memory/MEMORY.md"].category).toBeUndefined();
     });
 
     it("should handle multiple packages", () => {
@@ -149,10 +149,9 @@ describe("Lockfile Manager", () => {
           sha: "abc123",
           files: {
             "legacy-file.txt": "plain content",
-            ".claude/CLAUDE.md": {
+            "memory/MEMORY.md": {
               content: "# Memory",
-              tool: "claude-code",
-              category: "ai" as const,
+              type: "memory" as const,
             },
           },
         },
@@ -163,16 +162,16 @@ describe("Lockfile Manager", () => {
 
       // Plain string file
       expect(integrity["legacy-file.txt"].hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(integrity["legacy-file.txt"].tool).toBeUndefined();
+      expect(integrity["legacy-file.txt"].type).toBeUndefined();
 
       // LockFileEntry file
-      expect(integrity[".claude/CLAUDE.md"].hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(integrity[".claude/CLAUDE.md"].tool).toBe("claude-code");
+      expect(integrity["memory/MEMORY.md"].hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(integrity["memory/MEMORY.md"].type).toBe("memory");
     });
   });
 
   describe("writeLock", () => {
-    it("should write lockfile as valid YAML with file metadata", async () => {
+    it("should write lockfile as valid YAML with canonical type metadata", async () => {
       const lockfile: LockFile = {
         locked_at: "2024-01-01T00:00:00.000Z",
         packages: {
@@ -182,8 +181,8 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file1.txt": { hash: "hash1", tool: "claude-code", category: "ai" },
-              "file2.md": { hash: "hash2", tool: undefined, category: undefined },
+              "skills/foo": { hash: "hash1", type: "skills" },
+              "memory/MEMORY.md": { hash: "hash2", type: "memory" },
             },
           },
         },
@@ -197,9 +196,8 @@ describe("Lockfile Manager", () => {
 
       expect(parsed.locked_at).toBe("2024-01-01T00:00:00.000Z");
       expect(parsed.packages["test-pkg"].source).toBe("github:org/repo");
-      expect(parsed.packages["test-pkg"].integrity["file1.txt"].hash).toBe("hash1");
-      expect(parsed.packages["test-pkg"].integrity["file1.txt"].tool).toBe("claude-code");
-      expect(parsed.packages["test-pkg"].integrity["file1.txt"].category).toBe("ai");
+      expect(parsed.packages["test-pkg"].integrity["skills/foo"].hash).toBe("hash1");
+      expect(parsed.packages["test-pkg"].integrity["skills/foo"].type).toBe("skills");
     });
 
     it("should overwrite existing lockfile", async () => {
@@ -226,7 +224,7 @@ describe("Lockfile Manager", () => {
   });
 
   describe("readLock", () => {
-    it("should read and validate existing lockfile with file metadata", async () => {
+    it("should read and validate existing lockfile with canonical metadata", async () => {
       const lockfile: LockFile = {
         locked_at: "2024-01-01T00:00:00.000Z",
         packages: {
@@ -236,7 +234,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file.txt": { hash: "hash123", tool: "cursor", category: "ai" },
+              "skills/foo": { hash: "hash123", type: "skills" },
             },
           },
         },
@@ -250,8 +248,8 @@ describe("Lockfile Manager", () => {
       expect(readResult.locked_at).toBe("2024-01-01T00:00:00.000Z");
       expect(readResult.packages["test-pkg"].source).toBe("github:org/repo");
       expect(readResult.packages["test-pkg"].sha).toBe("abc123");
-      expect(readResult.packages["test-pkg"].integrity["file.txt"].hash).toBe("hash123");
-      expect(readResult.packages["test-pkg"].integrity["file.txt"].tool).toBe("cursor");
+      expect(readResult.packages["test-pkg"].integrity["skills/foo"].hash).toBe("hash123");
+      expect(readResult.packages["test-pkg"].integrity["skills/foo"].type).toBe("skills");
     });
 
     it("should throw FileNotFoundError when lockfile does not exist", async () => {
@@ -357,7 +355,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file.txt": { hash: "hash1", tool: "claude-code", category: "ai" },
+              "skills/foo": { hash: "hash1", type: "skills" },
             },
           },
         },
@@ -372,7 +370,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file.txt": { hash: "hash2", tool: "claude-code", category: "ai" },
+              "skills/foo": { hash: "hash2", type: "skills" },
             },
           },
         },
@@ -383,7 +381,7 @@ describe("Lockfile Manager", () => {
       expect(changes).toHaveLength(1);
       expect(changes[0]).toEqual({
         packageName: "pkg1",
-        reason: "file_changed: file.txt",
+        reason: "file_changed: skills/foo",
       });
     });
 
@@ -397,7 +395,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file1.txt": { hash: "hash1", tool: undefined, category: undefined },
+              "skills/foo": { hash: "hash1", type: "skills" },
             },
           },
         },
@@ -412,8 +410,8 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file1.txt": { hash: "hash1", tool: undefined, category: undefined },
-              "file2.txt": { hash: "hash2", tool: undefined, category: undefined },
+              "skills/foo": { hash: "hash1", type: "skills" },
+              "skills/bar": { hash: "hash2", type: "skills" },
             },
           },
         },
@@ -424,7 +422,7 @@ describe("Lockfile Manager", () => {
       expect(changes).toHaveLength(1);
       expect(changes[0]).toEqual({
         packageName: "pkg1",
-        reason: "file_added: file2.txt",
+        reason: "file_added: skills/bar",
       });
     });
 
@@ -438,8 +436,8 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file1.txt": { hash: "hash1", tool: undefined, category: undefined },
-              "file2.txt": { hash: "hash2", tool: undefined, category: undefined },
+              "skills/foo": { hash: "hash1", type: "skills" },
+              "skills/bar": { hash: "hash2", type: "skills" },
             },
           },
         },
@@ -454,7 +452,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file1.txt": { hash: "hash1", tool: undefined, category: undefined },
+              "skills/foo": { hash: "hash1", type: "skills" },
             },
           },
         },
@@ -465,7 +463,7 @@ describe("Lockfile Manager", () => {
       expect(changes).toHaveLength(1);
       expect(changes[0]).toEqual({
         packageName: "pkg1",
-        reason: "file_removed: file2.txt",
+        reason: "file_removed: skills/bar",
       });
     });
 
@@ -535,7 +533,7 @@ describe("Lockfile Manager", () => {
             version: "1.0.0",
             sha: "abc123",
             integrity: {
-              "file.txt": { hash: "hash", tool: "claude-code", category: "ai" },
+              "skills/foo": { hash: "hash", type: "skills" },
             },
           },
         },
@@ -605,8 +603,8 @@ describe("Lockfile Manager", () => {
     });
   });
 
-  describe("Round-trip with tool metadata", () => {
-    it("should preserve tool and category through write+read cycle", async () => {
+  describe("Round-trip with canonical type metadata", () => {
+    it("should preserve type through write+read cycle", async () => {
       const packages = {
         "my-profile": {
           source: "github:org/repo",
@@ -614,19 +612,17 @@ describe("Lockfile Manager", () => {
           version: "1.0.0",
           sha: "abc123",
           files: {
-            ".claude/CLAUDE.md": {
+            "memory/MEMORY.md": {
               content: "# Memory file",
-              tool: "claude-code",
-              category: "ai" as const,
+              type: "memory" as const,
             },
-            ".vscode/settings.json": {
-              content: "{}",
-              tool: "vscode",
-              category: "ide" as const,
+            "skills/add-adapter": {
+              content: "# Skill",
+              type: "skills" as const,
             },
-            "README.md": {
+            "files/README.md": {
               content: "# README",
-              category: "files" as const,
+              type: "files" as const,
             },
           },
         },
@@ -639,16 +635,12 @@ describe("Lockfile Manager", () => {
       const readResult = await readLock(lockPath);
 
       const integrity = readResult.packages["my-profile"].integrity;
-      expect(integrity[".claude/CLAUDE.md"].tool).toBe("claude-code");
-      expect(integrity[".claude/CLAUDE.md"].category).toBe("ai");
-      expect(integrity[".vscode/settings.json"].tool).toBe("vscode");
-      expect(integrity[".vscode/settings.json"].category).toBe("ide");
-      expect(integrity["README.md"].tool).toBeUndefined();
-      expect(integrity["README.md"].category).toBe("files");
+      expect(integrity["memory/MEMORY.md"].type).toBe("memory");
+      expect(integrity["skills/add-adapter"].type).toBe("skills");
+      expect(integrity["files/README.md"].type).toBe("files");
     });
 
     it("should read legacy lockfiles with plain string integrity", async () => {
-      // Simulate a legacy lockfile written with the old format
       const { writeFile } = await import("node:fs/promises");
       const { stringify } = await import("yaml");
 
@@ -676,9 +668,44 @@ describe("Lockfile Manager", () => {
       // Legacy strings should be transformed to FileMetadata objects
       const integrity = readResult.packages["test-pkg"].integrity;
       expect(integrity["file1.txt"].hash).toBe("plain-hash-old-format");
+      expect(integrity["file1.txt"].type).toBeUndefined();
       expect(integrity["file1.txt"].tool).toBeUndefined();
-      expect(integrity["file1.txt"].category).toBeUndefined();
       expect(integrity["file2.md"].hash).toBe("another-plain-hash");
+    });
+
+    it("should read legacy lockfiles with tool/category fields", async () => {
+      const { writeFile } = await import("node:fs/promises");
+      const { stringify } = await import("yaml");
+
+      const legacyLockfile = {
+        locked_at: "2024-01-01T00:00:00.000Z",
+        packages: {
+          "test-pkg": {
+            source: "github:org/repo",
+            resolved: "https://github.com/org/repo.git",
+            version: "1.0.0",
+            sha: "abc123",
+            integrity: {
+              ".claude/skills/foo": {
+                hash: "abc123",
+                tool: "claude-code",
+                category: "ai",
+              },
+            },
+          },
+        },
+      };
+
+      const lockPath = join(tmpDir, "legacy-v2.lock");
+      await writeFile(lockPath, stringify(legacyLockfile), "utf-8");
+
+      const readResult = await readLock(lockPath);
+
+      // Legacy tool/category fields should still be readable
+      const integrity = readResult.packages["test-pkg"].integrity;
+      expect(integrity[".claude/skills/foo"].hash).toBe("abc123");
+      expect(integrity[".claude/skills/foo"].tool).toBe("claude-code");
+      expect(integrity[".claude/skills/foo"].category).toBe("ai");
     });
   });
 });
