@@ -2,6 +2,7 @@ import { relative, resolve } from "node:path";
 import { CircularInheritanceError, FileNotFoundError } from "../errors.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import { cloneGitSource, expandSparseCheckout } from "../sources/git-clone.js";
+import { resolveNpmSource } from "../sources/npm-resolver.js";
 import { parseSource } from "../utils/source-parser.js";
 import { loadProfileManifest } from "../utils/yaml-parser.js";
 
@@ -211,8 +212,9 @@ async function loadProfileFromSource(
   }
 
   if (parsed.provider === "npm") {
-    // NPM source: not yet implemented
-    throw new Error("NPM sources are not yet implemented in inheritance chain");
+    const resolved = await resolveNpmSource({ source: parsed });
+    const manifestPath = resolve(resolved.localPath, "baton.profile.yaml");
+    return { manifest: await loadProfileManifest(manifestPath), localPath: resolved.localPath };
   }
 
   // Git source (github, gitlab, git): clone and load

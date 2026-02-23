@@ -31,6 +31,7 @@ import {
   parseFrontmatter,
   parseSource,
   placeFile,
+  resolveNpmSource,
   resolvePreferences,
   resolveProfileChain,
   resolveVersion,
@@ -170,6 +171,15 @@ export const syncCommand = defineCommand({
             } catch {
               sourceShas.set(profileSource.source, "local");
             }
+          } else if (parsed.provider === "npm") {
+            // NPM source: resolve via npm-resolver with fresh install
+            const resolved = await resolveNpmSource({
+              source: parsed,
+              basePath: projectRoot,
+              useCache: false, // Always fetch fresh for sync
+            });
+            manifestPath = resolve(resolved.localPath, "baton.profile.yaml");
+            sourceShas.set(profileSource.source, resolved.version);
           } else {
             // For remote sources, clone first
             const url =
@@ -552,6 +562,17 @@ export const syncCommand = defineCommand({
           for (const prof of allProfiles) {
             if (prof.source === profileSource.source) {
               profileLocalPaths.set(prof.name, cloned.localPath);
+            }
+          }
+        } else if (parsed.provider === "npm") {
+          const resolved = await resolveNpmSource({
+            source: parsed,
+            basePath: projectRoot,
+            useCache: true, // Reuse cached package for file placement
+          });
+          for (const prof of allProfiles) {
+            if (prof.source === profileSource.source) {
+              profileLocalPaths.set(prof.name, resolved.localPath);
             }
           }
         }

@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseSource } from "../utils/source-parser.js";
@@ -234,6 +236,111 @@ describe("npm-resolver", () => {
 
       expect(source.package).toBe("test-package");
       // Actual error tested in integration test (skipped)
+    });
+  });
+
+  describe("npm cache behavior", () => {
+    const npmCacheDir = path.join(homedir(), ".baton", "cache", "npm");
+
+    function computeCacheHash(sourceString: string): string {
+      return createHash("sha256").update(sourceString).digest("hex").substring(0, 16);
+    }
+
+    async function createFakeCachedPackage(
+      packageName: string,
+      meta: { version: string; installedAt: number; package: string },
+    ): Promise<string> {
+      const hash = computeCacheHash(`npm:${packageName}`);
+      const cachePath = path.join(npmCacheDir, hash);
+      const packageDir = path.join(cachePath, "node_modules", packageName);
+
+      await mkdir(packageDir, { recursive: true });
+      await writeFile(path.join(packageDir, "baton.profile.yaml"), "name: test-profile\n");
+      await writeFile(
+        path.join(packageDir, "package.json"),
+        JSON.stringify({ name: packageName, version: meta.version }),
+      );
+      await writeFile(path.join(cachePath, ".baton-npm-meta.json"), JSON.stringify(meta));
+
+      return cachePath;
+    }
+
+    it("uses cached result when cache is valid", async () => {
+      const packageName = "test-cache-hit";
+      let cachePath: string | undefined;
+
+      try {
+        cachePath = await createFakeCachedPackage(packageName, {
+          version: "1.0.0",
+          installedAt: Date.now(),
+          package: packageName,
+        });
+
+        const source = parseSource(`npm:${packageName}`);
+        if (source.provider !== "npm") {
+          throw new Error("Expected npm provider");
+        }
+
+        const resolved = await resolveNpmSource({ source, useCache: true });
+
+        expect(resolved.fromCache).toBe(true);
+        expect(resolved.version).toBe("1.0.0");
+        expect(resolved.packageManager).toBe("cached");
+      } finally {
+        if (cachePath) {
+          await rm(cachePath, { recursive: true, force: true });
+        }
+      }
+    });
+
+    it("bypasses cache when useCache is false", async () => {
+      const packageName = "test-cache-bypass";
+      let cachePath: string | undefined;
+
+      try {
+        cachePath = await createFakeCachedPackage(packageName, {
+          version: "1.0.0",
+          installedAt: Date.now(),
+          package: packageName,
+        });
+
+        const source = parseSource(`npm:${packageName}`);
+        if (source.provider !== "npm") {
+          throw new Error("Expected npm provider");
+        }
+
+        await expect(resolveNpmSource({ source, useCache: false })).rejects.toThrow();
+      } finally {
+        if (cachePath) {
+          await rm(cachePath, { recursive: true, force: true });
+        }
+      }
+    });
+
+    it("treats stale cache as miss when maxCacheAgeMs is exceeded", async () => {
+      const packageName = "test-cache-stale";
+      let cachePath: string | undefined;
+
+      try {
+        cachePath = await createFakeCachedPackage(packageName, {
+          version: "1.0.0",
+          installedAt: Date.now() - 999999999,
+          package: packageName,
+        });
+
+        const source = parseSource(`npm:${packageName}`);
+        if (source.provider !== "npm") {
+          throw new Error("Expected npm provider");
+        }
+
+        await expect(
+          resolveNpmSource({ source, useCache: true, maxCacheAgeMs: 1 }),
+        ).rejects.toThrow();
+      } finally {
+        if (cachePath) {
+          await rm(cachePath, { recursive: true, force: true });
+        }
+      }
     });
   });
 });
