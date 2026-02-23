@@ -27,7 +27,7 @@ export { projectManifestSchema } from "./schemas/project-manifest.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
 
 // Export types used by CLI
-export type { FileMetadata, LockFile } from "./schemas/lockfile.js";
+export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
 
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 
@@ -91,6 +91,15 @@ export {
 
 // Export lockfile cleanup
 export { removePlacedFiles } from "./lockfile/cleanup.js";
+
+// Export local placement state
+export {
+  placementStateSchema,
+  type PlacementState,
+  getStatePath,
+  readState,
+  writeState,
+} from "./state/index.js";
 
 // Export local source loader
 export {

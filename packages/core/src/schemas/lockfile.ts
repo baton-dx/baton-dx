@@ -1,17 +1,25 @@
 import { z } from "zod";
 
+// Canonical config type for lockfile integrity entries
+const configTypeEnum = z.enum(["skills", "rules", "agents", "memory", "commands", "files", "ide"]);
+
 // Schema for file metadata in lockfile integrity entries
-// Each placed file is annotated with its SHA-256 hash, the tool it belongs to, and its category
+// Each entry is annotated with its SHA-256 hash and canonical config type
 const fileMetadataSchema = z.object({
-  hash: z.string().describe("SHA-256 hash of the file content"),
-  tool: z.string().optional().describe("Tool key this file belongs to (e.g., 'claude-code')"),
-  category: z.enum(["ai", "ide", "files"]).optional().describe("Category of the placed file"),
+  hash: z.string().describe("SHA-256 hash of the source content (before tool transformation)"),
+  type: configTypeEnum.optional().describe("Canonical config type (e.g., 'skills', 'memory')"),
+  // Legacy fields — kept for backward-compatible reading of old lockfiles
+  tool: z.string().optional().describe("(Legacy) Tool key this file belongs to"),
+  category: z
+    .enum(["ai", "ide", "files"])
+    .optional()
+    .describe("(Legacy) Category of the placed file"),
 });
 
 // Backward-compatible integrity entry: accepts either a plain hash string or a metadata object
 // Plain strings are transformed to { hash: string } for uniform access
 const integrityEntrySchema = z.union([
-  z.string().transform((hash) => ({ hash, tool: undefined, category: undefined })),
+  z.string().transform((hash) => ({ hash, type: undefined, tool: undefined, category: undefined })),
   fileMetadataSchema,
 ]);
 
@@ -24,7 +32,9 @@ const lockedPackageSchema = z.object({
   resolved: z.string().describe("Resolved Git URL or filesystem path"),
   version: z.string().describe("Version tag, branch, or commit SHA"),
   sha: z.string().describe("Git commit SHA or filesystem integrity hash"),
-  integrity: integritySchema.describe("File metadata with SHA-256 hashes and tool annotations"),
+  integrity: integritySchema.describe(
+    "Canonical file metadata with SHA-256 hashes of source content",
+  ),
 });
 
 // Schema for the complete lockfile
@@ -44,3 +54,4 @@ export const lockfileSchema = z.object({
 export type LockFile = z.infer<typeof lockfileSchema>;
 export type LockedPackage = z.infer<typeof lockedPackageSchema>;
 export type FileMetadata = z.infer<typeof fileMetadataSchema>;
+export type LockfileConfigType = z.infer<typeof configTypeEnum>;

@@ -51,8 +51,10 @@ import {
   copyDirectoryRecursive,
   getOrCreatePlacedFiles,
   handleGitignoreUpdate,
+  loadPreviousPlacedPaths,
   validCategories,
   writeLockData,
+  writeStateData,
 } from "./sync-pipeline.js";
 
 /** Extract the package name from a source string for lockfile lookup. */
@@ -170,15 +172,9 @@ export const applyCommand = defineCommand({
       // Step 0c: Compute cache TTL (apply uses cache by default, --fresh bypasses)
       const maxCacheAgeMs = fresh ? 0 : undefined;
 
-      // Step 0d: Read existing lockfile to detect orphaned files later
-      const previousPaths = new Set<string>();
-      if (lockfile) {
-        for (const pkg of Object.values(lockfile.packages)) {
-          for (const filePath of Object.keys(pkg.integrity)) {
-            previousPaths.add(filePath);
-          }
-        }
-      }
+      // Step 0d: Read previous placement state to detect orphaned files later
+      // Uses .baton/state.yaml (preferred) or falls back to old lockfile keys (legacy migration)
+      const previousPaths = await loadPreviousPlacedPaths(projectRoot);
 
       // Step 1: Resolve profile chain
       const spinner = p.spinner();
@@ -533,7 +529,12 @@ export const applyCommand = defineCommand({
         projectRoot,
       };
 
+      // Track placed file contents per profile for lockfile integrity hashes
+      // Keys are CANONICAL paths (e.g., "skills/add-adapter", "memory/MEMORY.md")
       const placedFiles = new Map<string, Record<string, LockFileEntry>>();
+
+      // Track ACTUAL tool-specific file paths placed on disk
+      const actualPlacedPaths = new Set<string>();
 
       // Build a map from profile name to local directory path
       const profileLocalPaths = new Map<string, string>();
@@ -698,20 +699,19 @@ export const applyCommand = defineCommand({
               const placed = await copyDirectoryRecursive(skillSourceDir, absoluteTargetDir);
               stats.created += placed;
 
+              // Track tool-specific disk path for state/orphan detection
+              actualPlacedPaths.add(targetSkillPath);
+
+              // Track canonical key + source content for lockfile integrity (once per skill)
+              const canonicalKey = `skills/${skillItem.name}`;
               const profileFiles = getOrCreatePlacedFiles(placedFiles, skillItem.profileName);
-              try {
-                const entryContent = await readFile(resolve(skillSourceDir, "index.md"), "utf-8");
-                profileFiles[targetSkillPath] = {
-                  content: entryContent,
-                  tool: adapter.key,
-                  category: "ai",
-                };
-              } catch {
-                profileFiles[targetSkillPath] = {
-                  content: skillItem.name,
-                  tool: adapter.key,
-                  category: "ai",
-                };
+              if (!profileFiles[canonicalKey]) {
+                try {
+                  const entryContent = await readFile(resolve(skillSourceDir, "index.md"), "utf-8");
+                  profileFiles[canonicalKey] = { content: entryContent, type: "skills" };
+                } catch {
+                  profileFiles[canonicalKey] = { content: skillItem.name, type: "skills" };
+                }
               }
 
               if (verbose) {
@@ -908,16 +908,22 @@ export const applyCommand = defineCommand({
               stats.created++;
             }
 
+            // Track tool-specific disk path for state/orphan detection
             const relPath = isAbsolute(result.path)
               ? relative(projectRoot, result.path)
               : result.path;
+            actualPlacedPaths.add(relPath);
+
+            // Track canonical key + source content for lockfile integrity
+            const canonicalKey = `${entry.type}/${entry.name}`;
             for (const profileName of entry.profiles) {
               const pf = getOrCreatePlacedFiles(placedFiles, profileName);
-              pf[relPath] = {
-                content: combinedContent,
-                tool: entry.adapter.key,
-                category: "ai",
-              };
+              if (!pf[canonicalKey]) {
+                pf[canonicalKey] = {
+                  content: combinedContent,
+                  type: entry.type as LockFileEntry["type"],
+                };
+              }
             }
 
             if (verbose) {
@@ -971,11 +977,18 @@ export const applyCommand = defineCommand({
                   stats.created++;
                 }
 
+                // Track tool-specific disk path for state/orphan detection
                 const cmdRelPath = isAbsolute(result.path)
                   ? relative(projectRoot, result.path)
                   : result.path;
+                actualPlacedPaths.add(cmdRelPath);
+
+                // Track canonical key + source content for lockfile (once per command)
+                const canonicalKey = `commands/${commandName}`;
                 const pf = getOrCreatePlacedFiles(placedFiles, profile.name);
-                pf[cmdRelPath] = { content, tool: adapter.key, category: "ai" };
+                if (!pf[canonicalKey]) {
+                  pf[canonicalKey] = { content, type: "commands" };
+                }
 
                 if (verbose) {
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
@@ -1023,8 +1036,15 @@ export const applyCommand = defineCommand({
               p.log.info(`  -> ${fileEntry.target} (unchanged, skipped)`);
             }
 
+            // Track disk path for state/orphan detection
+            actualPlacedPaths.add(fileEntry.target);
+
+            // Track canonical key for lockfile integrity
+            const canonicalKey = `files/${fileEntry.target}`;
             const fpf = getOrCreatePlacedFiles(placedFiles, fileEntry.profileName);
-            fpf[fileEntry.target] = { content, category: "files" };
+            if (!fpf[canonicalKey]) {
+              fpf[canonicalKey] = { content, type: "files" };
+            }
           } catch (error) {
             spinner.message(`Error placing file ${fileEntry.source}: ${error}`);
             stats.errors++;
@@ -1072,13 +1092,16 @@ export const applyCommand = defineCommand({
               p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (unchanged, skipped)`);
             }
 
+            // Track disk path for state/orphan detection
             const ideRelPath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
+            actualPlacedPaths.add(ideRelPath);
+
+            // Track canonical key for lockfile integrity
+            const canonicalKey = `ide/${ideEntry.ideKey}/${ideEntry.fileName}`;
             const ipf = getOrCreatePlacedFiles(placedFiles, ideEntry.profileName);
-            ipf[ideRelPath] = {
-              content,
-              tool: ideEntry.ideKey,
-              category: "ide",
-            };
+            if (!ipf[canonicalKey]) {
+              ipf[canonicalKey] = { content, type: "ide" };
+            }
           } catch (error) {
             spinner.message(`Error placing IDE config ${ideEntry.fileName}: ${error}`);
             stats.errors++;
@@ -1102,15 +1125,25 @@ export const applyCommand = defineCommand({
         });
       }
 
-      // Step 9: Write lockfile
+      // Step 9: Write lockfile (canonical keys, tool-agnostic)
       if (!dryRun) {
         await writeLockData({ allProfiles, sourceShas, placedFiles, projectRoot, spinner });
       }
 
-      // Step 10: Remove orphaned files
+      // Step 9b: Write local state (tool-specific disk paths, never committed)
+      if (!dryRun) {
+        await writeStateData({
+          actualPlacedPaths,
+          syncedAiTools,
+          projectRoot,
+          spinner,
+        });
+      }
+
+      // Step 10: Remove orphaned files (comparing tool-specific disk paths)
       await cleanupOrphanedFiles({
         previousPaths,
-        placedFiles,
+        currentPaths: actualPlacedPaths,
         projectRoot,
         dryRun,
         autoYes,

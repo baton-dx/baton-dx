@@ -2,14 +2,17 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   type LockFileEntry,
+  type PlacementState,
   type ProjectManifest,
   collectComprehensivePatterns,
   ensureBatonDirGitignored,
   generateLock,
+  readState,
   removeGitignoreManagedSection,
   removePlacedFiles,
   updateGitignore,
   writeLock,
+  writeState,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 
@@ -143,30 +146,82 @@ export async function writeLockData(params: {
 }
 
 /**
- * Detect and remove files that were in the previous lockfile but are no longer
- * part of the current sync. Cleans up empty parent directories.
+ * Write local placement state to `.baton/state.yaml`.
+ * Tracks tool-specific file paths placed on disk for orphan detection.
+ */
+export async function writeStateData(params: {
+  actualPlacedPaths: Set<string>;
+  syncedAiTools: string[];
+  projectRoot: string;
+  spinner: ReturnType<typeof p.spinner>;
+}): Promise<void> {
+  const { actualPlacedPaths, syncedAiTools, projectRoot, spinner } = params;
+
+  spinner.start("Writing local state...");
+
+  const state: PlacementState = {
+    synced_at: new Date().toISOString(),
+    tools: syncedAiTools,
+    placed_files: [...actualPlacedPaths].sort(),
+  };
+
+  await writeState(projectRoot, state);
+  spinner.stop("Local state updated");
+}
+
+/**
+ * Load previous tool-specific paths for orphan detection.
+ *
+ * Reads from `.baton/state.yaml` (preferred). Falls back to extracting paths
+ * from an old-format `baton.lock` (legacy tool-specific keys) for migration.
+ */
+export async function loadPreviousPlacedPaths(projectRoot: string): Promise<Set<string>> {
+  // Preferred: read from local state
+  const state = await readState(projectRoot);
+  if (state) {
+    return new Set(state.placed_files);
+  }
+
+  // Legacy fallback: extract tool-specific paths from old baton.lock
+  // (These are paths like `.claude/skills/foo` which were used as lockfile keys before)
+  try {
+    const { readLock } = await import("@baton-dx/core");
+    const lockfilePath = resolve(projectRoot, "baton.lock");
+    const previousLock = await readLock(lockfilePath);
+    const paths = new Set<string>();
+    for (const pkg of Object.values(previousLock.packages)) {
+      for (const filePath of Object.keys(pkg.integrity)) {
+        // Only include paths that look tool-specific (contain a dot-prefixed directory)
+        // Canonical paths like `skills/foo` are NOT tool-specific disk paths
+        if (filePath.startsWith(".") || filePath.includes("/")) {
+          paths.add(filePath);
+        }
+      }
+    }
+    return paths;
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Detect and remove files that were previously placed but are no longer
+ * part of the current sync. Compares tool-specific paths from state.yaml
+ * against currently placed paths. Cleans up empty parent directories.
  */
 export async function cleanupOrphanedFiles(params: {
   previousPaths: Set<string>;
-  placedFiles: Map<string, Record<string, LockFileEntry>>;
+  currentPaths: Set<string>;
   projectRoot: string;
   dryRun: boolean;
   autoYes: boolean;
   spinner: ReturnType<typeof p.spinner>;
 }): Promise<void> {
-  const { previousPaths, placedFiles, projectRoot, dryRun, autoYes, spinner } = params;
+  const { previousPaths, currentPaths, projectRoot, dryRun, autoYes, spinner } = params;
 
   if (previousPaths.size === 0) return;
 
-  // Collect all currently placed file paths
-  const currentPaths = new Set<string>();
-  for (const files of placedFiles.values()) {
-    for (const filePath of Object.keys(files)) {
-      currentPaths.add(filePath);
-    }
-  }
-
-  // Find orphaned paths (in previous lock but not in current sync)
+  // Find orphaned paths (in previous state but not in current sync)
   const orphanedPaths = [...previousPaths].filter((prev) => !currentPaths.has(prev));
   if (orphanedPaths.length === 0) return;
 

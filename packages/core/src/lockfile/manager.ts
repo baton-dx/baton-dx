@@ -2,24 +2,32 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { parse, stringify } from "yaml";
 import { FileNotFoundError } from "../errors.js";
-import type { FileMetadata, LockFile, LockedPackage } from "../schemas/lockfile.js";
+import type {
+  FileMetadata,
+  LockFile,
+  LockedPackage,
+  LockfileConfigType,
+} from "../schemas/lockfile.js";
 import { lockfileSchema } from "../schemas/lockfile.js";
 
 /**
  * Metadata for a file to be recorded in the lockfile.
- * `content` is the raw file content (hashed to SHA-256).
- * `tool` and `category` annotate which tool and category this file belongs to.
+ * `content` is the raw source content (before tool transformation) — hashed to SHA-256.
+ * `type` is the canonical config type (e.g., "skills", "memory", "commands").
  */
 export interface LockFileEntry {
   content: string;
-  tool?: string;
-  category?: "ai" | "ide" | "files";
+  type?: LockfileConfigType;
 }
 
 /**
  * Generates a lockfile object with locked_at timestamp and package metadata.
+ *
+ * Keys in the `files` map should be canonical paths (e.g., `skills/add-adapter`,
+ * `memory/MEMORY.md`) — NOT tool-specific paths like `.claude/skills/add-adapter`.
+ *
  * Files can be provided as plain strings (content only, backward compat)
- * or as LockFileEntry objects with tool and category annotations.
+ * or as LockFileEntry objects with canonical type annotations.
  */
 export function generateLock(
   packages: Record<
@@ -38,7 +46,7 @@ export function generateLock(
   for (const [packageName, pkg] of Object.entries(packages)) {
     const integrity: Record<string, FileMetadata> = {};
 
-    // Generate SHA-256 hashes for each file, preserving tool/category metadata
+    // Generate SHA-256 hashes for each file with canonical type metadata
     for (const [filename, fileData] of Object.entries(pkg.files)) {
       const isEntry = typeof fileData === "object";
       const content = isEntry ? fileData.content : fileData;
@@ -46,8 +54,7 @@ export function generateLock(
 
       integrity[filename] = {
         hash,
-        tool: isEntry ? fileData.tool : undefined,
-        category: isEntry ? fileData.category : undefined,
+        type: isEntry ? fileData.type : undefined,
       };
     }
 
