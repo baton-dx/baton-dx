@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- [#65](https://github.com/baton-dx/baton-dx/pull/65) [`c0f5986`](https://github.com/baton-dx/baton-dx/commit/c0f59869bd4305d41bc58da31c17500438df9448) Thanks [@mantaray0](https://github.com/mantaray0)! - Add `baton source validate` command that validates source repository structure and manifests with 15 checks covering schema validation, file references, variable consistency, and orphaned profile detection
+
 ## 0.7.1
 
 ### Patch Changes
