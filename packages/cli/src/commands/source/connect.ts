@@ -60,6 +60,7 @@ export const connectCommand = defineCommand({
 
       const shouldSync = await p.confirm({
         message: "Would you like to sync profiles from this source now?",
+        initialValue: false,
       });
 
       if (p.isCancel(shouldSync) || !shouldSync) {
