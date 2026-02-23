@@ -1,4 +1,4 @@
-locked_at: 2026-02-23T14:38:28.429Z
+locked_at: 2026-02-23T16:25:49.563Z
 packages:
   base:
     source: ../base
@@ -22,7 +22,7 @@ packages:
     source: github:baton-dx/baton-dx-source/profiles/maintainer
     resolved: github:baton-dx/baton-dx-source/profiles/maintainer
     version: 0.1.0
-    sha: 54187cb4a6371b35efe91c880abd42905f23ff5c
+    sha: 4384ab8330ac7ece2291a32dc035e30e97765658
     integrity:
       skills/add-adapter:
         hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
