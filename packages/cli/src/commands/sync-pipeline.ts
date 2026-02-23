@@ -79,11 +79,10 @@ export async function copyDirectoryRecursive(
  */
 export async function handleGitignoreUpdate(params: {
   projectManifest: ProjectManifest;
-  fileMap: Map<string, { source: string; target: string; profileName: string }>;
   projectRoot: string;
   spinner: ReturnType<typeof p.spinner>;
 }): Promise<void> {
-  const { projectManifest, fileMap, projectRoot, spinner } = params;
+  const { projectManifest, projectRoot, spinner } = params;
   const gitignoreEnabled = projectManifest.gitignore !== false;
 
   // Always ensure .baton/ is gitignored
@@ -91,8 +90,7 @@ export async function handleGitignoreUpdate(params: {
 
   if (gitignoreEnabled) {
     spinner.start("Updating .gitignore...");
-    const fileTargets = [...fileMap.values()].map((f) => f.target);
-    const patterns = collectComprehensivePatterns({ fileTargets });
+    const patterns = collectComprehensivePatterns();
     const updated = await updateGitignore(projectRoot, patterns);
     spinner.stop(
       updated ? "Updated .gitignore with managed patterns" : ".gitignore already up to date",

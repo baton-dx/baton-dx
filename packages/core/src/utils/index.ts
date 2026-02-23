@@ -6,5 +6,4 @@ export {
   ensureBatonDirGitignored,
   removeGitignoreManagedSection,
   updateGitignore,
-  type CollectComprehensivePatternsOptions,
 } from "./gitignore.js";

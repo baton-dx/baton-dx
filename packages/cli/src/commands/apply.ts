@@ -1119,7 +1119,6 @@ export const applyCommand = defineCommand({
       if (!dryRun) {
         await handleGitignoreUpdate({
           projectManifest,
-          fileMap,
           projectRoot,
           spinner,
         });

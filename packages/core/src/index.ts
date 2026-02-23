@@ -44,7 +44,6 @@ export {
   updateGitignore,
   type ParsedSource,
   type ParsedFrontmatter,
-  type CollectComprehensivePatternsOptions,
 } from "./utils/index.js";
 
 // Export Git source provider

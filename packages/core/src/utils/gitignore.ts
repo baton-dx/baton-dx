@@ -154,27 +154,19 @@ export async function removeGitignoreManagedSection(projectRoot: string): Promis
 }
 
 /**
- * Parameters for collecting comprehensive gitignore patterns.
- */
-export interface CollectComprehensivePatternsOptions {
-  /** File targets placed by sync (from profile manifests, e.g. "biome.json") */
-  fileTargets: string[];
-}
-
-/**
  * Collect comprehensive gitignore patterns for ALL known AI tools and IDE platforms.
  *
  * Generates patterns for the entire tool and IDE registry, ensuring stable,
  * predictable .gitignore content regardless of which tools a profile supports
  * or a developer has installed.
  *
+ * Note: Project files (from the `files` section in profile manifests) are NOT
+ * gitignored — they should be committed so the project works without Baton.
+ *
  * Returns deduplicated, sorted patterns for AI tool and IDE configurations.
  */
-export function collectComprehensivePatterns(
-  options: CollectComprehensivePatternsOptions,
-): string[] {
+export function collectComprehensivePatterns(): string[] {
   const patterns = new Set<string>();
-  const { fileTargets } = options;
 
   // AI tool patterns: directories, memory files, and legacy paths for ALL known adapters
   const allAdapters = getAllAIToolAdapters();
@@ -207,11 +199,6 @@ export function collectComprehensivePatterns(
       const dir = targetDir.endsWith("/") ? targetDir : `${targetDir}/`;
       patterns.add(dir);
     }
-  }
-
-  // File targets from profiles
-  for (const target of fileTargets) {
-    patterns.add(target);
   }
 
   return [...patterns].sort();
