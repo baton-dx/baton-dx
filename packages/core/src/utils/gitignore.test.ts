@@ -151,7 +151,7 @@ describe("removeGitignoreManagedSection", () => {
 
   it("removes the managed section from .gitignore", async () => {
     const initial =
-      "node_modules/\n\n# Baton managed\n.vscode/\nbaton.lock\n# End Baton managed\n\n.env\n";
+      "node_modules/\n\n# Baton managed\n.vscode/\nCLAUDE.md\n# End Baton managed\n\n.env\n";
     await writeFile(join(tmpDir, ".gitignore"), initial, "utf-8");
 
     const removed = await removeGitignoreManagedSection(tmpDir);
@@ -161,7 +161,7 @@ describe("removeGitignoreManagedSection", () => {
     expect(content).toContain("node_modules/");
     expect(content).toContain(".env");
     expect(content).not.toContain("# Baton managed");
-    expect(content).not.toContain("baton.lock");
+    expect(content).not.toContain("CLAUDE.md");
     expect(content).not.toContain("# End Baton managed");
   });
 
@@ -242,9 +242,9 @@ describe("collectComprehensivePatterns", () => {
     expect(result).toContain(".editorconfig");
   });
 
-  it("always includes baton.lock", () => {
+  it("does not include baton.lock (lockfile should be committed)", () => {
     const result = collectComprehensivePatterns({ fileTargets: [] });
-    expect(result).toContain("baton.lock");
+    expect(result).not.toContain("baton.lock");
   });
 
   it("returns sorted, deduplicated patterns", () => {

@@ -168,7 +168,7 @@ export interface CollectComprehensivePatternsOptions {
  * predictable .gitignore content regardless of which tools a profile supports
  * or a developer has installed.
  *
- * Returns deduplicated, sorted patterns including baton.lock.
+ * Returns deduplicated, sorted patterns for AI tool and IDE configurations.
  */
 export function collectComprehensivePatterns(
   options: CollectComprehensivePatternsOptions,
@@ -213,9 +213,6 @@ export function collectComprehensivePatterns(
   for (const target of fileTargets) {
     patterns.add(target);
   }
-
-  // Always include baton.lock
-  patterns.add("baton.lock");
 
   return [...patterns].sort();
 }
