@@ -1,5 +1,16 @@
 # @baton-dx/cli
 
+## 0.9.0
+
+### Patch Changes
+
+- [#92](https://github.com/baton-dx/baton-dx/pull/92) [`fb5d6f2`](https://github.com/baton-dx/baton-dx/commit/fb5d6f2d4ea03664e2616c00b970755dc7d00de1) Thanks [@mantaray0](https://github.com/mantaray0)! - Add complete NPM source support with caching for sync, diff, and inheritance
+
+  - NPM sources now work in profile inheritance chains (`extends: npm:@scope/package`)
+  - `baton sync` resolves NPM sources alongside Git sources
+  - `baton diff` compares local files against NPM package contents
+  - Persistent NPM package cache in `~/.baton/cache/npm/` for faster repeated operations
+
 ## 0.8.3
 
 ### Patch Changes
