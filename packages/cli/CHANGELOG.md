@@ -1,5 +1,16 @@
 # @baton-dx/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#48](https://github.com/baton-dx/baton-dx/pull/48) [`be45cf8`](https://github.com/baton-dx/baton-dx/commit/be45cf8ea8fdd3f2b4067050791bfe5cf61e6025) Thanks [@mantaray0](https://github.com/mantaray0)! - Restructure CLI commands: add `baton apply` for deterministic lock-based sync, change `baton sync` to always fetch latest versions, deprecate `baton update`
+
+  - `baton apply` — applies locked configurations from `baton.lock` (deterministic, reproducible)
+  - `baton sync` — fetches latest versions, places files, and updates lockfile
+  - `baton update` — deprecated, delegates to `baton sync` with a warning
+  - `baton.lock` is no longer added to `.gitignore` — commit it for reproducible team builds
+
 ## 0.4.4
 
 ### Patch Changes
