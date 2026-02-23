@@ -14,6 +14,7 @@ import {
   type ProjectManifest,
   type RuleEntry,
   type RuleFile,
+  type Scope,
   type WeightConflictWarning,
   cloneGitSource,
   detectInstalledAITools,
@@ -36,6 +37,7 @@ import {
   readLock,
   resolvePreferences,
   resolveProfileChain,
+  resolveScope,
   sortProfilesByWeight,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -596,6 +598,7 @@ export const applyCommand = defineCommand({
           adapter: AIToolAdapter;
           type: "memory" | "rules" | "agents";
           name: string;
+          scope: Scope;
           profiles: Set<string>;
         }
       >();
@@ -636,7 +639,7 @@ export const applyCommand = defineCommand({
                 content: mergedContent,
               });
 
-              const targetPath = adapter.getPath("memory", "project", transformed.filename);
+              const targetPath = adapter.getPath("memory", memoryEntry.scope, transformed.filename);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -653,6 +656,7 @@ export const applyCommand = defineCommand({
                   adapter,
                   type: "memory",
                   name: transformed.filename,
+                  scope: memoryEntry.scope,
                   profiles,
                 });
               }
@@ -780,7 +784,7 @@ export const applyCommand = defineCommand({
 
               const transformed = adapter.transformRule(ruleFile);
 
-              const targetPath = adapter.getPath("rules", "project", ruleName);
+              const targetPath = adapter.getPath("rules", ruleEntry.scope, ruleName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -795,6 +799,7 @@ export const applyCommand = defineCommand({
                   adapter,
                   type: "rules",
                   name: ruleName,
+                  scope: ruleEntry.scope,
                   profiles: new Set([ruleEntry.profileName]),
                 });
               }
@@ -862,7 +867,7 @@ export const applyCommand = defineCommand({
 
               const transformed = adapter.transformAgent(agentFile);
 
-              const targetPath = adapter.getPath("agents", "project", agentName);
+              const targetPath = adapter.getPath("agents", agentEntry.scope, agentName);
               const absolutePath = targetPath.startsWith("/")
                 ? targetPath
                 : resolve(projectRoot, targetPath);
@@ -877,6 +882,7 @@ export const applyCommand = defineCommand({
                   adapter,
                   type: "agents",
                   name: agentName,
+                  scope: agentEntry.scope,
                   profiles: new Set([agentEntry.profileName]),
                 });
               }
@@ -899,7 +905,7 @@ export const applyCommand = defineCommand({
               combinedContent,
               entry.adapter,
               entry.type,
-              "project",
+              entry.scope,
               entry.name,
               placementConfig,
             );
@@ -968,7 +974,7 @@ export const applyCommand = defineCommand({
                   content,
                   adapter,
                   "commands",
-                  "project",
+                  resolveScope(undefined, profile.manifest.scope),
                   commandName,
                   placementConfig,
                 );

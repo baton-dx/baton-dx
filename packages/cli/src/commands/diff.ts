@@ -5,6 +5,7 @@ import {
   type MergedSkillItem,
   type RuleEntry,
   type RuleFile,
+  type Scope,
   cloneGitSource,
   detectInstalledAITools,
   getAIToolAdaptersForKeys,
@@ -20,6 +21,7 @@ import {
   parseFrontmatter,
   parseSource,
   resolveProfileChain,
+  resolveScope,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -131,10 +133,13 @@ export const diffCommand = defineCommand({
       const mergedMemory: MemoryEntry[] = mergeMemory(allProfiles);
 
       // Collect commands
-      const commandMap = new Map<string, string>();
+      const commandMap = new Map<string, { profileName: string; scope: Scope }>();
       for (const profile of allProfiles) {
         for (const cmd of profile.manifest.ai?.commands || []) {
-          commandMap.set(cmd, profile.name);
+          commandMap.set(cmd, {
+            profileName: profile.name,
+            scope: resolveScope(undefined, profile.manifest.scope),
+          });
         }
       }
 
@@ -242,7 +247,7 @@ export const diffCommand = defineCommand({
             filename: memoryEntry.filename,
             content: mergedContent,
           });
-          const targetPath = adapter.getPath("memory", "project", transformed.filename);
+          const targetPath = adapter.getPath("memory", memoryEntry.scope, transformed.filename);
           const absolutePath = resolveAbsolutePath(targetPath, projectRoot);
           const relativePath = toRelativePath(absolutePath, projectRoot);
           expectedPaths.add(relativePath);
@@ -330,7 +335,7 @@ export const diffCommand = defineCommand({
           };
 
           const transformed = adapter.transformRule(ruleFile);
-          const targetPath = adapter.getPath("rules", "project", ruleEntry.name);
+          const targetPath = adapter.getPath("rules", ruleEntry.scope, ruleEntry.name);
           const absolutePath = resolveAbsolutePath(targetPath, projectRoot);
           const relativePath = toRelativePath(absolutePath, projectRoot);
           expectedPaths.add(relativePath);
@@ -356,7 +361,7 @@ export const diffCommand = defineCommand({
 
       // --- Commands ---
       for (const adapter of adapters) {
-        for (const [commandName, profileName] of commandMap) {
+        for (const [commandName, { profileName, scope }] of commandMap) {
           const profileDir = profileLocalPaths.get(profileName);
           if (!profileDir) continue;
 
@@ -368,7 +373,7 @@ export const diffCommand = defineCommand({
             continue;
           }
 
-          const targetPath = adapter.getPath("commands", "project", commandName);
+          const targetPath = adapter.getPath("commands", scope, commandName);
           const absolutePath = resolveAbsolutePath(targetPath, projectRoot);
           const relativePath = toRelativePath(absolutePath, projectRoot);
           expectedPaths.add(relativePath);

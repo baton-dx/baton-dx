@@ -446,6 +446,94 @@ describe("Schema Validation - Profile Manifest", () => {
     });
   });
 
+  describe("Scope property", () => {
+    it("validates profile manifest with scope field", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        scope: "project",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.scope).toBe("project");
+      }
+    });
+
+    it("validates profile manifest with scope 'global'", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        scope: "global",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.scope).toBe("global");
+      }
+    });
+
+    it("validates profile manifest without scope (optional)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.scope).toBeUndefined();
+      }
+    });
+
+    it("validates memory item with scope field", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        ai: {
+          memory: [{ source: "CLAUDE.md", merge: "append", scope: "global" }],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates memory item without scope (optional)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        ai: {
+          memory: [{ source: "CLAUDE.md", merge: "append" }],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates skill item without scope (now optional)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        ai: {
+          skills: [{ name: "code-review" }],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("validates skill item with scope (still accepted)", () => {
+      const result = profileManifestSchema.safeParse({
+        name: "test",
+        version: "1.0.0",
+        ai: {
+          skills: [{ name: "code-review", scope: "project" }],
+        },
+      });
+
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe("Schema types", () => {
     it("validates scope schema with project and global", () => {
       expect(scopeSchema.safeParse("project").success).toBe(true);

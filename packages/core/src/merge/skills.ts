@@ -1,5 +1,7 @@
+import type { Scope } from "@baton-dx/ai-tool-paths";
 import type { ResolvedProfile } from "../inheritance/profile-chain.js";
 import type { SkillItem } from "../schemas/profile-manifest.js";
+import { resolveScope } from "./scope-resolution.js";
 import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 import type { WeightConflictWarning } from "./weight-sort.js";
 
@@ -7,6 +9,7 @@ import type { WeightConflictWarning } from "./weight-sort.js";
  * Merged skill item with profile attribution
  */
 export interface MergedSkillItem extends SkillItem {
+  scope: Scope; // Override to non-optional — always resolved by merge
   profileName: string;
 }
 
@@ -70,7 +73,11 @@ export function mergeSkillsWithWarnings(profiles: ResolvedProfile[]): MergeSkill
         });
       }
 
-      skillMap.set(skill.name, { ...skill, profileName: profile.name });
+      skillMap.set(skill.name, {
+        ...skill,
+        scope: resolveScope(skill.scope, profile.manifest.scope),
+        profileName: profile.name,
+      });
       keyOwner.set(skill.name, { profileName: profile.name, weight });
 
       if (locked) {

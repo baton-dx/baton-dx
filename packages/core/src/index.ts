@@ -20,6 +20,7 @@ export {
 
 // Export schemas (only those used externally)
 export { profileManifestSchema, KEBAB_CASE_REGEX } from "./schemas/profile-manifest.js";
+export type { MemoryItem } from "./schemas/profile-manifest.js";
 export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";
 
 export { projectManifestSchema } from "./schemas/project-manifest.js";
@@ -254,6 +255,9 @@ export {
   type MemoryContribution,
   type MergeMemoryResult,
 } from "./merge/memory.js";
+
+// Export scope resolution
+export { resolveScope } from "./merge/scope-resolution.js";
 
 // Export weight-based profile sorting
 export {

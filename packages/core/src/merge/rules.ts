@@ -1,4 +1,6 @@
+import type { Scope } from "@baton-dx/ai-tool-paths";
 import type { ResolvedProfile } from "../inheritance/profile-chain.js";
+import { resolveScope } from "./scope-resolution.js";
 import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 import type { WeightConflictWarning } from "./weight-sort.js";
 
@@ -8,6 +10,7 @@ import type { WeightConflictWarning } from "./weight-sort.js";
 export interface RuleEntry {
   name: string; // Rule filename (e.g., "coding-standards", "frontend/react")
   agents: string[]; // Target agent keys (empty array = universal)
+  scope: Scope; // Resolved scope for placement
   profileName: string; // Source profile name for file resolution
 }
 
@@ -81,6 +84,7 @@ export function mergeRulesWithWarnings(profiles: ResolvedProfile[]): MergeRulesR
         ruleMap.set(key, {
           name: ruleName,
           agents: [],
+          scope: resolveScope(undefined, profile.manifest.scope),
           profileName: profile.name,
         });
         keyOwner.set(key, { profileName: profile.name, weight });
@@ -115,6 +119,7 @@ export function mergeRulesWithWarnings(profiles: ResolvedProfile[]): MergeRulesR
           ruleMap.set(key, {
             name: ruleName,
             agents: isUniversal ? [] : [agentKey],
+            scope: resolveScope(undefined, profile.manifest.scope),
             profileName: profile.name,
           });
           keyOwner.set(key, { profileName: profile.name, weight });

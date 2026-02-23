@@ -26,11 +26,13 @@ describe("mergeAgents", () => {
     expect(result).toContainEqual({
       name: "code-reviewer",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "test-writer",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -59,11 +61,13 @@ describe("mergeAgents", () => {
     expect(result).toContainEqual({
       name: "code-reviewer",
       agents: ["claude-code"],
+      scope: "project",
       profileName: "base",
     });
     expect(result).toContainEqual({
       name: "cursor-agent",
       agents: ["cursor"],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -91,6 +95,7 @@ describe("mergeAgents", () => {
     expect(result[0]).toEqual({
       name: "shared-agent",
       agents: [],
+      scope: "project",
       profileName: "base",
     });
   });
@@ -317,5 +322,32 @@ describe("mergeAgents", () => {
     const result = mergeAgents(profiles);
 
     expect(result).toHaveLength(0);
+  });
+
+  test("agents from profile with scope 'global' get scope 'global'", () => {
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "./global-profile",
+        name: "global-profile",
+        manifest: {
+          name: "global-profile",
+          version: "1.0.0",
+          scope: "global",
+          ai: {
+            agents: ["code-reviewer"],
+          },
+        } as ProfileManifest,
+      },
+    ];
+
+    const result = mergeAgents(profiles);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      name: "code-reviewer",
+      agents: [],
+      scope: "global",
+      profileName: "global-profile",
+    });
   });
 });
