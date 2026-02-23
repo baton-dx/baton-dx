@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { weightSchema } from "./source-manifest.js";
 
-/**
- * Merge strategy types for file merging
- */
 export const mergeStrategySchema = z.enum([
   "replace",
   "deep",
@@ -13,123 +10,154 @@ export const mergeStrategySchema = z.enum([
   "prompt",
   "directory",
   "import",
-]);
+], {
+  errorMap: () => ({ message: "Merge strategy must be one of: replace, deep, append, prepend, skip, prompt, directory, import" }),
+});
 
-/**
- * Scope for configuration items
- */
-export const scopeSchema = z.enum(["project", "global"]);
+export const scopeSchema = z.enum(["project", "global"], {
+  errorMap: () => ({ message: "Scope must be either 'project' or 'global'" }),
+});
 
-/**
- * Skill item in profile manifest
- */
-export const skillItemSchema = z.object({
-  name: z.string(),
+const skillItemSchema = z.object({
+  name: z.string().min(1, "Skill name cannot be empty").max(64, "Skill name must be 64 characters or less"),
   scope: scopeSchema,
 });
 
-/**
- * Rules in profile manifest - can be either an array or an object
- */
 const rulesSchema = z.union([
-  // Array format: universal rules
-  z.array(z.string()),
-  // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
-  z.record(z.string(), z.array(z.string()).optional()),
+  z.array(z.string().min(1, "Rule path cannot be empty"), {
+    invalid_type_error: "Rules must be an array of strings or an object mapping tool keys to rule arrays",
+  }),
+  z.record(z.string().min(1, "Tool key cannot be empty"), z.array(z.string().min(1, "Rule path cannot be empty")).optional()),
 ]);
 
-/**
- * Agents in profile manifest - can be either an array or an object
- */
 const agentsSchema = z.union([
-  // Array format: universal agents
-  z.array(z.string()),
-  // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
-  z.record(z.string(), z.array(z.string()).optional()),
+  z.array(z.string().min(1, "Agent path cannot be empty"), {
+    invalid_type_error: "Agents must be an array of strings or an object mapping tool keys to agent arrays",
+  }),
+  z.record(z.string().min(1, "Tool key cannot be empty"), z.array(z.string().min(1, "Agent path cannot be empty")).optional()),
 ]);
 
-/**
- * Memory file configuration item
- *
- * Convention: Use "MEMORY.md" as source for generic memory that will be
- * automatically transformed to target-specific filenames (CLAUDE.md, AGENTS.md, etc.)
- *
- * Or use explicit filenames (CLAUDE.md, AGENTS.md) for tool-specific memory.
- */
 const memoryItemSchema = z.object({
-  source: z.string(), // e.g., "MEMORY.md", "CLAUDE.md", "AGENTS.md"
+  source: z.string().min(1, "Memory source filename cannot be empty").max(128, "Memory source filename must be 128 characters or less"),
   merge: mergeStrategySchema,
 });
 
-/**
- * Memory section in profile manifest - array of memory items
- */
-const memorySectionSchema = z.array(memoryItemSchema).optional();
+const memorySectionSchema = z.array(memoryItemSchema).max(10, "Cannot have more than 10 memory files").optional();
 
-/**
- * AI section in profile manifest
- */
 const aiSectionSchema = z
   .object({
-    tools: z.array(z.string()).optional(), // Target AI tools (e.g., ["claude-code", "cursor"])
-    skills: z.array(skillItemSchema).optional(),
+    tools: z.array(z.string().min(1, "Tool key cannot be empty")).max(50, "Cannot specify more than 50 AI tools").optional(),
+    skills: z.array(skillItemSchema).max(100, "Cannot have more than 100 skills").optional(),
     rules: rulesSchema.optional(),
     agents: agentsSchema.optional(),
-    memory: memorySectionSchema.optional(),
-    commands: z.array(z.string()).optional(),
+    memory: memorySectionSchema,
+    commands: z.array(z.string().min(1, "Command name cannot be empty")).max(100, "Cannot have more than 100 commands").optional(),
   })
   .optional();
 
-/**
- * File configuration item with optional target mapping
- */
 const fileConfigItemSchema = z.object({
-  source: z.string(), // e.g., "biome.json", "company/policy.md"
-  target: z.string().optional(), // Optional target path. If not specified, uses source as target
+  source: z.string().min(1, "File source path cannot be empty").max(256, "File source path must be 256 characters or less"),
+  target: z.string().max(256, "File target path must be 256 characters or less").optional(),
   merge: mergeStrategySchema,
 });
 
-/**
- * Files section in profile manifest - array of file configurations
- */
-const filesSectionSchema = z.array(fileConfigItemSchema).optional();
+const filesSectionSchema = z.array(fileConfigItemSchema).max(100, "Cannot have more than 100 file configurations").optional();
 
-/**
- * IDE section in profile manifest
- * Keys are IDE platform identifiers (e.g., vscode, jetbrains, zed, fleet)
- * Values are arrays of filenames to sync for that platform
- */
-const ideSectionSchema = z.record(z.string(), z.array(z.string())).optional();
+const ideSectionSchema = z.record(z.string().min(1, "IDE key cannot be empty"), z.array(z.string().min(1, "Filename cannot be empty"))).optional();
 
-/**
- * Profile manifest schema
- */
 import { KEBAB_CASE_REGEX, SEMVER_REGEX } from "./constants.js";
 export { KEBAB_CASE_REGEX } from "./constants.js";
 
+const profileNameSchema = z.string().min(1, "Profile name cannot be empty").max(64, "Profile name must be 64 characters or less").regex(KEBAB_CASE_REGEX, {
+  message: "Profile name must be kebab-case (e.g., my-profile). Use lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
+});
+
+const profileVersionSchema = z.string().min(1, "Version cannot be empty").regex(SEMVER_REGEX, {
+  message: "Version must be a valid semver string (e.g., 1.0.0, 2.1.3)",
+});
+
 export const profileManifestSchema = z.object({
-  name: z.string().regex(KEBAB_CASE_REGEX, {
-    message: "Profile name must be kebab-case (e.g., my-profile)",
-  }),
-  version: z.string().regex(SEMVER_REGEX, {
-    message: "Version must be a valid semver string (e.g., 1.0.0)",
-  }),
-  description: z.string().optional(),
+  name: profileNameSchema,
+  version: profileVersionSchema,
+  description: z.string().max(500, "Description must be 500 characters or less").optional(),
   extends: z
-    .union([z.string(), z.array(z.string())])
+    .union([z.string().min(1, "Extends source cannot be empty"), z.array(z.string().min(1, "Extends source cannot be empty")).min(1, "Extends array cannot be empty")])
     .transform((val) => (typeof val === "string" ? [val] : val))
     .optional(),
   weight: weightSchema.optional(),
   ai: aiSectionSchema,
   files: filesSectionSchema,
   ide: ideSectionSchema,
-  variables: z.record(z.string(), z.string()).optional(),
+  variables: z.record(z.string().min(1, "Variable name cannot be empty"), z.string()).max(50, "Cannot have more than 50 variables").optional(),
   hooks: z
     .object({
-      "post-install": z.string().optional(),
-      "post-update": z.string().optional(),
+      "post-install": z.string().max(1024, "Hook command must be 1024 characters or less").optional(),
+      "post-update": z.string().max(1024, "Hook command must be 1024 characters or less").optional(),
     })
     .optional(),
+}).superRefine((manifest, ctx) => {
+  if (manifest.extends && manifest.extends.length > 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Cannot extend more than 10 profiles",
+      path: ["extends"],
+    });
+  }
+
+  if (manifest.ai?.tools) {
+    const seen = new Set<string>();
+    for (const tool of manifest.ai.tools) {
+      if (seen.has(tool)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate AI tool "${tool}" found`,
+          path: ["ai", "tools"],
+        });
+      }
+      seen.add(tool);
+    }
+  }
+
+  if (manifest.ai?.skills) {
+    const seen = new Set<string>();
+    for (const skill of manifest.ai.skills) {
+      if (seen.has(skill.name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate skill "${skill.name}" found`,
+          path: ["ai", "skills"],
+        });
+      }
+      seen.add(skill.name);
+    }
+  }
+
+  if (manifest.files) {
+    const seen = new Set<string>();
+    for (const file of manifest.files) {
+      const target = file.target || file.source;
+      if (seen.has(target)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate file target "${target}" found`,
+          path: ["files"],
+        });
+      }
+      seen.add(target);
+    }
+  }
+
+  if (manifest.variables) {
+    for (const varName of Object.keys(manifest.variables)) {
+      if (!/^[A-Z_][A-Z0-9_]*$/.test(varName) && !/^[a-z_][a-z0-9_]*$/.test(varName)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Variable "${varName}" should use UPPER_SNAKE_CASE or lower_snake_case`,
+          path: ["variables", varName],
+        });
+      }
+    }
+  }
 });
 
 /**

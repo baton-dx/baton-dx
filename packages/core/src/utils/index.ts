@@ -8,3 +8,8 @@ export {
   updateGitignore,
   type CollectComprehensivePatternsOptions,
 } from "./gitignore.js";
+export {
+  resolveProfilesConcurrently,
+  fetchManifestsConcurrently,
+  type ProfileResolutionResult,
+} from "./concurrent-fetch.js";

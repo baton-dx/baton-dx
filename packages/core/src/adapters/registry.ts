@@ -15,17 +15,12 @@ import type { AIToolAdapter } from "./types.js";
 import { WindsurfAdapter } from "./windsurf.js";
 import { ZedAdapter } from "./zed.js";
 
-/**
- * Registry of all tool adapters
- * Singleton instances are created lazily on first access
- */
 const aiToolAdapterInstances = new Map<string, AIToolAdapter>();
+const customPlugins = new Map<string, AIToolAdapter>();
+let initialized = false;
 
-/**
- * Initialize all adapters
- */
 function initializeAIToolAdapters(): void {
-  if (aiToolAdapterInstances.size > 0) return; // Already initialized
+  if (initialized) return;
 
   const adapters: AIToolAdapter[] = [
     new ClaudeCodeAdapter(),
@@ -47,6 +42,12 @@ function initializeAIToolAdapters(): void {
   for (const adapter of adapters) {
     aiToolAdapterInstances.set(adapter.key, adapter);
   }
+
+  for (const [key, plugin] of customPlugins) {
+    aiToolAdapterInstances.set(key, plugin);
+  }
+
+  initialized = true;
 }
 
 /**
@@ -77,11 +78,40 @@ export function getAllAIToolAdapters(): AIToolAdapter[] {
   return Array.from(aiToolAdapterInstances.values());
 }
 
-/**
- * Get adapters for the given tool keys
- * @param keys - Array of tool keys
- * @returns Array of adapter instances
- */
 export function getAIToolAdaptersForKeys(keys: string[]): AIToolAdapter[] {
   return keys.map((key) => getAIToolAdapter(key));
+}
+
+export function registerAIToolPlugin(adapter: AIToolAdapter): void {
+  if (!adapter.key || typeof adapter.key !== "string") {
+    throw new Error("Plugin adapter must have a valid string 'key' property");
+  }
+  if (!adapter.name || typeof adapter.name !== "string") {
+    throw new Error("Plugin adapter must have a valid string 'name' property");
+  }
+  if (typeof adapter.isInstalled !== "function") {
+    throw new Error("Plugin adapter must implement 'isInstalled()' method");
+  }
+  if (typeof adapter.getPath !== "function") {
+    throw new Error("Plugin adapter must implement 'getPath()' method");
+  }
+
+  customPlugins.set(adapter.key, adapter);
+
+  if (initialized) {
+    aiToolAdapterInstances.set(adapter.key, adapter);
+  }
+}
+
+export function unregisterAIToolPlugin(key: string): boolean {
+  customPlugins.delete(key);
+  return aiToolAdapterInstances.delete(key);
+}
+
+export function getRegisteredPluginKeys(): string[] {
+  return Array.from(customPlugins.keys());
+}
+
+export function isPluginRegistered(key: string): boolean {
+  return customPlugins.has(key);
 }

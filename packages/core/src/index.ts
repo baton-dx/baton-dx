@@ -42,9 +42,12 @@ export {
   ensureBatonDirGitignored,
   removeGitignoreManagedSection,
   updateGitignore,
+  resolveProfilesConcurrently,
+  fetchManifestsConcurrently,
   type ParsedSource,
   type ParsedFrontmatter,
   type CollectComprehensivePatternsOptions,
+  type ProfileResolutionResult,
 } from "./utils/index.js";
 
 // Export Git source provider
@@ -163,6 +166,10 @@ export {
   getAIToolAdapter,
   getAllAIToolAdapters,
   getAIToolAdaptersForKeys,
+  registerAIToolPlugin,
+  unregisterAIToolPlugin,
+  getRegisteredPluginKeys,
+  isPluginRegistered,
 } from "./adapters/registry.js";
 
 // Export placement engine
