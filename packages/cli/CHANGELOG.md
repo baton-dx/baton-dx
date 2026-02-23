@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.7.1
+
+### Patch Changes
+
+- [#62](https://github.com/baton-dx/baton-dx/pull/62) [`fde299a`](https://github.com/baton-dx/baton-dx/commit/fde299ab6b786242c377463f21102b14d6fe5e79) Thanks [@mantaray0](https://github.com/mantaray0)! - Release CLI with self-update fix that adds --latest flag for bun/pnpm and uses install @latest for npm
+
 ## 0.7.0
 
 ### Minor Changes
