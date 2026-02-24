@@ -6,6 +6,64 @@
 
 **Baton is a CLI package manager for Developer Experience & AI configuration.** Manage Skills, Rules, Agents, Memory Files, and file configs as versioned, composable profiles for 14 AI coding tools.
 
+## Why Baton?
+
+| | Without Baton | With Baton |
+|---|---|---|
+| **Setup** | Manually copy and adapt config files for each AI tool | `baton init` + `baton sync` — done in seconds |
+| **Team Consistency** | Config drift — every dev diverges over time | One source of truth, version-locked with `baton.lock` |
+| **Cross-Project** | Each repo has its own ad-hoc AI configs, no shared standard | Same profiles across all your projects — consistent by default |
+| **Multiple Tools** | Even 2–3 AI tools mean 2–3 different formats to maintain | One manifest, automatically transformed per tool |
+| **Onboarding** | New devs spend hours recreating the "right" AI setup | `baton sync` — match the team instantly |
+
+**Without Baton** — manual config per project, per tool:
+
+```mermaid
+graph TB
+    D("Developer"):::person --> P1("Project A"):::project
+    D --> P2("Project B"):::project
+    D --> P3("Project C"):::project
+
+    P1 --> T1A("Claude Code"):::config
+    P1 --> T1B("Cursor"):::config
+    P1 --> T1C("Copilot"):::config
+
+    P2 --> T2A("Claude Code"):::config
+    P2 --> T2B("Cursor"):::config
+    P2 --> T2C("Copilot"):::config
+
+    P3 --> T3A("Claude Code"):::config
+    P3 --> T3B("Cursor"):::config
+    P3 --> T3C("Copilot"):::config
+
+    classDef person fill:#fee2e2,stroke:#fca5a5,color:#991b1b,stroke-width:2px
+    classDef project fill:#fff7ed,stroke:#fdba74,color:#9a3412,stroke-width:2px
+    classDef config fill:#fef2f2,stroke:#fca5a5,color:#b91c1c,stroke-width:1px
+
+    linkStyle default stroke:#f87171,stroke-width:1.5px
+```
+
+**With Baton** — one source, every project in sync:
+
+```mermaid
+graph TB
+    S("Source Repo"):::source -->|"baton sync"| P1("Project A"):::project
+    S -->|"baton sync"| P2("Project B"):::project
+    S -->|"baton sync"| P3("Project C"):::project
+
+    P1 --> T1("All tools configured"):::done
+    P2 --> T2("All tools configured"):::done
+    P3 --> T3("All tools configured"):::done
+
+    classDef source fill:#dcfce7,stroke:#86efac,color:#166534,stroke-width:2px
+    classDef project fill:#f0fdf4,stroke:#86efac,color:#166534,stroke-width:2px
+    classDef done fill:#bbf7d0,stroke:#4ade80,color:#14532d,stroke-width:2px
+
+    linkStyle default stroke:#4ade80,stroke-width:1.5px
+```
+
+Baton currently supports 14 AI coding tools — see the [full list below](#supported-ai-tools).
+
 ## Quick Start
 
 ```bash
