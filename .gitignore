@@ -54,7 +54,6 @@ scripts/ralph/.last-branch
 .claude/agents/
 .claude/commands/
 .claude/rules/
-.claude/settings.json
 .claude/skills/
 .cline/agents/
 .cline/commands/
