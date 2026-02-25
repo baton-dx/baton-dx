@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { ResolvedProfile } from "../inheritance/profile-chain.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import {
-  WEIGHT_LOCK,
   getProfileWeight,
   isLockedProfile,
   sortProfilesByWeight,
+  WEIGHT_LOCK,
 } from "./weight-sort.js";
 
 function makeProfile(name: string, weight?: number): ResolvedProfile {

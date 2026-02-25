@@ -35,7 +35,7 @@ describe("mergeDeep", () => {
       (acc, line) => {
         const [key, value] = line.split(": ");
         if (key && value) {
-          acc[key] = Number.parseInt(value);
+          acc[key] = Number.parseInt(value, 10);
         }
         return acc;
       },

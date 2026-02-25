@@ -1,126 +1,11 @@
 import { resolve } from "node:path";
 import { cloneGitSource, discoverProfilesInSourceRepo, parseSource } from "@baton-dx/core";
 import * as p from "@clack/prompts";
-
-/**
- * Discovers and prompts user to select a profile from a source.
- * Used by `baton init --profile` and `baton manage` (add profile).
- *
- * @param sourceString - Source string to discover profiles from (e.g., "github:org/repo")
- * @returns Final source string with selected profile path (e.g., "github:org/repo/frontend")
- */
-export async function selectProfileFromSource(sourceString: string): Promise<string> {
-  const parsedSource = parseSource(sourceString);
-
-  // Only GitHub/GitLab sources without subpath require interactive selection
-  if (
-    (parsedSource.provider === "github" || parsedSource.provider === "gitlab") &&
-    !parsedSource.subpath
-  ) {
-    const spinner = p.spinner();
-    spinner.start("Cloning repository to discover profiles...");
-
-    try {
-      // Clone repo temporarily to discover profiles
-      const cloned = await cloneGitSource({
-        url: parsedSource.url,
-        ref: parsedSource.ref,
-        useCache: true,
-        maxCacheAgeMs: 0,
-      });
-
-      spinner.stop("✅ Repository cloned");
-
-      // Discover all profiles in the source repo
-      const profiles = await discoverProfilesInSourceRepo(cloned.localPath);
-
-      if (profiles.length === 0) {
-        p.cancel("❌ No profiles found in the source repository");
-        process.exit(1);
-      }
-
-      // Show profile selection
-      const selectedProfilePath = (await p.select({
-        message: "Select a profile from this source:",
-        options: profiles.map((profile) => ({
-          value: profile.path,
-          label: profile.name,
-          hint: profile.description
-            ? `${profile.description} (v${profile.version})`
-            : `v${profile.version}`,
-        })),
-      })) as string;
-
-      if (p.isCancel(selectedProfilePath)) {
-        p.cancel("❌ Profile selection cancelled");
-        process.exit(0);
-      }
-
-      // Construct final source string with selected profile path
-      // Format: github:org/repo[@ref]/profile
-      if (selectedProfilePath === ".") {
-        // Root profile - no subpath needed
-        return sourceString;
-      }
-      // Sub-profile - append to source string
-      const baseSource = parsedSource.ref
-        ? `${parsedSource.provider}:${parsedSource.org}/${parsedSource.repo}@${parsedSource.ref}`
-        : `${parsedSource.provider}:${parsedSource.org}/${parsedSource.repo}`;
-      return `${baseSource}/${selectedProfilePath}`;
-    } catch (error) {
-      spinner.stop("❌ Failed to clone repository");
-      p.cancel(
-        `❌ Failed to discover profiles: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      process.exit(1);
-    }
-  }
-
-  // Local/file sources: discover profiles from local directory
-  if (parsedSource.provider === "file" || parsedSource.provider === "local") {
-    const absolutePath = parsedSource.path.startsWith("/")
-      ? parsedSource.path
-      : resolve(process.cwd(), parsedSource.path);
-
-    const profiles = await discoverProfilesInSourceRepo(absolutePath);
-
-    if (profiles.length === 0) {
-      // Possibly pointing directly at a single profile
-      return sourceString;
-    }
-
-    if (profiles.length === 1) {
-      const profilePath =
-        profiles[0].path === "." ? sourceString : `${sourceString}/${profiles[0].path}`;
-      return profilePath;
-    }
-
-    // Multiple profiles - show single-select
-    const selectedProfilePath = (await p.select({
-      message: "Select a profile from this source:",
-      options: profiles.map((profile) => ({
-        value: profile.path,
-        label: profile.name,
-        hint: profile.description
-          ? `${profile.description} (v${profile.version})`
-          : `v${profile.version}`,
-      })),
-    })) as string;
-
-    if (p.isCancel(selectedProfilePath)) {
-      p.cancel("❌ Profile selection cancelled");
-      process.exit(0);
-    }
-
-    if (selectedProfilePath === ".") {
-      return sourceString;
-    }
-    return `${sourceString}/${selectedProfilePath}`;
-  }
-
-  // Direct path provided or non-GitHub/GitLab source - return as-is
-  return sourceString;
-}
+import {
+  buildHierarchicalSelectOptions,
+  buildProfileTree,
+  getInheritedProfiles,
+} from "./profile-tree.js";
 
 /**
  * Discovers and prompts user to select multiple profiles from a source.
@@ -175,20 +60,32 @@ export async function selectMultipleProfilesFromSource(
         return profiles.map((prof) => constructProfilePath(parsedSource, prof.path));
       }
 
-      // Multiple profiles - show multi-select
+      // Multiple profiles - show hierarchical multi-select
+      const roots = buildProfileTree(profiles);
+      const selectOptions = buildHierarchicalSelectOptions(roots);
+
       const selected = (await p.multiselect({
         message: "Select profile(s) to install: (Space to select, Enter to continue)",
-        options: profiles.map((prof) => ({
-          value: prof.path,
-          label: prof.name,
-          hint: prof.description ? `${prof.description} (v${prof.version})` : `v${prof.version}`,
-        })),
+        options: selectOptions,
         required: true,
       })) as string[];
 
       if (p.isCancel(selected)) {
         p.cancel("❌ Profile selection cancelled");
         process.exit(0);
+      }
+
+      // Show inheritance note for selected profiles
+      const selectedNames = selected
+        .map((path) => profiles.find((pr) => pr.path === path)?.name)
+        .filter((name): name is string => name !== undefined);
+
+      const inherited = getInheritedProfiles(selectedNames, profiles);
+      if (inherited.length > 0) {
+        p.note(
+          `Durch deine Auswahl werden folgende Profile via Inheritance mitgesynct:\n${inherited.map((n) => `  • ${n}`).join("\n")}`,
+          "Inheritance",
+        );
       }
 
       // Map selected paths to full source strings
@@ -230,20 +127,32 @@ export async function selectMultipleProfilesFromSource(
       );
     }
 
-    // Multiple profiles - show multi-select
+    // Multiple profiles - show hierarchical multi-select
+    const roots = buildProfileTree(profiles);
+    const selectOptions = buildHierarchicalSelectOptions(roots);
+
     const selected = (await p.multiselect({
       message: "Select profile(s) to install: (Space to select, Enter to continue)",
-      options: profiles.map((prof) => ({
-        value: prof.path,
-        label: prof.name,
-        hint: prof.description ? `${prof.description} (v${prof.version})` : `v${prof.version}`,
-      })),
+      options: selectOptions,
       required: true,
     })) as string[];
 
     if (p.isCancel(selected)) {
       p.cancel("❌ Profile selection cancelled");
       process.exit(0);
+    }
+
+    // Show inheritance note for selected profiles
+    const selectedNames = selected
+      .map((path) => profiles.find((pr) => pr.path === path)?.name)
+      .filter((name): name is string => name !== undefined);
+
+    const inherited = getInheritedProfiles(selectedNames, profiles);
+    if (inherited.length > 0) {
+      p.note(
+        `Durch deine Auswahl werden folgende Profile via Inheritance mitgesynct:\n${inherited.map((n) => `  • ${n}`).join("\n")}`,
+        "Inheritance",
+      );
     }
 
     return selected.map((path) => (path === "." ? sourceString : `${sourceString}/${path}`));

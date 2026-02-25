@@ -108,6 +108,7 @@ const ideSectionSchema = z.record(z.string(), z.array(z.string())).optional();
  * Profile manifest schema
  */
 import { KEBAB_CASE_REGEX, SEMVER_REGEX } from "./constants.js";
+
 export { KEBAB_CASE_REGEX } from "./constants.js";
 
 export const profileManifestSchema = z.object({
@@ -119,8 +120,10 @@ export const profileManifestSchema = z.object({
   }),
   description: z.string().optional(),
   extends: z
-    .union([z.string(), z.array(z.string())])
-    .transform((val) => (typeof val === "string" ? [val] : val))
+    .string()
+    .regex(KEBAB_CASE_REGEX, {
+      message: "extends must be a kebab-case profile name (e.g., 'base', 'react-base')",
+    })
     .optional(),
   weight: weightSchema.optional(),
   scope: scopeSchema.optional(),

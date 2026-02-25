@@ -31,7 +31,6 @@ describe("Global Config", () => {
     if (originalBatonHome !== undefined) {
       process.env.BATON_HOME = originalBatonHome;
     } else {
-      // biome-ignore lint/performance/noDelete: required to properly unset env vars in Node.js
       delete process.env.BATON_HOME;
     }
     await rm(tempDir, { recursive: true, force: true });

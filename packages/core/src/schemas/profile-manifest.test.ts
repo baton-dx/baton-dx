@@ -17,7 +17,7 @@ describe("Schema Validation - Profile Manifest", () => {
         name: "full-profile",
         version: "2.3.5",
         description: "Complete profile with all sections",
-        extends: ["github:org/base-profile"],
+        extends: "base-profile",
         ai: {
           tools: ["claude-code", "cursor"],
           skills: [{ name: "code-review", scope: "project" }],

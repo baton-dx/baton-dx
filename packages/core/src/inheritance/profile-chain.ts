@@ -1,4 +1,4 @@
-import { relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { CircularInheritanceError, FileNotFoundError } from "../errors.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import { cloneGitSource, expandSparseCheckout } from "../sources/git-clone.js";
@@ -54,15 +54,23 @@ export async function resolveProfileChain(
   const chain: ResolvedProfile[] = [];
   const visited = new Set<string>();
 
+  // Normalize source to absolute path for local/file providers.
+  // This ensures cycle detection works correctly when mixing relative and absolute paths,
+  // and provides localPath so name-based extends resolution can find sibling profiles.
+  const parsed = parseSource(source);
+  const isLocal = parsed.provider === "local" || parsed.provider === "file";
+  const normalizedSource = isLocal ? resolve(baseDir, parsed.path) : source;
+  const initialLocalPath = isLocal ? resolve(baseDir, parsed.path) : undefined;
+
   // Start with the root profile
   await resolveChainRecursive(
     manifest,
-    source,
+    normalizedSource,
     baseDir,
     chain,
     visited,
     [],
-    undefined,
+    initialLocalPath,
     cloneContext,
   );
 
@@ -109,39 +117,41 @@ async function resolveChainRecursive(
   currentVisited.add(source);
   path.push(manifest.name);
 
-  // Process extends (parent profiles) first
-  if (manifest.extends && manifest.extends.length > 0) {
-    for (const extendSource of manifest.extends) {
-      try {
-        // Load parent profile
-        const { manifest: parentManifest, localPath: parentLocalPath } =
-          await loadProfileFromSource(extendSource, baseDir, cloneContext);
+  // Process extends (single parent profile)
+  if (manifest.extends) {
+    const extendSource = resolveExtendsToPath(manifest.extends, localPath);
+    try {
+      // Load parent profile
+      const { manifest: parentManifest, localPath: parentLocalPath } = await loadProfileFromSource(
+        extendSource,
+        baseDir,
+        cloneContext,
+      );
 
-        // Recursively resolve parent chain with current visited set
-        await resolveChainRecursive(
-          parentManifest,
-          extendSource,
-          baseDir,
-          chain,
-          currentVisited,
-          [...path],
-          parentLocalPath,
-          cloneContext,
-        );
-      } catch (error) {
-        // Re-throw critical errors that should not be swallowed
-        if (error instanceof CircularInheritanceError) {
-          throw error;
-        }
-        if (error instanceof Error && error.message.includes("exceeds maximum depth")) {
-          throw error;
-        }
-        // Re-throw all other errors with enhanced context
-        const cause = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Failed to resolve extends '${extendSource}' from profile '${manifest.name}': ${cause}`,
-        );
+      // Recursively resolve parent chain with current visited set
+      await resolveChainRecursive(
+        parentManifest,
+        extendSource,
+        baseDir,
+        chain,
+        currentVisited,
+        [...path],
+        parentLocalPath,
+        cloneContext,
+      );
+    } catch (error) {
+      // Re-throw critical errors that should not be swallowed
+      if (error instanceof CircularInheritanceError) {
+        throw error;
       }
+      if (error instanceof Error && error.message.includes("exceeds maximum depth")) {
+        throw error;
+      }
+      // Re-throw all other errors with enhanced context
+      const cause = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to resolve extends '${extendSource}' from profile '${manifest.name}': ${cause}`,
+      );
     }
   }
 
@@ -155,6 +165,24 @@ async function resolveChainRecursive(
 
   // Remove from path for sibling processing
   path.pop();
+}
+
+/**
+ * Resolves an extends value to a path for loadProfileFromSource.
+ *
+ * If the value is a plain profile name (kebab-case, no slashes or colons),
+ * it resolves as a sibling profile: ../name relative to the current profile's localPath.
+ *
+ * If localPath is not available (unusual edge case), returns the name as-is
+ * (which would fail to resolve and surface an error to the user).
+ */
+function resolveExtendsToPath(extendsValue: string, localPath?: string): string {
+  // Plain profile name — resolve as sibling
+  if (/^[a-z0-9][a-z0-9-]*$/.test(extendsValue) && localPath) {
+    return join(localPath, "..", extendsValue);
+  }
+  // Already a path or URL — return as-is (legacy support, prevented by schema)
+  return extendsValue;
 }
 
 /**

@@ -2,8 +2,8 @@ import type { Scope } from "@baton-dx/ai-tool-paths";
 import type { ResolvedProfile } from "../inheritance/profile-chain.js";
 import type { SkillItem } from "../schemas/profile-manifest.js";
 import { resolveScope } from "./scope-resolution.js";
-import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 import type { WeightConflictWarning } from "./weight-sort.js";
+import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 
 /**
  * Merged skill item with profile attribution

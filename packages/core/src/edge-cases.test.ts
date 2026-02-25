@@ -61,57 +61,36 @@ description: This YAML is corrupted
   });
 
   it("Circular extends chain: CircularInheritanceError with chain displayed", async () => {
-    // Create circular inheritance: A -> B -> C -> A
-    // Use baton.profile.yaml naming convention for auto-detection
-    const dirA = join(testDir, "profile-a");
-    const dirB = join(testDir, "profile-b");
-    const dirC = join(testDir, "profile-c");
-
+    // Create circular inheritance: A -> B -> C -> A using sibling name-based extends
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(dirA, { recursive: true });
-    await mkdir(dirB, { recursive: true });
-    await mkdir(dirC, { recursive: true });
-
-    const profileA = join(dirA, "baton.profile.yaml");
-    const profileB = join(dirB, "baton.profile.yaml");
-    const profileC = join(dirC, "baton.profile.yaml");
+    const profilesDir = join(testDir, "profiles");
+    await mkdir(join(profilesDir, "profile-a"), { recursive: true });
+    await mkdir(join(profilesDir, "profile-b"), { recursive: true });
+    await mkdir(join(profilesDir, "profile-c"), { recursive: true });
 
     await writeFile(
-      profileA,
-      `name: profile-a
-version: 1.0.0
-extends:
-  - ${dirB}
-`,
+      join(profilesDir, "profile-a", "baton.profile.yaml"),
+      `name: profile-a\nversion: 1.0.0\nextends: profile-b\n`,
     );
-
     await writeFile(
-      profileB,
-      `name: profile-b
-version: 1.0.0
-extends:
-  - ${dirC}
-`,
+      join(profilesDir, "profile-b", "baton.profile.yaml"),
+      `name: profile-b\nversion: 1.0.0\nextends: profile-c\n`,
     );
-
     await writeFile(
-      profileC,
-      `name: profile-c
-version: 1.0.0
-extends:
-  - ${dirA}
-`,
+      join(profilesDir, "profile-c", "baton.profile.yaml"),
+      `name: profile-c\nversion: 1.0.0\nextends: profile-a\n`,
     );
 
-    // Load profile A should detect circular chain
+    const profileA = join(profilesDir, "profile-a", "baton.profile.yaml");
     const manifestA = await loadProfileManifest(profileA);
 
-    await expect(resolveProfileChain(manifestA, dirA, testDir)).rejects.toThrow(
+    await expect(resolveProfileChain(manifestA, "./profiles/profile-a", testDir)).rejects.toThrow(
       CircularInheritanceError,
     );
 
-    // Error message should display the cycle path
-    await expect(resolveProfileChain(manifestA, dirA, testDir)).rejects.toThrow(/circular/i);
+    await expect(resolveProfileChain(manifestA, "./profiles/profile-a", testDir)).rejects.toThrow(
+      /circular/i,
+    );
   });
 
   it("No internet: Git clone falls back to cache with warning", async () => {
@@ -160,45 +139,27 @@ extends:
   });
 
   it("Maximum chain depth: Error when inheritance exceeds 10 levels", async () => {
-    // Create a deep inheritance chain (11 levels)
+    // Create a deep inheritance chain (11 levels) using sibling name-based extends
     const { mkdir } = await import("node:fs/promises");
-    const profileDirs: string[] = [];
-    const profilePaths: string[] = [];
+    const profilesDir = join(testDir, "profiles");
 
-    for (let i = 0; i < 11; i++) {
-      const dir = join(testDir, `profile-${i}`);
-      const profilePath = join(dir, "baton.profile.yaml");
-      profileDirs.push(dir);
-      profilePaths.push(profilePath);
-
+    for (let i = 0; i < 12; i++) {
+      const dir = join(profilesDir, `level-${i}`);
       await mkdir(dir, { recursive: true });
-
-      if (i === 0) {
-        // Base profile (no extends)
-        await writeFile(
-          profilePath,
-          `name: profile-${i}
-version: 1.0.0
-`,
-        );
-      } else {
-        // Extends previous profile
-        await writeFile(
-          profilePath,
-          `name: profile-${i}
-version: 1.0.0
-extends:
-  - ${profileDirs[i - 1]}
-`,
-        );
-      }
+      const extendsLine = i > 0 ? `extends: level-${i - 1}\n` : "";
+      await writeFile(
+        join(dir, "baton.profile.yaml"),
+        `name: level-${i}\nversion: 1.0.0\n${extendsLine}`,
+      );
     }
 
-    // Load deepest profile (should exceed max depth of 10)
-    const manifestDeep = await loadProfileManifest(profilePaths[10]);
+    // Load deepest profile (level-11 extends level-10 ... extends level-0)
+    const manifestDeep = await loadProfileManifest(
+      join(profilesDir, "level-11", "baton.profile.yaml"),
+    );
 
     // Should throw error about maximum depth exceeded
-    await expect(resolveProfileChain(manifestDeep, profileDirs[10], testDir)).rejects.toThrow(
+    await expect(resolveProfileChain(manifestDeep, "./profiles/level-11", testDir)).rejects.toThrow(
       /maximum.*depth/i,
     );
   });

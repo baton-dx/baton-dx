@@ -1,7 +1,7 @@
 export {
-  placementStateSchema,
-  type PlacementState,
   getStatePath,
+  type PlacementState,
+  placementStateSchema,
   readState,
   writeState,
 } from "./state.js";

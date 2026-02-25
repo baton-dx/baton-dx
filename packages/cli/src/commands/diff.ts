@@ -1,11 +1,6 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
-  type MemoryEntry,
-  type MergedSkillItem,
-  type RuleEntry,
-  type RuleFile,
-  type Scope,
   cloneGitSource,
   detectInstalledAITools,
   getAIToolAdaptersForKeys,
@@ -14,15 +9,20 @@ import {
   getIdePlatformTargetDir,
   loadProfileManifest,
   loadProjectManifest,
+  type MemoryEntry,
+  type MergedSkillItem,
   mergeContentParts,
   mergeMemory,
   mergeRules,
   mergeSkills,
   parseFrontmatter,
   parseSource,
+  type RuleEntry,
+  type RuleFile,
   resolveNpmSource,
   resolveProfileChain,
   resolveScope,
+  type Scope,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";

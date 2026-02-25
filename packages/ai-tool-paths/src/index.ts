@@ -1,3 +1,10 @@
+export {
+  getAIToolConfig,
+  getAIToolPath,
+  getAllAIToolKeys,
+  getLegacyPaths,
+} from "./helpers.js";
+export { AI_TOOL_PATHS } from "./registry.js";
 export type {
   AIToolPathConfig,
   AppBundleCheck,
@@ -12,10 +19,3 @@ export type {
   VscodeExtensionCheck,
 } from "./types.js";
 export { AIToolNotFoundError } from "./types.js";
-export { AI_TOOL_PATHS } from "./registry.js";
-export {
-  getAIToolConfig,
-  getAIToolPath,
-  getAllAIToolKeys,
-  getLegacyPaths,
-} from "./helpers.js";

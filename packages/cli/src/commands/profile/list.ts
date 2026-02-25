@@ -2,15 +2,18 @@ import { discoverProfilesInSourceRepo } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { isInSourceRepo } from "../../utils/context-detection.js";
+import { buildProfileTree, renderProfileTree } from "../../utils/profile-tree.js";
 
 export const profileListCommand = defineCommand({
   meta: {
     name: "profile list",
     description: `List all profiles in the current source repository
 
-Shows a table of all profiles with:
-  - Profile name (root profile marked with "(root)")
+Shows a hierarchy tree and table of all profiles with:
+  - Profile name
   - Version from baton.profile.yaml
+  - Weight (merge priority)
+  - Extends (parent profiles)
   - Description from profile manifest
 
 Examples:
@@ -40,26 +43,36 @@ Note: Must be run from a source repository (directory with baton.source.yaml)`,
       process.exit(0);
     }
 
-    // Build table output
+    // --- Section 1: Hierarchy Tree ---
+    const roots = buildProfileTree(profiles);
+    const treeOutput = renderProfileTree(roots);
+    p.note(treeOutput, "Profile Hierarchy");
+
+    // --- Section 2: Table with weight and extends ---
     const lines: string[] = [];
-    lines.push("┌─────────────────────┬─────────┬────────────────────────────────────┐");
-    lines.push("│ Name                │ Version │ Description                        │");
-    lines.push("├─────────────────────┼─────────┼────────────────────────────────────┤");
+    lines.push(
+      "┌─────────────────────┬─────────┬────────┬──────────────────┬────────────────────────────┐",
+    );
+    lines.push(
+      "│ Name                │ Version │ Weight │ Extends          │ Description                │",
+    );
+    lines.push(
+      "├─────────────────────┼─────────┼────────┼──────────────────┼────────────────────────────┤",
+    );
 
     for (const profile of profiles) {
-      const name = profile.name;
-      const version = profile.version || "-";
-      const description = profile.description || "-";
+      const name = profile.name.slice(0, 19).padEnd(19);
+      const version = (profile.version || "-").slice(0, 7).padEnd(7);
+      const weight = String(profile.weight ?? 0).padEnd(6);
+      const extendsStr = (profile.extends ?? "—").slice(0, 16).padEnd(16);
+      const description = (profile.description || "-").slice(0, 26).padEnd(26);
 
-      // Pad columns to fixed width
-      const namePadded = name.padEnd(19);
-      const versionPadded = version.padEnd(7);
-      const descPadded = description.padEnd(34);
-
-      lines.push(`│ ${namePadded} │ ${versionPadded} │ ${descPadded} │`);
+      lines.push(`│ ${name} │ ${version} │ ${weight} │ ${extendsStr} │ ${description} │`);
     }
 
-    lines.push("└─────────────────────┴─────────┴────────────────────────────────────┘");
+    lines.push(
+      "└─────────────────────┴─────────┴────────┴──────────────────┴────────────────────────────┘",
+    );
 
     p.note(lines.join("\n"), "Profiles");
     p.outro(`Found ${profiles.length} profile${profiles.length === 1 ? "" : "s"}`);

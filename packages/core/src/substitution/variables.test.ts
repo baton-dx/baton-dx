@@ -33,9 +33,7 @@ describe("isBinaryFile", () => {
 describe("substituteVariables", () => {
   afterEach(() => {
     // Clean up any registered Handlebars helpers
-    // @ts-ignore - accessing private API for cleanup
     if (typeof Handlebars !== "undefined" && Handlebars.helpers) {
-      // biome-ignore lint/performance/noDelete: Handlebars cleanup requires delete
       delete Handlebars.helpers.helperMissing;
     }
   });
@@ -128,9 +126,7 @@ describe("substituteVariables", () => {
 describe("processFileContent", () => {
   afterEach(() => {
     // Clean up any registered Handlebars helpers
-    // @ts-ignore - accessing private API for cleanup
     if (typeof Handlebars !== "undefined" && Handlebars.helpers) {
-      // biome-ignore lint/performance/noDelete: Handlebars cleanup requires delete
       delete Handlebars.helpers.helperMissing;
     }
   });

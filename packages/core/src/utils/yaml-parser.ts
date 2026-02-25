@@ -6,6 +6,7 @@ import { FileNotFoundError, ManifestValidationError } from "../errors.js";
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
 }
+
 import type { LockFile } from "../schemas/lockfile.js";
 import { lockfileSchema } from "../schemas/lockfile.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";

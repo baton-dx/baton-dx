@@ -1,7 +1,8 @@
 import { access, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
+  cloneGitSource,
   FileNotFoundError,
   getAllAIToolAdapters,
   getDefaultGlobalSource,
@@ -9,7 +10,9 @@ import {
   getGlobalIdePlatforms,
   getGlobalSources,
   getRegisteredIdePlatforms,
+  loadProfileManifest,
   loadProjectManifest,
+  parseSource,
   readLock,
   readProjectPreferences,
   removePlacedFiles,
@@ -20,8 +23,60 @@ import { defineCommand } from "citty";
 import { stringify } from "yaml";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
-import { selectProfileFromSource } from "../utils/profile-selection.js";
+import { selectMultipleProfilesFromSource } from "../utils/profile-selection.js";
 import { runBatonSync } from "../utils/run-baton-sync.js";
+
+/**
+ * Profile metadata loaded from an installed profile's manifest (best-effort).
+ */
+interface InstalledProfileMeta {
+  source: string;
+  name: string;
+  weight: number;
+  extends?: string;
+}
+
+/**
+ * Tries to load metadata (weight, extends) for an installed profile source.
+ * Returns null if the source cannot be resolved (e.g., network unavailable).
+ */
+async function loadInstalledProfileMeta(
+  sourceString: string,
+  cwd: string,
+): Promise<InstalledProfileMeta | null> {
+  try {
+    const parsed = parseSource(sourceString);
+    let profileDir: string;
+
+    if (parsed.provider === "github" || parsed.provider === "gitlab") {
+      const repoClone = await cloneGitSource({
+        url: parsed.url,
+        ref: parsed.ref,
+        useCache: true,
+        maxCacheAgeMs: 0,
+      });
+      profileDir = parsed.subpath
+        ? resolve(repoClone.localPath, parsed.subpath)
+        : repoClone.localPath;
+    } else if (parsed.provider === "local" || parsed.provider === "file") {
+      profileDir = parsed.path.startsWith("/") ? parsed.path : resolve(cwd, parsed.path);
+    } else {
+      return null;
+    }
+
+    const manifestPath = resolve(profileDir, "baton.profile.yaml");
+    const manifest = await loadProfileManifest(manifestPath);
+
+    return {
+      source: sourceString,
+      name: manifest.name,
+      weight: manifest.weight ?? 0,
+      extends: manifest.extends,
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function loadProjectManifestSafe(cwd: string): Promise<ProjectManifest | null> {
   try {
@@ -57,13 +112,63 @@ async function showOverview(cwd: string): Promise<void> {
   if (manifest.profiles.length === 0) {
     p.log.info("  No profiles installed.");
   } else {
-    for (const profile of manifest.profiles) {
+    // Load metadata for all profiles (best-effort, in parallel)
+    const metaResults = await Promise.all(
+      manifest.profiles.map((profile) => loadInstalledProfileMeta(profile.source, cwd)),
+    );
+
+    for (let i = 0; i < manifest.profiles.length; i++) {
+      const profile = manifest.profiles[i];
+      const meta = metaResults[i];
       const version = profile.version ? ` (${profile.version})` : "";
       const matchingSource = sources.find(
         (s) => profile.source.includes(s.url) || profile.source.includes(s.name),
       );
       const sourceName = matchingSource ? ` [${matchingSource.name}]` : "";
-      p.log.info(`  ${profile.source}${version}${sourceName}`);
+
+      if (meta) {
+        const weightStr = ` weight=${meta.weight}`;
+        const extendsStr = meta.extends ? `  inherits: ${meta.extends}` : "";
+        p.log.info(`  ${profile.source}${version}${sourceName}${weightStr}`);
+        if (extendsStr) {
+          p.log.info(`    └─${extendsStr}`);
+        }
+      } else {
+        p.log.info(`  ${profile.source}${version}${sourceName}`);
+      }
+    }
+
+    // Detect same-weight conflicts among installed profiles
+    const metaWithData = metaResults.filter((m): m is InstalledProfileMeta => m !== null);
+    const weightGroups = new Map<number, InstalledProfileMeta[]>();
+    for (const meta of metaWithData) {
+      const existing = weightGroups.get(meta.weight) ?? [];
+      existing.push(meta);
+      weightGroups.set(meta.weight, existing);
+    }
+
+    const conflicts: string[] = [];
+    for (const [weight, group] of weightGroups) {
+      if (group.length > 1) {
+        // Filter out parent/child pairs (they don't conflict — different levels)
+        const nonRelated = group.filter((m) => {
+          return !group.some(
+            (other) => other !== m && (m.extends === other.name || other.extends === m.name),
+          );
+        });
+        if (nonRelated.length > 1) {
+          const names = nonRelated.map((m) => m.name).join(", ");
+          conflicts.push(`  ⚠ weight=${weight}: ${names} — same merge weight, last-wins applies`);
+        }
+      }
+    }
+
+    if (conflicts.length > 0) {
+      console.log("");
+      p.log.warn("Same-Weight Conflicts:");
+      for (const conflict of conflicts) {
+        p.log.warn(conflict);
+      }
     }
   }
 
@@ -153,21 +258,28 @@ async function handleAddProfile(cwd: string): Promise<void> {
     sourceString = selectedUrl as string;
   }
 
-  // 3. Select a profile from the source
-  const selectedSource = await selectProfileFromSource(sourceString);
+  // 3. Select profiles from the source (multi-select)
+  const selectedSources = await selectMultipleProfilesFromSource(sourceString);
 
-  // 4. Check for duplicates
-  const alreadyExists = manifest.profiles.some((pr) => pr.source === selectedSource);
-  if (alreadyExists) {
-    p.log.warn(`Profile "${selectedSource}" is already installed.`);
+  // 4. Add each selected profile (skipping duplicates)
+  let addedCount = 0;
+  for (const source of selectedSources) {
+    if (manifest.profiles.some((pr) => pr.source === source)) {
+      p.log.warn(`Profile "${source}" is already installed — skipped.`);
+    } else {
+      manifest.profiles.push({ source });
+      p.log.success(`Added profile: ${source}`);
+      addedCount++;
+    }
+  }
+
+  if (addedCount === 0) {
     return;
   }
 
-  // 5. Add to manifest and write
-  manifest.profiles.push({ source: selectedSource });
+  // 5. Write updated manifest
   const updatedYaml = stringify(manifest);
   await writeFile(manifestPath, updatedYaml, "utf-8");
-  p.log.success(`Added profile: ${selectedSource}`);
 
   // 6. Offer to sync
   const shouldSync = await p.confirm({
@@ -176,7 +288,7 @@ async function handleAddProfile(cwd: string): Promise<void> {
   });
 
   if (p.isCancel(shouldSync) || !shouldSync) {
-    p.log.info("Run 'baton sync' later to apply the new profile.");
+    p.log.info("Run 'baton sync' later to apply the new profiles.");
     return;
   }
 

@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CircularInheritanceError } from "../errors.js";
 import { expandSparseCheckout } from "../sources/git-clone.js";
-import { resolveNpmSource } from "../sources/npm-resolver.js";
 import type { CloneContext } from "./profile-chain.js";
 import { resolveProfileChain } from "./profile-chain.js";
 
@@ -78,7 +77,7 @@ description: Base profile
         "utf-8",
       );
 
-      // Create child profile that extends base
+      // Create child profile that extends base (by name)
       const childPath = join(profilesDir, "child");
       await mkdir(childPath, { recursive: true });
       await writeFile(
@@ -87,8 +86,7 @@ description: Base profile
 name: child-profile
 version: 1.0.0
 description: Child profile
-extends:
-  - ./profiles/base
+extends: base
 `,
         "utf-8",
       );
@@ -97,7 +95,7 @@ extends:
         name: "child-profile",
         version: "1.0.0",
         description: "Child profile",
-        extends: ["./profiles/base"],
+        extends: "base",
       };
 
       const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
@@ -128,8 +126,7 @@ version: 1.0.0
         `
 name: parent-profile
 version: 1.0.0
-extends:
-  - ./profiles/grandparent
+extends: grandparent
 `,
         "utf-8",
       );
@@ -142,8 +139,7 @@ extends:
         `
 name: child-profile
 version: 1.0.0
-extends:
-  - ./profiles/parent
+extends: parent
 `,
         "utf-8",
       );
@@ -151,7 +147,7 @@ extends:
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/parent"],
+        extends: "parent",
       };
 
       const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
@@ -160,76 +156,6 @@ extends:
       expect(chain[0].name).toBe("grandparent-profile");
       expect(chain[1].name).toBe("parent-profile");
       expect(chain[2].name).toBe("child-profile");
-    });
-
-    it("resolves multiple extends (diamond pattern)", async () => {
-      // Create base profile
-      const basePath = join(profilesDir, "base");
-      await mkdir(basePath, { recursive: true });
-      await writeFile(
-        join(basePath, "baton.profile.yaml"),
-        `
-name: base-profile
-version: 1.0.0
-`,
-        "utf-8",
-      );
-
-      // Create mixin-a that extends base
-      const mixinAPath = join(profilesDir, "mixin-a");
-      await mkdir(mixinAPath, { recursive: true });
-      await writeFile(
-        join(mixinAPath, "baton.profile.yaml"),
-        `
-name: mixin-a-profile
-version: 1.0.0
-extends:
-  - ./profiles/base
-`,
-        "utf-8",
-      );
-
-      // Create mixin-b that extends base
-      const mixinBPath = join(profilesDir, "mixin-b");
-      await mkdir(mixinBPath, { recursive: true });
-      await writeFile(
-        join(mixinBPath, "baton.profile.yaml"),
-        `
-name: mixin-b-profile
-version: 1.0.0
-extends:
-  - ./profiles/base
-`,
-        "utf-8",
-      );
-
-      // Create child that extends both mixins
-      const childPath = join(profilesDir, "child");
-      await mkdir(childPath, { recursive: true });
-      await writeFile(
-        join(childPath, "baton.profile.yaml"),
-        `
-name: child-profile
-version: 1.0.0
-extends:
-  - ./profiles/mixin-a
-  - ./profiles/mixin-b
-`,
-        "utf-8",
-      );
-
-      const childManifest = {
-        name: "child-profile",
-        version: "1.0.0",
-        extends: ["./profiles/mixin-a", "./profiles/mixin-b"],
-      };
-
-      const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
-
-      // Base should appear multiple times (once per path)
-      // Order: base (via mixin-a), mixin-a, base (via mixin-b), mixin-b, child
-      expect(chain.length).toBeGreaterThanOrEqual(3);
-      expect(chain[chain.length - 1].name).toBe("child-profile");
     });
 
     it("detects circular inheritance (direct)", async () => {
@@ -241,8 +167,7 @@ extends:
         `
 name: profile-a
 version: 1.0.0
-extends:
-  - ./profiles/profile-b
+extends: profile-b
 `,
         "utf-8",
       );
@@ -255,8 +180,7 @@ extends:
         `
 name: profile-b
 version: 1.0.0
-extends:
-  - ./profiles/profile-a
+extends: profile-a
 `,
         "utf-8",
       );
@@ -264,7 +188,7 @@ extends:
       const manifestA = {
         name: "profile-a",
         version: "1.0.0",
-        extends: ["./profiles/profile-b"],
+        extends: "profile-b",
       };
 
       await expect(resolveProfileChain(manifestA, "./profiles/profile-a", tempDir)).rejects.toThrow(
@@ -274,15 +198,13 @@ extends:
 
     it("detects circular inheritance (indirect)", async () => {
       // Create profile-a -> profile-b -> profile-c -> profile-a (circular)
-      // First create all three profiles with their files
       const profileAPath = join(profilesDir, "profile-a");
       await mkdir(profileAPath, { recursive: true });
       await writeFile(
         join(profileAPath, "baton.profile.yaml"),
         `name: profile-a
 version: 1.0.0
-extends:
-  - ./profiles/profile-b
+extends: profile-b
 `,
         "utf-8",
       );
@@ -293,8 +215,7 @@ extends:
         join(profileBPath, "baton.profile.yaml"),
         `name: profile-b
 version: 1.0.0
-extends:
-  - ./profiles/profile-c
+extends: profile-c
 `,
         "utf-8",
       );
@@ -305,8 +226,7 @@ extends:
         join(profileCPath, "baton.profile.yaml"),
         `name: profile-c
 version: 1.0.0
-extends:
-  - ./profiles/profile-a
+extends: profile-a
 `,
         "utf-8",
       );
@@ -314,7 +234,7 @@ extends:
       const manifestA = {
         name: "profile-a",
         version: "1.0.0",
-        extends: ["./profiles/profile-b"],
+        extends: "profile-b",
       };
 
       await expect(resolveProfileChain(manifestA, "./profiles/profile-a", tempDir)).rejects.toThrow(
@@ -323,19 +243,19 @@ extends:
     });
 
     it("enforces maximum chain depth", async () => {
-      // Create a very deep chain (11 levels)
+      // Create a very deep chain (12 levels)
       for (let i = 0; i < 12; i++) {
         const profilePath = join(profilesDir, `level-${i}`);
         await mkdir(profilePath, { recursive: true });
 
-        const extends_line = i < 11 ? `extends:\n  - ./profiles/level-${i + 1}` : "";
+        const extendsLine = i < 11 ? `extends: level-${i + 1}` : "";
 
         await writeFile(
           join(profilePath, "baton.profile.yaml"),
           `
 name: level-${i}-profile
 version: 1.0.0
-${extends_line}
+${extendsLine}
 `,
           "utf-8",
         );
@@ -344,7 +264,7 @@ ${extends_line}
       const manifest = {
         name: "level-0-profile",
         version: "1.0.0",
-        extends: ["./profiles/level-1"],
+        extends: "level-1",
       };
 
       await expect(resolveProfileChain(manifest, "./profiles/level-0", tempDir)).rejects.toThrow(
@@ -374,8 +294,7 @@ description: Base profile
 name: middle
 version: 1.0.0
 description: Middle profile
-extends:
-  - ./profiles/base
+extends: base
 `,
         "utf-8",
       );
@@ -388,8 +307,7 @@ extends:
 name: top
 version: 1.0.0
 description: Top profile
-extends:
-  - ./profiles/middle
+extends: middle
 `,
         "utf-8",
       );
@@ -398,7 +316,7 @@ extends:
         name: "top",
         version: "1.0.0",
         description: "Top profile",
-        extends: ["./profiles/middle"],
+        extends: "middle",
       };
 
       const chain = await resolveProfileChain(topManifest, "./profiles/top", tempDir);
@@ -432,8 +350,7 @@ description: Base profile
 name: child-profile
 version: 1.0.0
 description: Child profile
-extends:
-  - ./profiles/base
+extends: base
 `,
         "utf-8",
       );
@@ -442,20 +359,20 @@ extends:
         name: "child-profile",
         version: "1.0.0",
         description: "Child profile",
-        extends: ["./profiles/base"],
+        extends: "base",
       };
 
       const chain = await resolveProfileChain(childManifest, "./profiles/child", tempDir);
 
       expect(chain).toHaveLength(2);
 
-      // Inherited base profile should have localPath resolved
+      // Inherited base profile has localPath resolved
       expect(chain[0].name).toBe("base-profile");
       expect(chain[0].localPath).toBe(basePath);
 
-      // Root profile (not loaded via loadProfileFromSource) has no localPath
+      // Root profile also gets localPath set (derived from source in resolveProfileChain)
       expect(chain[1].name).toBe("child-profile");
-      expect(chain[1].localPath).toBeUndefined();
+      expect(chain[1].localPath).toBe(childPath);
     });
   });
 
@@ -465,18 +382,18 @@ extends:
       await mkdir(childPath, { recursive: true });
       await writeFile(
         join(childPath, "baton.profile.yaml"),
-        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/nonexistent\n",
+        "name: child-profile\nversion: 1.0.0\nextends: nonexistent\n",
         "utf-8",
       );
 
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/nonexistent"],
+        extends: "nonexistent",
       };
 
       await expect(resolveProfileChain(childManifest, "./profiles/child", tempDir)).rejects.toThrow(
-        /Failed to resolve extends '\.\/profiles\/nonexistent' from profile 'child-profile'/,
+        /Failed to resolve extends .+ from profile 'child-profile'/,
       );
     });
 
@@ -485,7 +402,7 @@ extends:
       await mkdir(profileAPath, { recursive: true });
       await writeFile(
         join(profileAPath, "baton.profile.yaml"),
-        "name: profile-a\nversion: 1.0.0\nextends:\n  - ./profiles/b\n",
+        "name: profile-a\nversion: 1.0.0\nextends: b\n",
         "utf-8",
       );
 
@@ -493,14 +410,14 @@ extends:
       await mkdir(profileBPath, { recursive: true });
       await writeFile(
         join(profileBPath, "baton.profile.yaml"),
-        "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+        "name: profile-b\nversion: 1.0.0\nextends: a\n",
         "utf-8",
       );
 
       const manifest = {
         name: "profile-a",
         version: "1.0.0",
-        extends: ["./profiles/b"],
+        extends: "b",
       };
 
       await expect(resolveProfileChain(manifest, "./profiles/a", tempDir)).rejects.toThrow(
@@ -512,7 +429,7 @@ extends:
       for (let i = 0; i < 12; i++) {
         const profilePath = join(profilesDir, `deep-${i}`);
         await mkdir(profilePath, { recursive: true });
-        const extendsLine = i < 11 ? `extends:\n  - ./profiles/deep-${i + 1}` : "";
+        const extendsLine = i < 11 ? `extends: deep-${i + 1}` : "";
         await writeFile(
           join(profilePath, "baton.profile.yaml"),
           `name: deep-${i}\nversion: 1.0.0\n${extendsLine}\n`,
@@ -523,7 +440,7 @@ extends:
       const manifest = {
         name: "deep-0",
         version: "1.0.0",
-        extends: ["./profiles/deep-1"],
+        extends: "deep-1",
       };
 
       await expect(resolveProfileChain(manifest, "./profiles/deep-0", tempDir)).rejects.toThrow(
@@ -536,14 +453,14 @@ extends:
       await mkdir(childPath, { recursive: true });
       await writeFile(
         join(childPath, "baton.profile.yaml"),
-        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/bad\n",
+        "name: child-profile\nversion: 1.0.0\nextends: bad\n",
         "utf-8",
       );
 
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/bad"],
+        extends: "bad",
       };
 
       try {
@@ -552,11 +469,10 @@ extends:
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
         const msg = (error as Error).message;
-        expect(msg).toContain("Failed to resolve extends './profiles/bad'");
         expect(msg).toContain("from profile 'child-profile'");
         // Should include the underlying cause (FileNotFoundError message)
         expect(msg.length).toBeGreaterThan(
-          "Failed to resolve extends './profiles/bad' from profile 'child-profile': ".length,
+          "Failed to resolve extends '' from profile 'child-profile': ".length,
         );
       }
     });
@@ -576,8 +492,7 @@ extends:
         `
 name: child-profile
 version: 1.0.0
-extends:
-  - ./profiles/base
+extends: base
 `,
         "utf-8",
       );
@@ -596,7 +511,7 @@ extends:
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/base"],
+        extends: "base",
       };
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
@@ -631,14 +546,14 @@ extends:
       await mkdir(childPath, { recursive: true });
       await writeFile(
         join(childPath, "baton.profile.yaml"),
-        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/base\n",
+        "name: child-profile\nversion: 1.0.0\nextends: base\n",
         "utf-8",
       );
 
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/base"],
+        extends: "base",
       };
 
       // No cloneContext — standard local resolution
@@ -658,7 +573,7 @@ extends:
       await mkdir(childPath, { recursive: true });
       await writeFile(
         join(childPath, "baton.profile.yaml"),
-        "name: child-profile\nversion: 1.0.0\nextends:\n  - ./profiles/missing\n",
+        "name: child-profile\nversion: 1.0.0\nextends: missing\n",
         "utf-8",
       );
 
@@ -668,7 +583,7 @@ extends:
       const childManifest = {
         name: "child-profile",
         version: "1.0.0",
-        extends: ["./profiles/missing"],
+        extends: "missing",
       };
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
@@ -676,56 +591,10 @@ extends:
       // Should throw a descriptive error after expansion attempt fails
       await expect(
         resolveProfileChain(childManifest, "./profiles/child", tempDir, cloneContext),
-      ).rejects.toThrow(
-        /Failed to resolve extends '\.\/profiles\/missing' from profile 'child-profile'/,
-      );
+      ).rejects.toThrow(/Failed to resolve extends .+ from profile 'child-profile'/);
 
       // expandSparseCheckout was called (expansion was attempted before giving up)
       expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/missing"]);
-    });
-
-    it("resolves extends with ../base relative path and CloneContext", async () => {
-      // Simulate a source repo structure: profiles/child extends ../base (= profiles/base)
-      const childPath = join(profilesDir, "child");
-      await mkdir(childPath, { recursive: true });
-      // base does NOT exist initially — sparse-checkout will materialize it
-      await writeFile(
-        join(childPath, "baton.profile.yaml"),
-        "name: child-profile\nversion: 1.0.0\nextends:\n  - ../base\n",
-        "utf-8",
-      );
-
-      // expandSparseCheckout materializes the base profile directory
-      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
-        const targetPath = join(cachePath, paths[0]);
-        await mkdir(targetPath, { recursive: true });
-        await writeFile(
-          join(targetPath, "baton.profile.yaml"),
-          "name: base-profile\nversion: 1.0.0\n",
-          "utf-8",
-        );
-      });
-
-      const childManifest = {
-        name: "child-profile",
-        version: "1.0.0",
-        extends: ["../base"],
-      };
-
-      // baseDir is the child's directory, so ../base resolves to profiles/base
-      // source is the child's own path (distinct from the extends target)
-      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
-      const chain = await resolveProfileChain(
-        childManifest,
-        "./profiles/child",
-        childPath,
-        cloneContext,
-      );
-
-      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/base"]);
-      expect(chain).toHaveLength(2);
-      expect(chain[0].name).toBe("base-profile");
-      expect(chain[1].name).toBe("child-profile");
     });
 
     it("resolves multi-level extends (A→B→C) with sparse-checkout expansion", async () => {
@@ -734,7 +603,7 @@ extends:
       await mkdir(profileCPath, { recursive: true });
       await writeFile(
         join(profileCPath, "baton.profile.yaml"),
-        "name: profile-c\nversion: 1.0.0\nextends:\n  - ./profiles/b\n",
+        "name: profile-c\nversion: 1.0.0\nextends: b\n",
         "utf-8",
       );
 
@@ -746,7 +615,7 @@ extends:
           if (p === "profiles/b") {
             await writeFile(
               join(targetPath, "baton.profile.yaml"),
-              "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
+              "name: profile-b\nversion: 1.0.0\nextends: a\n",
               "utf-8",
             );
           } else if (p === "profiles/a") {
@@ -762,7 +631,7 @@ extends:
       const manifestC = {
         name: "profile-c",
         version: "1.0.0",
-        extends: ["./profiles/b"],
+        extends: "b",
       };
 
       const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
@@ -777,126 +646,6 @@ extends:
       expect(chain[0].name).toBe("profile-a");
       expect(chain[1].name).toBe("profile-b");
       expect(chain[2].name).toBe("profile-c");
-    });
-
-    it("resolves diamond inheritance (D extends B+C, both extend A) with CloneContext", async () => {
-      // Only D exists initially; B, C, and A are materialized via sparse-checkout
-      const profileDPath = join(profilesDir, "d");
-      await mkdir(profileDPath, { recursive: true });
-      await writeFile(
-        join(profileDPath, "baton.profile.yaml"),
-        "name: profile-d\nversion: 1.0.0\nextends:\n  - ./profiles/b\n  - ./profiles/c\n",
-        "utf-8",
-      );
-
-      // Track which profiles have been materialized to avoid duplicate writes
-      const materialized = new Set<string>();
-
-      vi.mocked(expandSparseCheckout).mockImplementation(async (cachePath, paths) => {
-        for (const p of paths) {
-          if (materialized.has(p)) continue;
-          materialized.add(p);
-          const targetPath = join(cachePath, p);
-          await mkdir(targetPath, { recursive: true });
-          if (p === "profiles/b") {
-            await writeFile(
-              join(targetPath, "baton.profile.yaml"),
-              "name: profile-b\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
-              "utf-8",
-            );
-          } else if (p === "profiles/c") {
-            await writeFile(
-              join(targetPath, "baton.profile.yaml"),
-              "name: profile-c\nversion: 1.0.0\nextends:\n  - ./profiles/a\n",
-              "utf-8",
-            );
-          } else if (p === "profiles/a") {
-            await writeFile(
-              join(targetPath, "baton.profile.yaml"),
-              "name: profile-a\nversion: 1.0.0\n",
-              "utf-8",
-            );
-          }
-        }
-      });
-
-      const manifestD = {
-        name: "profile-d",
-        version: "1.0.0",
-        extends: ["./profiles/b", "./profiles/c"],
-      };
-
-      const cloneContext: CloneContext = { cachePath: tempDir, sparseCheckout: true };
-      const chain = await resolveProfileChain(manifestD, "./profiles/d", tempDir, cloneContext);
-
-      // Diamond: D extends B and C, both extend A
-      // Each subtree has its own visited set, so A appears in both paths
-      // Chain order: A (via B), B, A (via C), C, D
-      expect(chain).toHaveLength(5);
-      expect(chain[0].name).toBe("profile-a");
-      expect(chain[1].name).toBe("profile-b");
-      expect(chain[2].name).toBe("profile-a");
-      expect(chain[3].name).toBe("profile-c");
-      expect(chain[4].name).toBe("profile-d");
-
-      // expandSparseCheckout was called for B, A (via B path), C, and A (via C path)
-      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/b"]);
-      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/c"]);
-      expect(expandSparseCheckout).toHaveBeenCalledWith(tempDir, ["profiles/a"]);
-    });
-  });
-
-  describe("NPM source resolution in inheritance", () => {
-    beforeEach(() => {
-      vi.mocked(resolveNpmSource).mockReset();
-    });
-
-    it("resolves npm: extends via resolveNpmSource", async () => {
-      // Create a child profile that extends an npm source
-      const childPath = join(profilesDir, "child-npm");
-      await mkdir(childPath, { recursive: true });
-      await writeFile(
-        join(childPath, "baton.profile.yaml"),
-        "name: child-npm-profile\nversion: 1.0.0\nextends:\n  - npm:@test/base-profile\n",
-        "utf-8",
-      );
-
-      // Create a fake NPM-resolved directory with a profile manifest
-      const npmProfilePath = join(tempDir, "npm-resolved");
-      await mkdir(npmProfilePath, { recursive: true });
-      await writeFile(
-        join(npmProfilePath, "baton.profile.yaml"),
-        "name: npm-base-profile\nversion: 2.0.0\n",
-        "utf-8",
-      );
-
-      // Mock resolveNpmSource to return the fake directory
-      vi.mocked(resolveNpmSource).mockResolvedValue({
-        localPath: npmProfilePath,
-        packageManager: "npm",
-        version: "2.0.0",
-        fromCache: false,
-      });
-
-      const childManifest = {
-        name: "child-npm-profile",
-        version: "1.0.0",
-        extends: ["npm:@test/base-profile"],
-      };
-
-      const chain = await resolveProfileChain(childManifest, "./profiles/child-npm", tempDir);
-
-      expect(chain).toHaveLength(2);
-      expect(chain[0].name).toBe("npm-base-profile");
-      expect(chain[0].localPath).toBe(npmProfilePath);
-      expect(chain[1].name).toBe("child-npm-profile");
-
-      expect(resolveNpmSource).toHaveBeenCalledWith({
-        source: expect.objectContaining({
-          provider: "npm",
-          package: "@test/base-profile",
-        }),
-      });
     });
   });
 });

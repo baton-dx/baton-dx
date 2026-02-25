@@ -368,11 +368,11 @@ describe("validateSource", () => {
   });
 
   // ── Check 13: Extends references ────────────────────────────────
-  it("reports error for unresolvable extends reference", async () => {
+  it("reports error when extends sibling profile does not exist", async () => {
     const profileDir = join(TEST_DIR, "profiles", "child");
     await writeProfileManifest(profileDir, {
       name: "child",
-      extends: ["../base"],
+      extends: "base",
     });
     await writeSourceManifest(TEST_DIR, {
       profiles: [{ name: "child", path: "profiles/child" }],
@@ -382,22 +382,20 @@ describe("validateSource", () => {
 
     expect(report.valid).toBe(false);
     expect(
-      report.issues.some(
-        (i) => i.severity === "error" && i.message.includes("Extends reference unresolvable"),
-      ),
+      report.issues.some((i) => i.severity === "error" && i.message.includes('extends "base"')),
     ).toBe(true);
   });
 
-  it("does not error when extends reference is resolvable", async () => {
+  it("does not error when extends sibling profile exists", async () => {
     // Create the base profile
     const baseDir = join(TEST_DIR, "profiles", "base");
     await writeProfileManifest(baseDir, { name: "base" });
 
-    // Create the child profile that extends base
+    // Create the child profile that extends base by name
     const childDir = join(TEST_DIR, "profiles", "child");
     await writeProfileManifest(childDir, {
       name: "child",
-      extends: ["../base"],
+      extends: "base",
     });
 
     await writeSourceManifest(TEST_DIR, {
@@ -409,9 +407,7 @@ describe("validateSource", () => {
 
     const report = await validateSource(TEST_DIR);
 
-    expect(report.issues.some((i) => i.message.includes("Extends reference unresolvable"))).toBe(
-      false,
-    );
+    expect(report.issues.some((i) => i.message.includes('extends "base"'))).toBe(false);
   });
 
   // ── Check 14: Undefined variables ───────────────────────────────
@@ -564,7 +560,7 @@ describe("validateSource", () => {
     const frontendDir = join(TEST_DIR, "profiles", "frontend");
     await writeProfileManifest(frontendDir, {
       name: "frontend",
-      extends: ["../base"],
+      extends: "base",
     });
 
     const report = await validateSource(TEST_DIR);
@@ -587,6 +583,152 @@ describe("validateSource", () => {
 
     expect(report.valid).toBe(true);
     expect(report.summary.profilesChecked).toBe(1);
+  });
+
+  // ── Check 16: Extend-Loop-Erkennung ─────────────────────────────
+  it("reports error for direct extend loop (a extends b, b extends a)", async () => {
+    const profileA = join(TEST_DIR, "profiles", "a");
+    await writeProfileManifest(profileA, { name: "a", extends: "b" });
+    const profileB = join(TEST_DIR, "profiles", "b");
+    await writeProfileManifest(profileB, { name: "b", extends: "a" });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "a", path: "profiles/a" },
+        { name: "b", path: "profiles/b" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.valid).toBe(false);
+    expect(
+      report.issues.some(
+        (i) => i.severity === "error" && i.message.includes("Extend loop detected"),
+      ),
+    ).toBe(true);
+  });
+
+  it("reports error for indirect extend loop (a → b → c → a)", async () => {
+    await writeProfileManifest(join(TEST_DIR, "profiles", "a"), { name: "a", extends: "b" });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "b"), { name: "b", extends: "c" });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "c"), { name: "c", extends: "a" });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "a", path: "profiles/a" },
+        { name: "b", path: "profiles/b" },
+        { name: "c", path: "profiles/c" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.valid).toBe(false);
+    expect(
+      report.issues.some(
+        (i) => i.severity === "error" && i.message.includes("Extend loop detected"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not report loop for valid linear chain", async () => {
+    await writeProfileManifest(join(TEST_DIR, "profiles", "base"), { name: "base" });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "child"), {
+      name: "child",
+      extends: "base",
+    });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "base", path: "profiles/base" },
+        { name: "child", path: "profiles/child" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.issues.some((i) => i.message.includes("Extend loop"))).toBe(false);
+  });
+
+  // ── Check 17: Weight-Konflikt unter Geschwisterprofilen ──────────
+  it("warns when sibling profiles share the same parent and weight", async () => {
+    await writeProfileManifest(join(TEST_DIR, "profiles", "base"), { name: "base" });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "react"), {
+      name: "react",
+      extends: "base",
+      weight: 10,
+    });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "vue"), {
+      name: "vue",
+      extends: "base",
+      weight: 10,
+    });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "base", path: "profiles/base" },
+        { name: "react", path: "profiles/react" },
+        { name: "vue", path: "profiles/vue" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.valid).toBe(true); // warning, not error
+    expect(
+      report.issues.some(
+        (i) => i.severity === "warning" && i.message.includes("last-installed wins"),
+      ),
+    ).toBe(true);
+  });
+
+  it("warns when root-level profiles share the same weight", async () => {
+    await writeProfileManifest(join(TEST_DIR, "profiles", "standalone-a"), {
+      name: "standalone-a",
+    });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "standalone-b"), {
+      name: "standalone-b",
+    });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "standalone-a", path: "profiles/standalone-a" },
+        { name: "standalone-b", path: "profiles/standalone-b" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.valid).toBe(true);
+    expect(
+      report.issues.some(
+        (i) =>
+          i.severity === "warning" &&
+          i.message.includes("none (root level)") &&
+          i.message.includes("last-installed wins"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not warn when siblings have different weights", async () => {
+    await writeProfileManifest(join(TEST_DIR, "profiles", "base"), { name: "base" });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "react"), {
+      name: "react",
+      extends: "base",
+      weight: 10,
+    });
+    await writeProfileManifest(join(TEST_DIR, "profiles", "vue"), {
+      name: "vue",
+      extends: "base",
+      weight: 20,
+    });
+    await writeSourceManifest(TEST_DIR, {
+      profiles: [
+        { name: "base", path: "profiles/base" },
+        { name: "react", path: "profiles/react" },
+        { name: "vue", path: "profiles/vue" },
+      ],
+    });
+
+    const report = await validateSource(TEST_DIR);
+
+    expect(report.issues.some((i) => i.message.includes("last-installed wins"))).toBe(false);
   });
 
   // ── Missing profile manifest file ───────────────────────────────

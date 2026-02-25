@@ -6,9 +6,9 @@ vi.mock("node:child_process", () => ({
 
 import { execFile } from "node:child_process";
 import {
-  type InstallMethod,
   detectInstallMethod,
   formatInstallCommand,
+  type InstallMethod,
 } from "./detect-install-method.js";
 
 type ExecCallback = (error: Error | null, stdout: string, stderr: string) => void;
