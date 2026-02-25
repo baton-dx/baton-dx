@@ -1,4 +1,4 @@
-locked_at: 2026-02-24T10:33:43.159Z
+locked_at: 2026-02-24T19:32:44.702Z
 packages:
   base:
     source: ../base
@@ -10,9 +10,12 @@ packages:
         hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
         type: memory
       memory/AGENTS.md:
-        hash: 65d128c8e74aabc0fb55b4a8bad374a4bc014e450c57f24185a8861d2b1794f9
+        hash: 48a46acc4833ec5b0984379acffef4e08b5ea7f8018d8fc2d0f7fc670770d6bb
         type: memory
       memory/GEMINI.md:
+        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        type: memory
+      memory/copilot-instructions.md:
         hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
         type: memory
   maintainer:
@@ -58,8 +61,11 @@ packages:
         hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
         type: memory
       memory/AGENTS.md:
-        hash: 65d128c8e74aabc0fb55b4a8bad374a4bc014e450c57f24185a8861d2b1794f9
+        hash: 48a46acc4833ec5b0984379acffef4e08b5ea7f8018d8fc2d0f7fc670770d6bb
         type: memory
       memory/GEMINI.md:
+        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        type: memory
+      memory/copilot-instructions.md:
         hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
         type: memory

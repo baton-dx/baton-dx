@@ -98,7 +98,6 @@ describe("Schema Validation - Profile Manifest", () => {
         "my--profile",
         "-profile",
         "profile-",
-        "123profile",
         "UPPERCASE",
       ];
       for (const name of invalidNames) {
@@ -121,6 +120,9 @@ describe("Schema Validation - Profile Manifest", () => {
         "team-dx-standards",
         "a1",
         "abc-123-xyz",
+        "3d",
+        "123-profile",
+        "3d-web",
       ];
       for (const name of validNames) {
         const result = profileManifestSchema.safeParse({

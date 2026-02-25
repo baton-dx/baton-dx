@@ -379,7 +379,6 @@ describe("sourceManifestSchema", () => {
       "-my-source", // leading hyphen
       "my-source-", // trailing hyphen
       "My-Source", // mixed case
-      "123-source", // starts with digit
       "UPPERCASE", // all caps
     ];
 
@@ -391,7 +390,16 @@ describe("sourceManifestSchema", () => {
   });
 
   it("accepts valid kebab-case source names", () => {
-    const validNames = ["test", "my-source", "team-dx-configs", "a", "abc123", "my-config-2"];
+    const validNames = [
+      "test",
+      "my-source",
+      "team-dx-configs",
+      "a",
+      "abc123",
+      "my-config-2",
+      "3d",
+      "123-source",
+    ];
 
     for (const name of validNames) {
       const result = sourceManifestSchema.parse({ name, version: "1.0.0" });
