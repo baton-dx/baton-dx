@@ -60,7 +60,10 @@ export async function resolveProfileChain(
   const parsed = parseSource(source);
   const isLocal = parsed.provider === "local" || parsed.provider === "file";
   const normalizedSource = isLocal ? resolve(baseDir, parsed.path) : source;
-  const initialLocalPath = isLocal ? resolve(baseDir, parsed.path) : undefined;
+  // For local/file providers: resolve relative path against baseDir (project root convention).
+  // For all other providers (github, gitlab, npm, git): callers always pass the cloned
+  // profile directory as baseDir (i.e. dirname(manifestPath)), so use it directly.
+  const initialLocalPath = isLocal ? resolve(baseDir, parsed.path) : baseDir;
 
   // Start with the root profile
   await resolveChainRecursive(
@@ -150,7 +153,7 @@ async function resolveChainRecursive(
       // Re-throw all other errors with enhanced context
       const cause = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to resolve extends '${extendSource}' from profile '${manifest.name}': ${cause}`,
+        `Failed to resolve extends '${manifest.extends}' from profile '${manifest.name}': ${cause}`,
       );
     }
   }
