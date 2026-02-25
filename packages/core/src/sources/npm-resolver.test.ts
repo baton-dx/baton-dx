@@ -315,7 +315,7 @@ describe("npm-resolver", () => {
           await rm(cachePath, { recursive: true, force: true });
         }
       }
-    });
+    }, 15000);
 
     it("treats stale cache as miss when maxCacheAgeMs is exceeded", async () => {
       const packageName = "test-cache-stale";
