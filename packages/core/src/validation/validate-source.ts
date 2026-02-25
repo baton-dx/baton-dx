@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
 import { parse as parseYaml } from "yaml";
@@ -124,6 +124,9 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
 
   const profilesToCheck: ProfileEntry[] = declaredProfiles ?? (await discoverProfiles(sourceRoot));
 
+  // Collect validated profiles for cross-profile checks (extends loop, weight conflicts)
+  const validatedProfiles: Array<{ name: string; extends?: string; weight: number }> = [];
+
   // ── Check 3: Declared profile directories exist ────────────────────
   for (const profile of profilesToCheck) {
     const profileDir = join(sourceRoot, profile.path);
@@ -172,6 +175,13 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
     const profileManifest = profileResult.data;
     profilesChecked++;
     const ctx = `profile:${profile.name}`;
+
+    // Track for cross-profile validation
+    validatedProfiles.push({
+      name: profileManifest.name,
+      extends: profileManifest.extends,
+      weight: profileManifest.weight ?? 0,
+    });
 
     // ── Check 5 (profile-level): AI tool keys ──────────────────────
     if (profileManifest.ai?.tools) {
@@ -336,17 +346,16 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
 
     // ── Check 13: Extends references are resolvable ────────────────
     if (profileManifest.extends) {
-      for (const ext of profileManifest.extends) {
-        const extDir = join(profileDir, ext);
-        const extManifest = join(extDir, "baton.profile.yaml");
-        if (!(await pathExists(extManifest))) {
-          issues.push({
-            severity: "error",
-            message: `Extends reference unresolvable: "${ext}" — no baton.profile.yaml found`,
-            path: join(profile.path, ext, "baton.profile.yaml"),
-            context: ctx,
-          });
-        }
+      const parentName = profileManifest.extends;
+      const siblingDir = join(profileDir, "..", parentName);
+      const siblingManifest = join(siblingDir, "baton.profile.yaml");
+      if (!(await pathExists(siblingManifest))) {
+        issues.push({
+          severity: "error",
+          message: `Profile "${profileManifest.name}" extends "${parentName}" — no sibling profile with that name found`,
+          path: join("profiles", parentName, "baton.profile.yaml"),
+          context: ctx,
+        });
       }
     }
 
@@ -365,6 +374,62 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
           message: `Undefined variable "{{${varName}}}" in ${relPath}`,
           path: relPath,
           context: ctx,
+        });
+      }
+    }
+  }
+
+  // ── Check 16: Extend-Loop-Erkennung ──────────────────────────────
+  const extendsGraph = new Map<string, string>();
+  for (const p of validatedProfiles) {
+    if (p.extends) extendsGraph.set(p.name, p.extends);
+  }
+
+  for (const startName of extendsGraph.keys()) {
+    const cyclePath: string[] = [startName];
+    const seen = new Set<string>([startName]);
+    let current = extendsGraph.get(startName);
+    while (current !== undefined) {
+      if (seen.has(current)) {
+        const cycleStart = cyclePath.indexOf(current);
+        const cycle = [...cyclePath.slice(cycleStart), current].join(" → ");
+        issues.push({
+          severity: "error",
+          message: `Extend loop detected: ${cycle}`,
+          context: `profile:${startName}`,
+        });
+        break;
+      }
+      seen.add(current);
+      cyclePath.push(current);
+      current = extendsGraph.get(current);
+    }
+  }
+
+  // ── Check 17: Weight-Konflikt unter Geschwisterprofilen ──────────
+  const profilesByParent = new Map<string | null, typeof validatedProfiles>();
+  for (const p of validatedProfiles) {
+    const key = p.extends ?? null;
+    const group = profilesByParent.get(key) ?? [];
+    group.push(p);
+    profilesByParent.set(key, group);
+  }
+
+  for (const [parentName, siblings] of profilesByParent) {
+    if (siblings.length < 2) continue;
+    const weightGroups = new Map<number, string[]>();
+    for (const s of siblings) {
+      const names = weightGroups.get(s.weight) ?? [];
+      names.push(s.name);
+      weightGroups.set(s.weight, names);
+    }
+    for (const [weight, names] of weightGroups) {
+      if (names.length > 1) {
+        const parentLabel = parentName ? `"${parentName}"` : "none (root level)";
+        issues.push({
+          severity: "warning",
+          message: `Sibling profiles [${names.join(", ")}] share parent ${parentLabel} and weight ${weight} — last-installed wins`,
+          context: "source-manifest",
         });
       }
     }

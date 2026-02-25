@@ -1,12 +1,12 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  type LockFileEntry,
-  type PlacementState,
-  type ProjectManifest,
   collectComprehensivePatterns,
   ensureBatonDirGitignored,
   generateLock,
+  type LockFileEntry,
+  type PlacementState,
+  type ProjectManifest,
   readState,
   removeGitignoreManagedSection,
   removePlacedFiles,

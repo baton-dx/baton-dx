@@ -1,9 +1,9 @@
-import { getAIToolPath } from "@baton-dx/ai-tool-paths";
 import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
+import { getAIToolPath } from "@baton-dx/ai-tool-paths";
 
 import type {
-  AIToolAdapter,
   AgentFile,
+  AIToolAdapter,
   CommandFile,
   MemoryFile,
   RuleFile,

@@ -16,7 +16,13 @@ import { profileManifestSchema } from "../schemas/profile-manifest.js";
 export async function loadProfileManifestSafe(
   sourceRoot: string,
   profilePath: string,
-): Promise<{ name: string; version: string; description?: string } | null> {
+): Promise<{
+  name: string;
+  version: string;
+  description?: string;
+  extends?: string;
+  weight?: number;
+} | null> {
   const manifestPath = join(sourceRoot, profilePath, "baton.profile.yaml");
 
   try {
@@ -29,6 +35,8 @@ export async function loadProfileManifestSafe(
       name: manifest.name,
       version: manifest.version,
       description: manifest.description,
+      extends: manifest.extends,
+      weight: manifest.weight,
     };
   } catch (error) {
     // File not found — silently return null (profile directory exists but has no manifest)

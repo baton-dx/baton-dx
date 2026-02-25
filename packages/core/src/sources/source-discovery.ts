@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { sourceManifestSchema } from "../schemas/source-manifest.js";
@@ -28,6 +28,16 @@ export interface SourceProfileInfo {
    * Profile description from manifest (optional)
    */
   description?: string;
+
+  /**
+   * Parent profile name this profile extends (optional)
+   */
+  extends?: string;
+
+  /**
+   * Merge weight for this profile (optional, defaults to 0)
+   */
+  weight?: number;
 }
 
 /**
@@ -115,6 +125,8 @@ export async function discoverProfilesInSourceRepo(
           path: profilePath,
           version: manifest.version,
           description: manifest.description,
+          extends: manifest.extends,
+          weight: manifest.weight,
         });
       }
     }

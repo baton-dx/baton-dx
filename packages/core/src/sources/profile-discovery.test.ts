@@ -74,8 +74,6 @@ description: "Enterprise base profile"
       `name: "enterprise-frontend"
 version: "1.0.0"
 description: "Frontend team profile"
-extends:
-  - ../baton.profile.yaml
 `,
     );
 
