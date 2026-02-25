@@ -45,12 +45,15 @@ describe("Non-interactive mode - name validation", () => {
   it("should have kebab-case regex pattern defined", () => {
     // The KEBAB_CASE_REGEX is used internally for validation
     // We test the pattern directly to verify it works correctly
-    const KEBAB_CASE_REGEX = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+    const KEBAB_CASE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
     // Valid names
     expect(KEBAB_CASE_REGEX.test("my-profile")).toBe(true);
     expect(KEBAB_CASE_REGEX.test("test-profile")).toBe(true);
     expect(KEBAB_CASE_REGEX.test("abc-123-xyz")).toBe(true);
+    expect(KEBAB_CASE_REGEX.test("3d")).toBe(true); // starts with digit
+    expect(KEBAB_CASE_REGEX.test("123-profile")).toBe(true); // starts with digit
+    expect(KEBAB_CASE_REGEX.test("3d-web")).toBe(true); // starts with digit
 
     // Invalid names
     expect(KEBAB_CASE_REGEX.test("MyProfile")).toBe(false); // camelCase
@@ -58,7 +61,6 @@ describe("Non-interactive mode - name validation", () => {
     expect(KEBAB_CASE_REGEX.test("my--profile")).toBe(false); // double hyphens
     expect(KEBAB_CASE_REGEX.test("-my-profile")).toBe(false); // leading hyphen
     expect(KEBAB_CASE_REGEX.test("my-profile-")).toBe(false); // trailing hyphen
-    expect(KEBAB_CASE_REGEX.test("123-profile")).toBe(false); // starts with digit
   });
 });
 

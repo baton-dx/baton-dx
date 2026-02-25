@@ -43,7 +43,7 @@ export const createCommand = defineCommand({
             return "Profile name is required";
           }
           if (!KEBAB_CASE_REGEX.test(value.trim())) {
-            return "Profile name must be in kebab-case (e.g., my-profile, backend, frontend)";
+            return "Profile name must be in kebab-case (e.g., my-profile, backend, 3d)";
           }
         },
       });
@@ -58,7 +58,7 @@ export const createCommand = defineCommand({
 
     // Validate name format (kebab-case)
     if (!KEBAB_CASE_REGEX.test(name)) {
-      p.cancel("Profile name must be in kebab-case (e.g., my-profile, backend, frontend)");
+      p.cancel("Profile name must be in kebab-case (e.g., my-profile, backend, 3d)");
       process.exit(1);
     }
 

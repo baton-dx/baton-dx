@@ -59,7 +59,10 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
   const warnings: WeightConflictWarning[] = [];
 
   // Track which profile set each key's strategy for same-weight conflict detection
-  const strategyOwner = new Map<string, { profileName: string; weight: number }>();
+  const strategyOwner = new Map<
+    string,
+    { profileName: string; weight: number; merge: MergeStrategy }
+  >();
 
   for (const profile of profiles) {
     const memory = profile.manifest.ai?.memory;
@@ -87,18 +90,21 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
           // Check for same-weight conflict on strategy
           const owner = strategyOwner.get(item.source);
           if (owner && owner.weight === weight && owner.profileName !== profile.name) {
-            warnings.push({
-              key: item.source,
-              category: "memory",
-              profileA: owner.profileName,
-              profileB: profile.name,
-              weight,
-            });
+            // Only warn when merge strategies differ — same strategy means no real conflict
+            if (owner.merge !== item.merge) {
+              warnings.push({
+                key: item.source,
+                category: "memory",
+                profileA: owner.profileName,
+                profileB: profile.name,
+                weight,
+              });
+            }
           }
 
           existing.mergeStrategy = item.merge;
           existing.scope = resolveScope(item.scope, profile.manifest.scope);
-          strategyOwner.set(item.source, { profileName: profile.name, weight });
+          strategyOwner.set(item.source, { profileName: profile.name, weight, merge: item.merge });
 
           if (locked) {
             lockedKeys.add(item.source);
@@ -111,7 +117,7 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
           scope: resolveScope(item.scope, profile.manifest.scope),
           contributions: [contribution],
         });
-        strategyOwner.set(item.source, { profileName: profile.name, weight });
+        strategyOwner.set(item.source, { profileName: profile.name, weight, merge: item.merge });
 
         if (locked) {
           lockedKeys.add(item.source);

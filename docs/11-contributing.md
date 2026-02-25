@@ -30,6 +30,30 @@ bun link --cwd packages/cli
 baton --version
 ```
 
+### Development CLI
+
+To test local changes without overwriting your installed `baton`, add a shell alias that points directly to the built CLI:
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+baton-dev() {
+  node /path/to/baton-dx/packages/cli/dist/index.mjs "$@"
+}
+```
+
+Then build and test from any project:
+
+```bash
+bun run build        # rebuild after changes
+baton-dev sync       # runs your local build
+```
+
+Alternatively, use `bun run dev` from the repo root to run from source without building:
+
+```bash
+bun run dev -- sync
+```
+
 ## Project Structure
 
 ```

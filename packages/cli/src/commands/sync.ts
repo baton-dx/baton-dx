@@ -389,9 +389,15 @@ export const syncCommand = defineCommand({
       // Emit weight conflict warnings (same weight, conflicting values)
       if (allWeightWarnings.length > 0) {
         for (const w of allWeightWarnings) {
-          p.log.warn(
-            `Weight conflict: "${w.profileA}" and "${w.profileB}" both define ${w.category} "${w.key}" with weight ${w.weight}. Last declared wins.`,
-          );
+          if (w.category === "memory") {
+            p.log.info(
+              `Memory "${w.key}": profiles "${w.profileA}" and "${w.profileB}" use different merge strategies at weight ${w.weight}. Strategy from "${w.profileB}" wins.`,
+            );
+          } else {
+            p.log.warn(
+              `Weight conflict: "${w.profileA}" and "${w.profileB}" both define ${w.category} "${w.key}" with weight ${w.weight}. Last declared wins.`,
+            );
+          }
         }
       }
 

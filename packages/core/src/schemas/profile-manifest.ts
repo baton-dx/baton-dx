@@ -112,7 +112,7 @@ export { KEBAB_CASE_REGEX } from "./constants.js";
 
 export const profileManifestSchema = z.object({
   name: z.string().regex(KEBAB_CASE_REGEX, {
-    message: "Profile name must be kebab-case (e.g., my-profile)",
+    message: "Profile name must be kebab-case (e.g., my-profile, 3d)",
   }),
   version: z.string().regex(SEMVER_REGEX, {
     message: "Version must be a valid semver string (e.g., 1.0.0)",

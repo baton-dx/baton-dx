@@ -111,6 +111,15 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         }
       }
 
+      // Expand sparse-checkout to include the requested subpath
+      if (subpath) {
+        try {
+          await expandSparseCheckout(cachePath, [subpath]);
+        } catch {
+          // Not a sparse-checkout repo or sparse-checkout not initialized — ignore
+        }
+      }
+
       const sha = await git.revparse(["HEAD"]);
       return {
         localPath: subpath ? join(cachePath, subpath) : cachePath,
@@ -124,6 +133,28 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         `Failed to read cached repository: ${error instanceof Error ? error.message : String(error)}`,
         error,
       );
+    }
+  }
+
+  // Reuse existing cache if valid: fetch + reset preserves sparse-checkout for other subpaths
+  if (await isCacheValid(cachePath)) {
+    const cachedGit = simpleGit(cachePath);
+    try {
+      await cachedGit.fetch(["--depth=1", "origin"]);
+      await cachedGit.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
+      if (subpath) {
+        await expandSparseCheckout(cachePath, [subpath]);
+      }
+      const sha = await cachedGit.revparse(["HEAD"]);
+      return {
+        localPath: subpath ? join(cachePath, subpath) : cachePath,
+        fromCache: false,
+        sha: sha.trim(),
+        cachePath,
+        sparseCheckout: !!subpath,
+      };
+    } catch {
+      // Fetch+reset failed — fall through to rm + fresh clone
     }
   }
 
