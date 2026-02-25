@@ -1,5 +1,14 @@
 # @baton-dx/core
 
+## 0.9.2
+
+### Patch Changes
+
+- [#101](https://github.com/baton-dx/baton-dx/pull/101) [`f802c45`](https://github.com/baton-dx/baton-dx/commit/f802c45f5c60318160c6d058fb7d455dac0a717b) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix profile name validation to allow digit-prefixed names (e.g., "3d"), fix sparse-checkout cache corruption when multiple profiles share the same git source, and suppress false memory weight-conflict warnings when profiles use identical merge strategies.
+
+- Updated dependencies []:
+  - @baton-dx/ai-tool-paths@0.9.2
+
 ## 0.9.1
 
 ### Patch Changes
