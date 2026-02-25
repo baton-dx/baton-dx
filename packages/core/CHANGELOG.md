@@ -1,5 +1,18 @@
 # @baton-dx/core
 
+## 0.10.1
+
+### Patch Changes
+
+- [#107](https://github.com/baton-dx/baton-dx/pull/107) [`bb4bcd9`](https://github.com/baton-dx/baton-dx/commit/bb4bcd9c4c0730cf8bedde8cd9d89b0d5c5540c4) Thanks [@mantaray0](https://github.com/mantaray0)! - fix(core): resolve extends sibling path for GitHub/npm/git sources
+
+  `resolveProfileChain` passed `localPath: undefined` for non-local sources (github, gitlab, npm, git), causing `resolveExtendsToPath` to return the raw profile name (e.g. `"react"`) instead of the resolved sibling path. This triggered `Invalid source format: "react"` when syncing a profile with `extends`.
+
+  For non-local providers, callers always pass the cloned profile directory as `baseDir` (i.e. `dirname(manifestPath)`), so it is now used directly as `initialLocalPath`. Error messages now show the original `extends` name instead of the resolved internal path.
+
+- Updated dependencies []:
+  - @baton-dx/ai-tool-paths@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
