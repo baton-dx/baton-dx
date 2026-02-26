@@ -20,12 +20,14 @@ function makeProfile(
     source: "local:/tmp/test",
     localPath: "/tmp/test",
     manifest: {
+      name,
       version: "1.0.0",
       scope: opts.scope ?? "project",
       weight,
       ai: {
         mcp: servers.map((s) => ({
           name: s.name,
+          transport: "stdio" as const,
           command: s.command ?? "npx",
           args: [],
           scope: s.scope,
