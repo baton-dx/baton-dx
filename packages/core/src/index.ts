@@ -269,6 +269,8 @@ export {
 } from "./sources/source-discovery.js";
 // Export version resolver
 export { resolveVersion } from "./sources/version-resolver.js";
+// Export stale detection
+export { checkStale, type StaleCheckResult } from "./stale/index.js";
 // Export local placement state
 export {
   flattenPlacedFiles,
@@ -288,6 +290,7 @@ export {
 } from "./substitution/variables.js";
 // Export utility functions
 export {
+  atomicWriteFile,
   collectAiToolPatterns,
   collectComprehensivePatterns,
   collectFilePatterns,

@@ -1,6 +1,7 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
+  atomicWriteFile,
   collectAiToolPatterns,
   collectFilePatterns,
   collectIdePatterns,
@@ -24,9 +25,48 @@ import * as p from "@clack/prompts";
 export type SyncCategory = "ai" | "files" | "ide";
 export const validCategories: SyncCategory[] = ["ai", "files", "ide"];
 
+export interface PlacedFileRecord {
+  path: string;
+  action: "created" | "updated" | "skipped";
+}
+
 export interface SyncStats {
   created: number;
+  updated: number;
+  skipped: number;
+  removed: number;
   errors: number;
+  details: PlacedFileRecord[];
+}
+
+/**
+ * Create an initial SyncStats object.
+ */
+export function createSyncStats(): SyncStats {
+  return { created: 0, updated: 0, skipped: 0, removed: 0, errors: 0, details: [] };
+}
+
+/**
+ * Format a sync report summary line.
+ * Default: "3 created, 2 updated, 12 skipped, 1 removed"
+ * Verbose: additionally lists each file with its action.
+ */
+export function formatSyncReport(stats: SyncStats, verbose: boolean): string {
+  const parts: string[] = [];
+  if (stats.created > 0) parts.push(`${stats.created} created`);
+  if (stats.updated > 0) parts.push(`${stats.updated} updated`);
+  if (stats.skipped > 0) parts.push(`${stats.skipped} skipped`);
+  if (stats.removed > 0) parts.push(`${stats.removed} removed`);
+  if (stats.errors > 0) parts.push(`${stats.errors} error(s)`);
+
+  const summary = parts.length > 0 ? parts.join(", ") : "no changes";
+
+  if (!verbose || stats.details.length === 0) {
+    return summary;
+  }
+
+  const fileLines = stats.details.map((d) => `  ${d.action}: ${d.path}`);
+  return `${summary}\n${fileLines.join("\n")}`;
 }
 
 /** Get or initialize placed files for a profile, avoiding unsafe `as` casts on Map.get(). */
@@ -65,7 +105,7 @@ export async function copyDirectoryRecursive(
       // Idempotency: skip if content is identical
       const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
       if (existing !== content) {
-        await writeFile(targetPath, content, "utf-8");
+        await atomicWriteFile(targetPath, content);
         placed++;
       }
     }
@@ -238,21 +278,21 @@ export async function cleanupOrphanedFiles(params: {
   dryRun: boolean;
   autoYes: boolean;
   spinner: ReturnType<typeof p.spinner>;
-}): Promise<void> {
+}): Promise<number> {
   const { previousPaths, currentPaths, projectRoot, dryRun, autoYes, spinner } = params;
 
-  if (previousPaths.size === 0) return;
+  if (previousPaths.size === 0) return 0;
 
   // Find orphaned paths (in previous state but not in current sync)
   const orphanedPaths = [...previousPaths].filter((prev) => !currentPaths.has(prev));
-  if (orphanedPaths.length === 0) return;
+  if (orphanedPaths.length === 0) return 0;
 
   if (dryRun) {
     p.log.warn(`Would remove ${orphanedPaths.length} orphaned file(s):`);
     for (const orphanedPath of orphanedPaths) {
       p.log.info(`  Removed: ${orphanedPath}`);
     }
-    return;
+    return orphanedPaths.length;
   }
 
   p.log.warn(`Found ${orphanedPaths.length} orphaned file(s) to remove:`);
@@ -276,10 +316,11 @@ export async function cleanupOrphanedFiles(params: {
 
   if (!shouldRemove) {
     p.log.info("Orphan removal skipped.");
-    return;
+    return 0;
   }
 
   spinner.start("Removing orphaned files...");
   const removedCount = await removePlacedFiles(orphanedPaths, projectRoot);
   spinner.stop(`Removed ${removedCount} orphaned file(s)`);
+  return removedCount;
 }

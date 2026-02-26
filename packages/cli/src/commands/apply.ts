@@ -1,9 +1,10 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
   type AgentEntry,
   type AgentFile,
   type AIToolAdapter,
+  atomicWriteFile,
   type CloneContext,
   cloneGitSource,
   detectInstalledAITools,
@@ -46,14 +47,16 @@ import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
+import { runProfileHook } from "../utils/run-hook.js";
 import {
   cleanupOrphanedFiles,
   copyDirectoryRecursive,
+  createSyncStats,
+  formatSyncReport,
   getOrCreatePlacedFiles,
   handleGitignoreUpdate,
   loadPreviousPlacedPaths,
   type SyncCategory,
-  type SyncStats,
   validCategories,
   writeLockData,
   writeStateData,
@@ -132,10 +135,7 @@ export const applyCommand = defineCommand({
     p.intro(category ? `📦 Baton Apply (category: ${category})` : "📦 Baton Apply");
 
     // Statistics tracking
-    const stats: SyncStats = {
-      created: 0,
-      errors: 0,
-    };
+    const stats = createSyncStats();
 
     try {
       // Step 0: Load project manifest
@@ -704,7 +704,8 @@ export const applyCommand = defineCommand({
                 : resolve(projectRoot, targetSkillPath);
 
               const placed = await copyDirectoryRecursive(skillSourceDir, absoluteTargetDir);
-              stats.created += placed;
+              if (placed > 0) stats.created += placed;
+              else stats.skipped++;
 
               // Track tool-specific disk path for state/orphan detection
               actualPlacedPaths.add(targetSkillPath);
@@ -914,9 +915,10 @@ export const applyCommand = defineCommand({
               placementConfig,
             );
 
-            if (result.action !== "skipped") {
-              stats.created++;
-            }
+            // Track stats by action type
+            if (result.action === "created") stats.created++;
+            else if (result.action === "updated") stats.updated++;
+            else stats.skipped++;
 
             // Track tool-specific disk path for state/orphan detection
             const relPath = isAbsolute(result.path)
@@ -938,6 +940,7 @@ export const applyCommand = defineCommand({
             }
 
             if (verbose) {
+              stats.details.push({ path: relPath, action: result.action });
               const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
               p.log.info(`  -> ${result.path} (${label})`);
             }
@@ -984,9 +987,10 @@ export const applyCommand = defineCommand({
                   placementConfig,
                 );
 
-                if (result.action !== "skipped") {
-                  stats.created++;
-                }
+                // Track stats by action type
+                if (result.action === "created") stats.created++;
+                else if (result.action === "updated") stats.updated++;
+                else stats.skipped++;
 
                 // Track tool-specific disk path for state/orphan detection
                 const cmdRelPath = isAbsolute(result.path)
@@ -1003,6 +1007,7 @@ export const applyCommand = defineCommand({
                 }
 
                 if (verbose) {
+                  stats.details.push({ path: cmdRelPath, action: result.action });
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
                   p.log.info(`  -> ${result.path} (${label})`);
                 }
@@ -1038,14 +1043,18 @@ export const applyCommand = defineCommand({
             await mkdir(dirname(targetPath), { recursive: true });
 
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
-            if (existing !== content) {
-              await writeFile(targetPath, content, "utf-8");
-              stats.created++;
-              if (verbose) {
-                p.log.info(`  -> ${fileEntry.target} (created)`);
-              }
-            } else if (verbose) {
-              p.log.info(`  -> ${fileEntry.target} (unchanged, skipped)`);
+            const fileAction =
+              existing === undefined ? "created" : existing !== content ? "updated" : "skipped";
+            if (fileAction !== "skipped") {
+              await atomicWriteFile(targetPath, content);
+            }
+            if (fileAction === "created") stats.created++;
+            else if (fileAction === "updated") stats.updated++;
+            else stats.skipped++;
+            if (verbose) {
+              stats.details.push({ path: fileEntry.target, action: fileAction });
+              const label = fileAction === "skipped" ? "unchanged, skipped" : fileAction;
+              p.log.info(`  -> ${fileEntry.target} (${label})`);
             }
 
             // Track disk path for state/orphan detection
@@ -1095,18 +1104,23 @@ export const applyCommand = defineCommand({
             await mkdir(dirname(targetPath), { recursive: true });
 
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
-            if (existing !== content) {
-              await writeFile(targetPath, content, "utf-8");
-              stats.created++;
-              if (verbose) {
-                p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (created)`);
-              }
-            } else if (verbose) {
-              p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (unchanged, skipped)`);
+            const ideAction =
+              existing === undefined ? "created" : existing !== content ? "updated" : "skipped";
+            if (ideAction !== "skipped") {
+              await atomicWriteFile(targetPath, content);
             }
+            if (ideAction === "created") stats.created++;
+            else if (ideAction === "updated") stats.updated++;
+            else stats.skipped++;
 
             // Track disk path for state/orphan detection
             const ideRelPath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
+
+            if (verbose) {
+              stats.details.push({ path: ideRelPath, action: ideAction });
+              const label = ideAction === "skipped" ? "unchanged, skipped" : ideAction;
+              p.log.info(`  -> ${ideRelPath} (${label})`);
+            }
             actualPlacedPaths.add(ideRelPath);
             idePlacedPaths.add(ideRelPath);
 
@@ -1126,7 +1140,7 @@ export const applyCommand = defineCommand({
       spinner.stop(
         dryRun
           ? `Would place files for ${adapters.length} agent(s)`
-          : `Placed ${stats.created} file(s) for ${adapters.length} agent(s)`,
+          : `Placed files for ${adapters.length} agent(s)`,
       );
 
       // Step 8: Update .gitignore
@@ -1155,8 +1169,27 @@ export const applyCommand = defineCommand({
         });
       }
 
+      // Step 9c: Execute profile hooks
+      if (!dryRun) {
+        for (const profile of allProfiles) {
+          if (!profile.manifest.hooks) continue;
+          const isFirstSync = previousPaths.size === 0;
+          const hookType = isFirstSync ? "post-install" : "post-update";
+          const hookCommand = profile.manifest.hooks[hookType];
+          if (hookCommand) {
+            await runProfileHook({
+              command: hookCommand,
+              profileName: profile.name,
+              hookType,
+              projectRoot,
+              spinner,
+            });
+          }
+        }
+      }
+
       // Step 10: Remove orphaned files (comparing tool-specific disk paths)
-      await cleanupOrphanedFiles({
+      const removedCount = await cleanupOrphanedFiles({
         previousPaths,
         currentPaths: actualPlacedPaths,
         projectRoot,
@@ -1164,6 +1197,7 @@ export const applyCommand = defineCommand({
         autoYes,
         spinner,
       });
+      stats.removed = removedCount;
 
       // Summary
       if (dryRun) {
@@ -1191,7 +1225,7 @@ export const applyCommand = defineCommand({
         );
       } else {
         const categoryLabel = category ? ` (category: ${category})` : "";
-        p.outro(`✅ Apply complete${categoryLabel}! Locked configurations applied.`);
+        p.outro(`Apply complete${categoryLabel}: ${formatSyncReport(stats, verbose)}`);
       }
 
       process.exit(stats.errors > 0 ? 1 : 0);

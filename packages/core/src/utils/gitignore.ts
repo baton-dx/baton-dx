@@ -1,7 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getAllAIToolAdapters } from "../adapters/registry.js";
 import { getIdePlatformTargetDir, getRegisteredIdePlatforms } from "../ide/platform-registry.js";
+import { atomicWriteFile } from "./atomic-write.js";
 
 /**
  * Extract directory from a dynamic path and add it as a pattern.
@@ -67,7 +68,7 @@ export async function ensureBatonDirGitignored(projectRoot: string): Promise<voi
   const newContent = content
     ? `${content.trimEnd()}\n\n# Baton local\n.baton/\n`
     : "# Baton local\n.baton/\n";
-  await writeFile(gitignorePath, newContent, "utf-8");
+  await atomicWriteFile(gitignorePath, newContent);
 }
 
 const BATON_SECTION_START = "# Baton managed";
@@ -160,7 +161,7 @@ async function updateGitignoreContent(projectRoot: string, inner: string): Promi
     newContent = content ? `${content.trimEnd()}\n\n${newSection}\n` : `${newSection}\n`;
   }
 
-  await writeFile(gitignorePath, newContent, "utf-8");
+  await atomicWriteFile(gitignorePath, newContent);
   return true;
 }
 
@@ -193,7 +194,7 @@ export async function removeGitignoreManagedSection(projectRoot: string): Promis
   const after = content.substring(endIdx + BATON_SECTION_END.length).replace(/^\n+/, "\n");
   const newContent = (before + after).trim();
 
-  await writeFile(gitignorePath, newContent ? `${newContent}\n` : "", "utf-8");
+  await atomicWriteFile(gitignorePath, newContent ? `${newContent}\n` : "");
   return true;
 }
 

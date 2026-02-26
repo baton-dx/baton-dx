@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { parse, stringify } from "yaml";
 import { FileNotFoundError } from "../errors.js";
 import type {
@@ -9,6 +9,7 @@ import type {
   LockfileConfigType,
 } from "../schemas/lockfile.js";
 import { lockfileSchema } from "../schemas/lockfile.js";
+import { atomicWriteFile } from "../utils/atomic-write.js";
 
 /**
  * Metadata for a file to be recorded in the lockfile.
@@ -78,7 +79,7 @@ export function generateLock(
  */
 export async function writeLock(lockfile: LockFile, filePath: string): Promise<void> {
   const yamlContent = stringify(lockfile);
-  await writeFile(filePath, yamlContent, "utf-8");
+  await atomicWriteFile(filePath, yamlContent);
 }
 
 /**

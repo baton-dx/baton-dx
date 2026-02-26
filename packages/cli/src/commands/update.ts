@@ -29,6 +29,12 @@ export const updateCommand = defineCommand({
       description: "Show detailed output for each placed file",
       default: false,
     },
+    check: {
+      type: "boolean",
+      description:
+        "Check if configs are in sync without modifying files (exit 0 = in sync, 1 = stale)",
+      default: false,
+    },
   },
   async run(context) {
     p.log.warn("`baton update` is deprecated. Use `baton sync` instead.");
