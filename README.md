@@ -1,4 +1,4 @@
-# Baton
+# Baton DX <sub>/bəˈtɑːn/</sub>
 
 [![npm version](https://img.shields.io/npm/v/@baton-dx/cli.svg)](https://www.npmjs.com/package/@baton-dx/cli)
 [![CI Status](https://github.com/baton-dx/baton-dx/workflows/CI/badge.svg)](https://github.com/baton-dx/baton-dx/actions)
