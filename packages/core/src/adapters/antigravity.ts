@@ -1,6 +1,6 @@
 import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { BaseAIToolAdapter } from "./base-adapter.js";
-import type { ValidationResult } from "./types.js";
+import type { McpCapabilities, ValidationResult } from "./types.js";
 
 /**
  * Antigravity adapter — Gemini-based AI tool.
@@ -12,6 +12,15 @@ export class AntigravityAdapter extends BaseAIToolAdapter {
   readonly key = "antigravity";
   readonly name = "Antigravity";
   protected override memoryFilename = "GEMINI.md";
+
+  override readonly mcpCapabilities: McpCapabilities = {
+    supported: true,
+    configKey: "mcpServers",
+    envVarSyntax: "expand",
+    format: "json",
+    sharedSettingsFile: true,
+    supportedScopes: ["global"],
+  };
 
   override validate(type: ConfigType, file: unknown): ValidationResult {
     const result = this.validateCommon(type, file);

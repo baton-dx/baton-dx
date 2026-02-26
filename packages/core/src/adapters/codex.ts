@@ -1,6 +1,6 @@
 import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { BaseAIToolAdapter } from "./base-adapter.js";
-import type { ValidationResult } from "./types.js";
+import type { McpCapabilities, ValidationResult } from "./types.js";
 
 /**
  * Codex CLI adapter.
@@ -11,6 +11,15 @@ import type { ValidationResult } from "./types.js";
 export class CodexAdapter extends BaseAIToolAdapter {
   readonly key = "codex";
   readonly name = "Codex CLI";
+
+  override readonly mcpCapabilities: McpCapabilities = {
+    supported: true,
+    configKey: "mcp_servers",
+    envVarSyntax: "expand",
+    format: "toml",
+    sharedSettingsFile: true,
+    supportedScopes: ["global"],
+  };
 
   override validate(type: ConfigType, file: unknown): ValidationResult {
     const result = this.validateCommon(type, file);

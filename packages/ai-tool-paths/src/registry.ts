@@ -28,6 +28,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: ".claude/commands/{name}.md",
       global: "~/.claude/commands/{name}.md",
     },
+    mcp: {
+      project: ".mcp.json",
+      global: "~/.claude/mcp.json",
+    },
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "claude", versionPattern: /claude/i }],
@@ -58,6 +62,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".cursor/commands/{name}.md",
       global: "~/.cursor/commands/{name}.md",
+    },
+    mcp: {
+      project: ".cursor/mcp.json",
+      global: "~/.cursor/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -92,6 +100,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".windsurf/workflows/{name}.md",
       global: "~/.codeium/windsurf/workflows/{name}.md",
+    },
+    mcp: {
+      project: null,
+      global: "~/.codeium/windsurf/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -133,6 +145,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: ".agent/workflows/{name}.md",
       global: "~/.gemini/antigravity/workflows/{name}.md",
     },
+    mcp: {
+      project: null,
+      global: "~/.gemini/settings.json",
+    },
     detectionConfig: {
       groups: [
         [{ type: "app", name: "Antigravity.app" }],
@@ -172,6 +188,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: ".codex/commands/{name}.md",
       global: "~/.codex/commands/{name}.md",
     },
+    mcp: {
+      project: null,
+      global: "~/.codex/config.toml",
+    },
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "codex", versionPattern: /codex/i }],
@@ -202,6 +222,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".github/copilot/commands/{name}.md",
       global: "~/.github/copilot/commands/{name}.md",
+    },
+    mcp: {
+      project: ".github/mcp.json",
+      global: "~/.github/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -247,6 +271,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: ".opencode/commands/{name}.md",
       global: "~/.config/opencode/commands/{name}.md",
     },
+    mcp: {
+      project: ".opencode/mcp.jsonc",
+      global: "~/.config/opencode/mcp.jsonc",
+    },
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "opencode", versionPattern: /opencode|sst/i }],
@@ -284,6 +312,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
       project: ".agents/commands/{name}.md",
       global: "~/.config/agents/commands/{name}.md",
     },
+    mcp: {
+      project: ".amp/mcp.json",
+      global: "~/.config/amp/mcp.json",
+    },
     detectionConfig: {
       groups: [
         [{ type: "binary", name: "amp", versionPattern: /amp|sourcegraph/i }],
@@ -314,6 +346,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".kiro/commands/{name}.md",
       global: "~/.kiro/commands/{name}.md",
+    },
+    mcp: {
+      project: ".kiro/mcp.json",
+      global: "~/.kiro/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -346,6 +382,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".zed/commands/{name}.md",
       global: "~/.zed/commands/{name}.md",
+    },
+    mcp: {
+      project: null,
+      global: "~/.config/zed/settings.json",
     },
     detectionConfig: {
       groups: [
@@ -384,6 +424,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".cline/commands/{name}.md",
       global: "~/.cline/commands/{name}.md",
+    },
+    mcp: {
+      project: null,
+      global: "~/.cline/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -427,6 +471,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".roo/commands/{name}.md",
       global: "~/.roo/commands/{name}.md",
+    },
+    mcp: {
+      project: ".roo/mcp.json",
+      global: "~/.roo/mcp.json",
     },
     detectionConfig: {
       groups: [
@@ -501,6 +549,10 @@ export const AI_TOOL_PATHS: readonly AIToolPathConfig[] = [
     commands: {
       project: ".trae/commands/{name}.md",
       global: "~/.trae/commands/{name}.md",
+    },
+    mcp: {
+      project: ".trae/mcp.json",
+      global: "~/.trae/mcp.json",
     },
     detectionConfig: {
       groups: [

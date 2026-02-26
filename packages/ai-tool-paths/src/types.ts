@@ -135,6 +135,16 @@ export interface AIToolPathConfig {
     /** Global commands path */
     global: string;
   };
+  /**
+   * Paths for MCP server configuration files.
+   * null project means this tool only supports global-scope MCP config.
+   */
+  mcp?: {
+    /** Project-level MCP config path, or null if global-only */
+    project: string | null;
+    /** Global MCP config path */
+    global: string;
+  };
   /** Structured detection configuration using OR-of-ANDs logic */
   detectionConfig?: DetectionConfig;
   /** Legacy paths for backward compatibility (e.g., .cursorrules, .windsurfrules) */

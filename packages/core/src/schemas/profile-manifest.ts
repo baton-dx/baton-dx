@@ -68,6 +68,44 @@ const memoryItemSchema = z.object({
 const memorySectionSchema = z.array(memoryItemSchema).optional();
 
 /**
+ * Env-var values in MCP server definitions must use ${VAR} or ${VAR:-default} syntax.
+ * This allows Baton to transform them per-tool while preventing arbitrary shell injection.
+ */
+const envVarValueSchema = z
+  .string()
+  .regex(
+    /^\$\{[A-Z_][A-Z0-9_]*(:-[^}]*)?\}$/,
+    "Env-Werte müssen ${VAR} oder ${VAR:-default} Syntax verwenden (z.B. ${HOME} oder ${PORT:-3000})",
+  );
+
+/**
+ * MCP transport type
+ */
+export const mcpTransportSchema = z.enum(["stdio", "http", "sse"]);
+export type McpTransport = z.infer<typeof mcpTransportSchema>;
+
+/**
+ * MCP server definition in profile manifest.
+ * Canonical format — adapters transform this to tool-specific format.
+ */
+export const mcpServerSchema = z.object({
+  name: z.string().regex(KEBAB_CASE_REGEX, {
+    message: "MCP-Servername muss kebab-case sein (z.B. my-server)",
+  }),
+  transport: mcpTransportSchema,
+  command: z.string().optional(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string(), envVarValueSchema).optional(),
+  url: z.string().url().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  scope: scopeSchema.optional(),
+  /** Optional: restrict this server to specific AI tools (e.g., ["claude-code", "cursor"]) */
+  tools: z.array(z.string()).optional(),
+});
+
+export type McpServer = z.infer<typeof mcpServerSchema>;
+
+/**
  * AI section in profile manifest
  */
 const aiSectionSchema = z
@@ -78,6 +116,7 @@ const aiSectionSchema = z
     agents: agentsSchema.optional(),
     memory: memorySectionSchema.optional(),
     commands: z.array(z.string()).optional(),
+    mcp: z.array(mcpServerSchema).optional(),
   })
   .optional();
 

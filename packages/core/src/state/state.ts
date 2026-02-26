@@ -24,6 +24,15 @@ export const placementStateSchema = z.object({
         .describe("Paths placed from profile files sections (biome.json, tsconfig.json, ...)"),
     })
     .describe("Tool-specific relative paths placed on disk, grouped by category"),
+  /**
+   * MCP servers placed per tool in the last sync.
+   * Map of tool key → array of server names managed by Baton.
+   * Used on the next sync to remove stale servers from shared settings files.
+   */
+  mcp_servers: z
+    .record(z.string(), z.array(z.string()))
+    .optional()
+    .describe("Baton-managed MCP server names per tool key (e.g., { 'zed': ['github', 'fs'] })"),
 });
 
 export type PlacementState = z.infer<typeof placementStateSchema>;

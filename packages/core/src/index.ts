@@ -29,9 +29,14 @@ export type {
   AgentFile,
   AIToolAdapter,
   CommandFile,
+  McpCapabilities,
+  McpConfigFormat,
+  McpEnvVarSyntax,
+  MergedMcpServer,
   MemoryFile,
   RuleFile,
   SkillDir,
+  ToolMcpServer,
   ValidationResult,
 } from "./adapters/types.js";
 export {
@@ -146,6 +151,12 @@ export {
 } from "./merge/rules.js";
 // Export scope resolution
 export { resolveScope } from "./merge/scope-resolution.js";
+// Export MCP merge logic
+export {
+  mergeMcp,
+  mergeMcpWithWarnings,
+  type MergeMcpResult,
+} from "./merge/mcp.js";
 // Export skill merge logic
 export {
   type MergedSkillItem,
@@ -205,9 +216,16 @@ export type { GlobalSourceEntry } from "./schemas/global-config.js";
 // Export types used by CLI
 export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
-export type { MemoryItem } from "./schemas/profile-manifest.js";
+// Export MCP env-transform utility
+export { transformEnvVars } from "./mcp/env-transform.js";
+// Export MCP writer utilities
+export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
+// Export MCP shared-settings utility
+export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
+export type { SharedSettingsResult } from "./mcp/shared-settings.js";
+export type { MemoryItem, McpServer, McpTransport } from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
-export { KEBAB_CASE_REGEX, profileManifestSchema } from "./schemas/profile-manifest.js";
+export { KEBAB_CASE_REGEX, mcpServerSchema, profileManifestSchema } from "./schemas/profile-manifest.js";
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
 export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";

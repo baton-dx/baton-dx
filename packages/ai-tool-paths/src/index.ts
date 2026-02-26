@@ -1,5 +1,6 @@
 export {
   getAIToolConfig,
+  getAIToolMcpPath,
   getAIToolPath,
   getAllAIToolKeys,
   getLegacyPaths,
