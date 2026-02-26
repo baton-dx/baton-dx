@@ -1,7 +1,16 @@
 import { z } from "zod";
 
 // Canonical config type for lockfile integrity entries
-const configTypeEnum = z.enum(["skills", "rules", "agents", "memory", "commands", "files", "ide"]);
+const configTypeEnum = z.enum([
+  "skills",
+  "rules",
+  "agents",
+  "memory",
+  "commands",
+  "files",
+  "ide",
+  "mcp",
+]);
 
 // Schema for file metadata in lockfile integrity entries
 // Each entry is annotated with its SHA-256 hash and canonical config type

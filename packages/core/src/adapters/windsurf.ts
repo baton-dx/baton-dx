@@ -1,7 +1,7 @@
 import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { parseFrontmatter } from "../utils/frontmatter.js";
 import { BaseAIToolAdapter } from "./base-adapter.js";
-import type { RuleFile, ValidationResult } from "./types.js";
+import type { McpCapabilities, RuleFile, ValidationResult } from "./types.js";
 
 /**
  * Windsurf adapter — strips YAML frontmatter from rules.
@@ -14,6 +14,15 @@ import type { RuleFile, ValidationResult } from "./types.js";
 export class WindsurfAdapter extends BaseAIToolAdapter {
   readonly key = "windsurf";
   readonly name = "Windsurf";
+
+  override readonly mcpCapabilities: McpCapabilities = {
+    supported: true,
+    configKey: "mcpServers",
+    envVarSyntax: "dollar-env-colon",
+    format: "json",
+    sharedSettingsFile: false,
+    supportedScopes: ["global"],
+  };
 
   override getLegacyPaths(type: ConfigType): string[] {
     if (type === "rules") {

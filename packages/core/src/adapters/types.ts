@@ -1,4 +1,6 @@
 import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
+import type { MergedMcpServer } from "../merge/mcp.js";
+import type { McpTransport } from "../schemas/profile-manifest.js";
 
 /**
  * Type guards for config file types used in adapter validate() methods.
@@ -103,6 +105,60 @@ export interface CommandFile {
 }
 
 /**
+ * Env-var syntax styles for MCP server environment variables.
+ * - dollar-brace: ${VAR} — used by Claude Code, Cursor, Kiro, Amp, GitHub Copilot
+ * - dollar-env-colon: ${env:VAR} — used by Windsurf, Roo
+ * - env-colon: {env:VAR} — used by OpenCode
+ * - expand: resolved from process.env — used by Zed, Cline, Antigravity, Codex, Trae
+ */
+export type McpEnvVarSyntax = "dollar-brace" | "dollar-env-colon" | "env-colon" | "expand";
+
+/** Config file format for MCP server definitions */
+export type McpConfigFormat = "json" | "jsonc" | "toml";
+
+/**
+ * Describes an AI tool's MCP capabilities.
+ */
+export interface McpCapabilities {
+  /** Whether this tool supports MCP configuration via Baton */
+  supported: boolean;
+  /** The JSON/TOML key for the MCP servers map (e.g., "mcpServers", "servers", "context_servers") */
+  configKey: string;
+  /**
+   * Optional parent path for nested configs. For example, Amp stores MCP servers at
+   * `amp.mcpServers`, so configKey = "mcpServers" and parentConfigPath = "amp".
+   */
+  parentConfigPath?: string;
+  /** How env-var references should be written in this tool's config */
+  envVarSyntax: McpEnvVarSyntax;
+  /** Config file format */
+  format: McpConfigFormat;
+  /**
+   * Whether the MCP config is embedded in a shared settings file (Zed, Cline, Antigravity, Codex).
+   * When true, readModifyWriteSharedSettings() is used instead of a direct atomic write.
+   */
+  sharedSettingsFile: boolean;
+  /** Supported scopes — tools with project: null only support ["global"] */
+  supportedScopes: Scope[];
+  /** Transports supported by this tool (undefined = all) */
+  supportedTransports?: McpTransport[];
+}
+
+/**
+ * Tool-specific MCP server representation, after adapter transformation.
+ */
+export interface ToolMcpServer {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+// Re-export for external consumers
+export type { MergedMcpServer } from "../merge/mcp.js";
+
+/**
  * AIToolAdapter interface - all AI tool adapters implement this
  *
  * Each adapter handles the specifics of transforming canonical data formats
@@ -179,4 +235,21 @@ export interface AIToolAdapter {
    * @returns Validation result with errors
    */
   validate(type: ConfigType, file: unknown): ValidationResult;
+
+  /** MCP capabilities descriptor for this tool */
+  readonly mcpCapabilities: McpCapabilities;
+
+  /**
+   * Get the absolute path for the MCP config file.
+   * Returns null if this tool does not support the requested scope
+   * (e.g., global-only tools return null for "project").
+   */
+  getMcpPath(scope: Scope): string | null;
+
+  /**
+   * Transform a canonical MCP server definition to this tool's format.
+   * Returns null if this tool does not support MCP or if the transport
+   * is not supported by this tool.
+   */
+  transformMcp(server: MergedMcpServer): ToolMcpServer | null;
 }

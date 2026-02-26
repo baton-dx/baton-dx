@@ -1,7 +1,7 @@
 import type { ConfigType } from "@baton-dx/ai-tool-paths";
 import { parseFrontmatter } from "../utils/frontmatter.js";
 import { BaseAIToolAdapter } from "./base-adapter.js";
-import type { RuleFile, ValidationResult } from "./types.js";
+import type { McpCapabilities, RuleFile, ValidationResult } from "./types.js";
 
 /**
  * Cursor adapter — transforms rules to .mdc format.
@@ -14,6 +14,15 @@ import type { RuleFile, ValidationResult } from "./types.js";
 export class CursorAdapter extends BaseAIToolAdapter {
   readonly key = "cursor";
   readonly name = "Cursor";
+
+  override readonly mcpCapabilities: McpCapabilities = {
+    supported: true,
+    configKey: "mcpServers",
+    envVarSyntax: "dollar-brace",
+    format: "json",
+    sharedSettingsFile: false,
+    supportedScopes: ["project", "global"],
+  };
 
   override getLegacyPaths(type: ConfigType): string[] {
     if (type === "rules") {

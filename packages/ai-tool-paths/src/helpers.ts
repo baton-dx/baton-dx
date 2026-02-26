@@ -92,3 +92,24 @@ export function getLegacyPaths(agentKey: string, configType: ConfigType): string
   }
   return [];
 }
+
+/**
+ * Retrieves the resolved MCP config path for a given agent and scope.
+ * Returns null if the tool does not have MCP config or the scope is not supported.
+ *
+ * @param agentKey - The unique key of the agent
+ * @param scope - "project" or "global"
+ * @returns Resolved absolute path, or null if not supported for this scope
+ * @throws AIToolNotFoundError if the agent key is not found
+ */
+export function getAIToolMcpPath(agentKey: string, scope: Scope): string | null {
+  const config = getAIToolConfig(agentKey);
+  if (!config.mcp) {
+    return null;
+  }
+  const template = config.mcp[scope];
+  if (template === null) {
+    return null;
+  }
+  return resolvePath(template);
+}

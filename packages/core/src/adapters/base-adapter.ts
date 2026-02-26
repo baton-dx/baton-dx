@@ -1,13 +1,17 @@
 import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
-import { getAIToolPath } from "@baton-dx/ai-tool-paths";
-
+import { getAIToolMcpPath, getAIToolPath } from "@baton-dx/ai-tool-paths";
+import { transformEnvVars } from "../mcp/env-transform.js";
+import type { MergedMcpServer } from "../merge/mcp.js";
 import type {
   AgentFile,
   AIToolAdapter,
   CommandFile,
+  McpCapabilities,
+  McpEnvVarSyntax,
   MemoryFile,
   RuleFile,
   SkillDir,
+  ToolMcpServer,
   ValidationResult,
 } from "./types.js";
 
@@ -31,6 +35,16 @@ export abstract class BaseAIToolAdapter implements AIToolAdapter {
 
   /** Memory filename this tool uses. Override for non-AGENTS.md tools. */
   protected memoryFilename = "AGENTS.md";
+
+  /** Default MCP capabilities: unsupported. Override in subclasses. */
+  readonly mcpCapabilities: McpCapabilities = {
+    supported: false,
+    configKey: "mcpServers",
+    envVarSyntax: "dollar-brace",
+    format: "json",
+    sharedSettingsFile: false,
+    supportedScopes: ["project", "global"],
+  };
 
   async isInstalled(): Promise<boolean> {
     try {
@@ -78,6 +92,36 @@ export abstract class BaseAIToolAdapter implements AIToolAdapter {
 
   validate(type: ConfigType, file: unknown): ValidationResult {
     return this.validateCommon(type, file);
+  }
+
+  getMcpPath(scope: Scope): string | null {
+    if (!this.mcpCapabilities.supported) return null;
+    return getAIToolMcpPath(this.key, scope);
+  }
+
+  transformMcp(server: MergedMcpServer): ToolMcpServer | null {
+    if (!this.mcpCapabilities.supported) return null;
+    return this.buildMcpServer(server, this.mcpCapabilities.envVarSyntax);
+  }
+
+  /**
+   * Build a ToolMcpServer object from a MergedMcpServer, transforming env-var syntax.
+   * Subclasses can call this with a custom syntax override if needed.
+   */
+  protected buildMcpServer(server: MergedMcpServer, syntax: McpEnvVarSyntax): ToolMcpServer {
+    const result: ToolMcpServer = {};
+
+    if (server.command !== undefined) result.command = server.command;
+    if (server.args !== undefined) result.args = server.args;
+    if (server.url !== undefined) result.url = server.url;
+    if (server.headers !== undefined) result.headers = server.headers;
+
+    if (server.env && Object.keys(server.env).length > 0) {
+      const { env } = transformEnvVars(server.env, syntax);
+      result.env = env;
+    }
+
+    return result;
   }
 
   /**

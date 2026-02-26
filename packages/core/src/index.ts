@@ -29,9 +29,14 @@ export type {
   AgentFile,
   AIToolAdapter,
   CommandFile,
+  McpCapabilities,
+  McpConfigFormat,
+  McpEnvVarSyntax,
   MemoryFile,
+  MergedMcpServer,
   RuleFile,
   SkillDir,
+  ToolMcpServer,
   ValidationResult,
 } from "./adapters/types.js";
 export {
@@ -120,6 +125,13 @@ export {
   readLock,
   writeLock,
 } from "./lockfile/manager.js";
+// Export MCP env-transform utility
+export { transformEnvVars } from "./mcp/env-transform.js";
+export type { SharedSettingsResult } from "./mcp/shared-settings.js";
+// Export MCP shared-settings utility
+export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
+// Export MCP writer utilities
+export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
 // Export agent merge logic
 export {
   type AgentEntry,
@@ -129,6 +141,12 @@ export {
 } from "./merge/agents.js";
 // Export content parts merge
 export { mergeContentParts } from "./merge/content-parts.js";
+// Export MCP merge logic
+export {
+  type MergeMcpResult,
+  mergeMcp,
+  mergeMcpWithWarnings,
+} from "./merge/mcp.js";
 // Export memory merge logic
 export {
   type MemoryContribution,
@@ -205,9 +223,13 @@ export type { GlobalSourceEntry } from "./schemas/global-config.js";
 // Export types used by CLI
 export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
-export type { MemoryItem } from "./schemas/profile-manifest.js";
+export type { McpServer, McpTransport, MemoryItem } from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
-export { KEBAB_CASE_REGEX, profileManifestSchema } from "./schemas/profile-manifest.js";
+export {
+  KEBAB_CASE_REGEX,
+  mcpServerSchema,
+  profileManifestSchema,
+} from "./schemas/profile-manifest.js";
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
 export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";
