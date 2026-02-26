@@ -1,7 +1,7 @@
 {
   "name": "@baton-dx/core",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Core logic for Baton - schemas, adapters, merge strategies, and Git source provider",
   "type": "module",
   "main": "./dist/index.mjs",
