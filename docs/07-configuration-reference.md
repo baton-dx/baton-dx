@@ -74,6 +74,14 @@ ai:
   commands:
     - name: review
       scope: project
+  mcp:
+    - name: filesystem
+      transport: stdio
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem"]
+      env:
+        ROOT_DIR: "${HOME}"
+      scope: project
 
 files:
   - source: files/.editorconfig
@@ -109,6 +117,7 @@ hooks:
 | `ai.agents` | array | no | Agent files to place |
 | `ai.memory` | array | no | Memory files to place |
 | `ai.commands` | array | no | Command files to place |
+| `ai.mcp` | array | no | MCP server definitions (placed into each tool's native config) |
 | `files` | array | no | General files to place |
 | `ide` | object | no | IDE-specific settings |
 | `variables` | object | no | Default variable values |
@@ -142,6 +151,20 @@ hooks:
 | `source` | string | Source file path (relative to profile) |
 | `target` | string | Target path in project |
 | `merge` | string | Merge strategy |
+
+### MCP Server Item
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Server name (kebab-case). Used as config key. |
+| `transport` | `"stdio"` \| `"http"` \| `"sse"` | Connection type |
+| `command` | string | Executable (required for `stdio`) |
+| `args` | string[] | Command arguments |
+| `env` | object | Env vars. Values must be `${VAR}` or `${VAR:-default}` syntax. |
+| `url` | string | Server URL (required for `http`/`sse`) |
+| `headers` | object | HTTP headers (for `http`/`sse`) |
+| `scope` | `"project"` \| `"global"` | Placement scope. Defaults to `project`. |
+| `tools` | string[] | Restrict to specific tool keys. Omit for all installed tools. |
 
 ---
 

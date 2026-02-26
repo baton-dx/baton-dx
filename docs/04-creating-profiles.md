@@ -45,6 +45,18 @@ ai:
   agents:
     - name: reviewer
       scope: project
+  mcp:
+    - name: filesystem
+      transport: stdio
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem"]
+      env:
+        ROOT_DIR: "${HOME}"
+      scope: project
+    - name: github
+      transport: http
+      url: https://api.githubcopilot.com/mcp/
+      scope: global
 files:
   - source: files/.editorconfig
     target: .editorconfig
@@ -245,6 +257,48 @@ ai:
     - name: deploy
       scope: project
 ```
+
+### MCP Servers
+
+MCP (Model Context Protocol) servers extend AI tools with external capabilities. Define them once in your profile — Baton places them into each tool's native config format automatically.
+
+```yaml
+ai:
+  mcp:
+    - name: filesystem
+      transport: stdio
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem"]
+      env:
+        ROOT_DIR: "${HOME}"
+      scope: project
+    - name: github-mcp
+      transport: http
+      url: https://api.githubcopilot.com/mcp/
+      scope: global
+    - name: internal-api
+      transport: stdio
+      command: node
+      args: ["./scripts/mcp-server.js"]
+      tools: [claude-code, cursor]   # only these tools get this server
+      scope: project
+```
+
+| Field | Type | Required | Description |
+| ------- | --------- | -------- | ------------------------------------------------------------------- |
+| `name` | string | yes | Unique server name (kebab-case). Used as the key in config files. |
+| `transport` | string | yes | Transport type: `stdio`, `http`, or `sse`. |
+| `command` | string | no | Executable command (required for `stdio` transport). |
+| `args` | string[] | no | Arguments passed to the command. |
+| `env` | object | no | Environment variables. Values must use `${VAR}` or `${VAR:-default}` syntax. |
+| `url` | string | no | Server URL (required for `http` and `sse` transports). |
+| `headers` | object | no | HTTP headers (for `http`/`sse` transports). |
+| `scope` | string | no | `project` or `global`. Defaults to `project`. |
+| `tools` | string[] | no | Limit to specific tool keys. Omit to target all installed tools. |
+
+**Env var syntax:** All env values must use `${VAR}` (or `${VAR:-default}` for fallbacks). Baton transforms these into each tool's native syntax at sync time — for example, `${VAR}` becomes `${env:VAR}` for Windsurf/Roo or is expanded from `process.env` for Zed/Codex.
+
+**Scope behavior:** If a server has `scope: project` but a tool only supports global-scope MCP (e.g. Windsurf, Cline), Baton emits a warning and falls back to global placement.
 
 ---
 
