@@ -82,8 +82,11 @@ export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemor
       };
 
       if (existing) {
-        // Always add contribution (all profiles contribute content)
-        existing.contributions.push(contribution);
+        // Skip duplicate contributions from diamond inheritance
+        // (same base profile can appear multiple times in allProfiles)
+        if (!existing.contributions.some((c) => c.profileName === contribution.profileName)) {
+          existing.contributions.push(contribution);
+        }
 
         // Only update governing strategy if not locked
         if (!lockedKeys.has(item.source)) {

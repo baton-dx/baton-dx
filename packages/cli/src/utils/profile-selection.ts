@@ -1,11 +1,8 @@
 import { resolve } from "node:path";
 import { cloneGitSource, discoverProfilesInSourceRepo, parseSource } from "@baton-dx/core";
 import * as p from "@clack/prompts";
-import {
-  buildHierarchicalSelectOptions,
-  buildProfileTree,
-  getInheritedProfiles,
-} from "./profile-tree.js";
+import { cascadingMultiselect } from "./cascading-multiselect.js";
+import { buildHierarchicalSelectOptions, buildProfileTree } from "./profile-tree.js";
 
 /**
  * Discovers and prompts user to select multiple profiles from a source.
@@ -18,7 +15,10 @@ import {
  */
 export async function selectMultipleProfilesFromSource(
   sourceString: string,
-  options?: { nonInteractive?: boolean },
+  options?: {
+    nonInteractive?: boolean;
+    installedSources?: string[];
+  },
 ): Promise<string[]> {
   const parsedSource = parseSource(sourceString);
 
@@ -60,32 +60,34 @@ export async function selectMultipleProfilesFromSource(
         return profiles.map((prof) => constructProfilePath(parsedSource, prof.path));
       }
 
-      // Multiple profiles - show hierarchical multi-select
+      // Multiple profiles - show hierarchical multi-select with cascading
       const roots = buildProfileTree(profiles);
       const selectOptions = buildHierarchicalSelectOptions(roots);
 
-      const selected = (await p.multiselect({
-        message: "Select profile(s) to install: (Space to select, Enter to continue)",
+      // Compute initial values from installed sources
+      const initialValues: string[] = [];
+      if (options?.installedSources) {
+        for (const profile of profiles) {
+          const fullPath = constructProfilePath(parsedSource, profile.path);
+          if (options.installedSources.includes(fullPath)) {
+            initialValues.push(profile.path);
+          }
+        }
+      }
+
+      const selected = await cascadingMultiselect({
+        message: options?.installedSources
+          ? "Manage profiles: (Space to toggle, Enter to confirm)"
+          : "Select profile(s) to install: (Space to select, Enter to continue)",
         options: selectOptions,
-        required: true,
-      })) as string[];
+        profiles,
+        required: !options?.installedSources,
+        initialValues: initialValues.length > 0 ? initialValues : undefined,
+      });
 
       if (p.isCancel(selected)) {
         p.cancel("❌ Profile selection cancelled");
         process.exit(0);
-      }
-
-      // Show inheritance note for selected profiles
-      const selectedNames = selected
-        .map((path) => profiles.find((pr) => pr.path === path)?.name)
-        .filter((name): name is string => name !== undefined);
-
-      const inherited = getInheritedProfiles(selectedNames, profiles);
-      if (inherited.length > 0) {
-        p.note(
-          `Durch deine Auswahl werden folgende Profile via Inheritance mitgesynct:\n${inherited.map((n) => `  • ${n}`).join("\n")}`,
-          "Inheritance",
-        );
       }
 
       // Map selected paths to full source strings
@@ -127,32 +129,34 @@ export async function selectMultipleProfilesFromSource(
       );
     }
 
-    // Multiple profiles - show hierarchical multi-select
+    // Multiple profiles - show hierarchical multi-select with cascading
     const roots = buildProfileTree(profiles);
     const selectOptions = buildHierarchicalSelectOptions(roots);
 
-    const selected = (await p.multiselect({
-      message: "Select profile(s) to install: (Space to select, Enter to continue)",
+    // Compute initial values from installed sources
+    const initialValues: string[] = [];
+    if (options?.installedSources) {
+      for (const profile of profiles) {
+        const fullPath = profile.path === "." ? sourceString : `${sourceString}/${profile.path}`;
+        if (options.installedSources.includes(fullPath)) {
+          initialValues.push(profile.path);
+        }
+      }
+    }
+
+    const selected = await cascadingMultiselect({
+      message: options?.installedSources
+        ? "Manage profiles: (Space to toggle, Enter to confirm)"
+        : "Select profile(s) to install: (Space to select, Enter to continue)",
       options: selectOptions,
-      required: true,
-    })) as string[];
+      profiles,
+      required: !options?.installedSources,
+      initialValues: initialValues.length > 0 ? initialValues : undefined,
+    });
 
     if (p.isCancel(selected)) {
       p.cancel("❌ Profile selection cancelled");
       process.exit(0);
-    }
-
-    // Show inheritance note for selected profiles
-    const selectedNames = selected
-      .map((path) => profiles.find((pr) => pr.path === path)?.name)
-      .filter((name): name is string => name !== undefined);
-
-    const inherited = getInheritedProfiles(selectedNames, profiles);
-    if (inherited.length > 0) {
-      p.note(
-        `Durch deine Auswahl werden folgende Profile via Inheritance mitgesynct:\n${inherited.map((n) => `  • ${n}`).join("\n")}`,
-        "Inheritance",
-      );
     }
 
     return selected.map((path) => (path === "." ? sourceString : `${sourceString}/${path}`));
