@@ -5,11 +5,13 @@ import {
   clearAIToolCache,
   clearIdeCache,
   cloneGitSource,
-  collectComprehensivePatterns,
+  collectAiToolPatterns,
+  collectIdePatterns,
   computeIntersection,
   detectInstalledAITools,
   detectInstalledIdes,
   findSourceManifest,
+  type GitignoreSection,
   getDefaultGlobalSource,
   getGlobalAiTools,
   getGlobalIdePlatforms,
@@ -19,7 +21,7 @@ import {
   resolveProfileSupport,
   setGlobalAiTools,
   setGlobalIdePlatforms,
-  updateGitignore,
+  updateGitignoreWithSections,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -139,26 +141,50 @@ export const initCommand = defineCommand({
     // 4. Show intersection between developer tools and profile support
     await showProfileIntersections(profileSources);
 
-    // 5. Ask whether synced files should be gitignored
-    let gitignoreSetting = true; // default for --yes mode
+    // 5. Ask which categories of synced files should be gitignored
+    // Default: ai-tools and ides are gitignored; custom files are committed
+    type GitignoreCategories = { "ai-tools": boolean; ides: boolean; files: boolean };
+    let gitignoreCategories: GitignoreCategories = { "ai-tools": true, ides: true, files: false };
+
     if (isInteractive) {
-      const shouldGitignore = await p.confirm({
-        message: "Add synced AI tool and IDE config files to .gitignore?",
-        initialValue: true,
+      const selectedCategories = await p.multiselect({
+        message: "Which synced config files should be added to .gitignore?",
+        options: [
+          {
+            value: "ai-tools",
+            label: "AI tool configs",
+            hint: ".claude/, .cursor/, .github/copilot-instructions.md, ...",
+          },
+          {
+            value: "ides",
+            label: "IDE configs",
+            hint: ".vscode/, .idea/, ...",
+          },
+          {
+            value: "files",
+            label: "Custom files",
+            hint: "biome.json, tsconfig.json, and other files placed by profiles",
+          },
+        ],
+        initialValues: ["ai-tools", "ides"],
       });
 
-      if (p.isCancel(shouldGitignore)) {
+      if (p.isCancel(selectedCategories)) {
         p.cancel("Setup cancelled.");
         process.exit(0);
       }
 
-      gitignoreSetting = shouldGitignore;
+      gitignoreCategories = {
+        "ai-tools": selectedCategories.includes("ai-tools"),
+        ides: selectedCategories.includes("ides"),
+        files: selectedCategories.includes("files"),
+      };
     }
 
     // 6. Generate baton.yaml with multiple profiles and gitignore setting
     const manifest: ProjectManifest = {
       profiles: profileSources.map((source) => ({ source })),
-      gitignore: gitignoreSetting,
+      gitignore: gitignoreCategories,
     };
 
     const yamlContent = stringify(manifest);
@@ -186,10 +212,14 @@ export const initCommand = defineCommand({
       await writeFile(gitignorePath, newContent, "utf-8");
     }
 
-    // If gitignore enabled, write comprehensive patterns for all known tools
-    if (gitignoreSetting) {
-      const patterns = collectComprehensivePatterns();
-      await updateGitignore(cwd, patterns);
+    // Write gitignore patterns for selected categories (files require a sync for actual targets)
+    const sections: GitignoreSection[] = [];
+    if (gitignoreCategories["ai-tools"])
+      sections.push({ label: "ai-tools", patterns: collectAiToolPatterns() });
+    if (gitignoreCategories.ides) sections.push({ label: "ides", patterns: collectIdePatterns() });
+
+    if (sections.length > 0) {
+      await updateGitignoreWithSections(cwd, sections);
       spinner.stop("✅ Updated .gitignore with managed file patterns");
     } else {
       spinner.stop("✅ Added .baton/ to .gitignore");

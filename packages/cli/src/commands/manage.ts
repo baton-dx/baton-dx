@@ -3,7 +3,12 @@ import { join, resolve } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
   cloneGitSource,
+  collectAiToolPatterns,
+  collectFilePatterns,
+  collectIdePatterns,
+  ensureBatonDirGitignored,
   FileNotFoundError,
+  flattenPlacedFiles,
   getAllAIToolAdapters,
   getDefaultGlobalSource,
   getGlobalAiTools,
@@ -12,10 +17,14 @@ import {
   getRegisteredIdePlatforms,
   loadProfileManifest,
   loadProjectManifest,
+  parseGitignoreConfig,
   parseSource,
   readLock,
   readProjectPreferences,
+  readState,
+  removeGitignoreManagedSection,
   removePlacedFiles,
+  updateGitignoreWithSections,
   writeProjectPreferences,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
@@ -328,6 +337,7 @@ async function handleRemoveBaton(cwd: string): Promise<boolean> {
   p.log.warn("This will remove Baton from your project:");
   p.log.info("  - baton.yaml (project manifest)");
   p.log.info("  - baton.lock (lockfile)");
+  p.log.info("  - .baton/ (local state directory)");
 
   // 2. Confirm
   const confirmed = await p.confirm({
@@ -340,9 +350,9 @@ async function handleRemoveBaton(cwd: string): Promise<boolean> {
     return false;
   }
 
-  // 3. Offer to clean up placed files from lockfile
+  // 3. Offer to clean up placed files (reads state.yaml for real disk paths, fallback to lock)
   const lockPath = join(cwd, "baton.lock");
-  await cleanupPlacedFilesFromLock(lockPath, cwd);
+  await cleanupPlacedFiles(lockPath, cwd);
 
   // 4. Delete baton.yaml
   const manifestPath = join(cwd, "baton.yaml");
@@ -351,22 +361,46 @@ async function handleRemoveBaton(cwd: string): Promise<boolean> {
   // 5. Delete baton.lock
   await rm(lockPath, { force: true });
 
+  // 6. Delete .baton/ directory (state.yaml, preferences.yaml, etc.)
+  await rm(join(cwd, ".baton"), { recursive: true, force: true });
+
   p.log.success("Baton has been removed from this project.");
   return true;
 }
 
-async function cleanupPlacedFilesFromLock(lockPath: string, projectRoot: string): Promise<void> {
-  let placedPaths: string[];
-  try {
-    const lockfile = await readLock(lockPath);
-    placedPaths = Object.values(lockfile.packages).flatMap((pkg) => Object.keys(pkg.integrity));
-  } catch (error) {
-    if (error instanceof FileNotFoundError) return;
-    // Invalid lockfile — skip cleanup silently
-    return;
+async function cleanupPlacedFiles(lockPath: string, projectRoot: string): Promise<void> {
+  let placedPaths: string[] | undefined;
+
+  // Primary: read actual disk paths from .baton/state.yaml
+  const state = await readState(projectRoot);
+  if (state) {
+    const allPaths = flattenPlacedFiles(state.placed_files);
+    if (allPaths.length > 0) {
+      placedPaths = allPaths;
+    }
   }
 
-  if (placedPaths.length === 0) return;
+  if (!placedPaths) {
+    // Fallback: extract paths from baton.lock
+    // Note: lockfile integrity keys are canonical (e.g. "skills/foo"), not real disk paths.
+    // This fallback is best-effort — paths may not resolve correctly without state.yaml.
+    try {
+      const lockfile = await readLock(lockPath);
+      const lockPaths = Object.values(lockfile.packages).flatMap((pkg) =>
+        Object.keys(pkg.integrity),
+      );
+      if (lockPaths.length > 0) {
+        p.log.warn("state.yaml not found — file paths may be inaccurate");
+        placedPaths = lockPaths;
+      }
+    } catch (error) {
+      if (error instanceof FileNotFoundError) return;
+      // Invalid lockfile — skip cleanup silently
+      return;
+    }
+  }
+
+  if (!placedPaths || placedPaths.length === 0) return;
 
   p.log.info(`Found ${placedPaths.length} placed file(s):`);
   for (const filePath of placedPaths) {
@@ -551,36 +585,79 @@ async function handleConfigureGitignore(cwd: string): Promise<void> {
     return;
   }
 
-  const currentSetting = manifest.gitignore !== false;
+  // Normalize current setting to display the current state
+  const current = parseGitignoreConfig(manifest.gitignore);
+  const currentValues: string[] = [];
+  if (current.aiTools) currentValues.push("ai-tools");
+  if (current.ides) currentValues.push("ides");
+  if (current.files) currentValues.push("files");
+
   p.log.info(
-    currentSetting
-      ? "Currently: synced files ARE gitignored"
-      : "Currently: synced files are NOT gitignored (committed to repo)",
+    currentValues.length > 0
+      ? `Currently gitignored: ${currentValues.join(", ")}`
+      : "Currently: no files are gitignored (all committed to repo)",
   );
 
-  const newSetting = await p.confirm({
-    message: "Add synced AI tool and IDE config files to .gitignore?",
-    initialValue: currentSetting,
+  const selected = await p.multiselect({
+    message: "Which synced config files should be added to .gitignore?",
+    options: [
+      {
+        value: "ai-tools",
+        label: "AI tool configs",
+        hint: ".claude/, .cursor/, .github/copilot-instructions.md, ...",
+      },
+      {
+        value: "ides",
+        label: "IDE configs",
+        hint: ".vscode/, .idea/, ...",
+      },
+      {
+        value: "files",
+        label: "Custom files",
+        hint: "biome.json, tsconfig.json, and other files placed by profiles",
+      },
+    ],
+    initialValues: currentValues,
   });
 
-  if (p.isCancel(newSetting)) {
+  if (p.isCancel(selected)) {
     p.log.warn("Cancelled.");
     return;
   }
 
-  if (newSetting === currentSetting) {
-    p.log.info("No change.");
-    return;
-  }
+  const newGitignore = {
+    "ai-tools": selected.includes("ai-tools"),
+    ides: selected.includes("ides"),
+    files: selected.includes("files"),
+  };
 
-  manifest.gitignore = newSetting;
+  manifest.gitignore = newGitignore;
   const updatedYaml = stringify(manifest);
   await writeFile(manifestPath, updatedYaml, "utf-8");
-  p.log.success(
-    newSetting
-      ? "Enabled .gitignore management. Run 'baton sync' to update."
-      : "Disabled .gitignore management. Run 'baton sync' to clean up.",
-  );
+
+  // Apply .gitignore changes immediately
+  await ensureBatonDirGitignored(cwd);
+  const newConfig = parseGitignoreConfig(newGitignore);
+  const anyEnabled = newConfig.aiTools || newConfig.ides || newConfig.files;
+
+  if (anyEnabled) {
+    const sections = [];
+    if (newConfig.aiTools) sections.push({ label: "ai-tools", patterns: collectAiToolPatterns() });
+    if (newConfig.ides) sections.push({ label: "ides", patterns: collectIdePatterns() });
+    if (newConfig.files) {
+      // Read file targets from state.yaml (populated during last sync)
+      const state = await readState(cwd);
+      const fileTargets = state?.placed_files.files ?? [];
+      if (fileTargets.length > 0) {
+        sections.push({ label: "files", patterns: collectFilePatterns(fileTargets) });
+      }
+    }
+    await updateGitignoreWithSections(cwd, sections);
+    p.log.success(`Updated .gitignore categories: ${selected.join(", ")}`);
+  } else {
+    await removeGitignoreManagedSection(cwd);
+    p.log.success("Disabled .gitignore management — managed section removed.");
+  }
 }
 
 export const manageCommand = defineCommand({
