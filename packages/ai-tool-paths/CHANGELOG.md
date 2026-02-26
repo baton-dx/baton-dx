@@ -1,5 +1,40 @@
 # @baton-dx/agent-paths
 
+## 0.14.0
+
+### Minor Changes
+
+- [#126](https://github.com/baton-dx/baton-dx/pull/126) [`7c51ac2`](https://github.com/baton-dx/baton-dx/commit/7c51ac2f392d1ed6aac8d6d42c30e4039ad1cfd2) Thanks [@mantaray0](https://github.com/mantaray0)! - feat: MCP server distribution support (Issue #80)
+
+  Define MCP servers once in `ai.mcp[]` inside `baton.profile.yaml` — Baton places them into each tool's native config format during `baton sync`.
+
+  **New profile syntax:**
+
+  ```yaml
+  ai:
+    mcp:
+      - name: filesystem
+        transport: stdio
+        command: npx
+        args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        env:
+          ROOT_DIR: "${HOME}"
+        scope: project
+      - name: github
+        transport: http
+        url: https://api.githubcopilot.com/mcp/
+        scope: global
+  ```
+
+  **Supported across all 13 tools** (Junie excluded — no MCP support):
+
+  - Dedicated JSON files: Claude Code, Cursor, Kiro, Roo, Amp, GitHub Copilot, Trae, OpenCode (JSONC)
+  - Shared settings files (read-modify-write): Zed (`settings.json`), Cline, Antigravity, Codex CLI (TOML)
+
+  **Env-var transformation:** `${VAR}` syntax in `env` fields is transformed to each tool's native syntax at sync time.
+
+  **State tracking:** Previously placed MCP servers are tracked in `.baton/state.yaml` so stale servers are removed on the next sync.
+
 ## 0.13.1
 
 ## 0.13.0
