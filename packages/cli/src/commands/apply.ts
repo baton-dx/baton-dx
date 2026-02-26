@@ -485,13 +485,20 @@ export const applyCommand = defineCommand({
       }
 
       if (allIntersections) {
-        for (const [source, intersection] of allIntersections) {
-          if (verbose) {
+        if (verbose) {
+          for (const [source, intersection] of allIntersections) {
             p.log.step(`Intersection for ${source}`);
             displayIntersection(intersection);
-          } else {
+          }
+        } else {
+          // Deduplicate: show unique summaries only once
+          const seen = new Set<string>();
+          for (const [, intersection] of allIntersections) {
             const summary = formatIntersectionSummary(intersection);
-            p.log.info(`Applying for: ${summary}`);
+            if (!seen.has(summary)) {
+              seen.add(summary);
+              p.log.info(`Applying for: ${summary}`);
+            }
           }
         }
       }
