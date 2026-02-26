@@ -30,7 +30,12 @@ describe("Placement State", () => {
         synced_at: "2024-01-01T00:00:00.000Z",
         tools: ["claude-code", "windsurf"],
         placed_files: {
-          "ai-tools": [".claude/skills/add-adapter", ".windsurf/skills/add-adapter", "CLAUDE.md", "AGENTS.md"],
+          "ai-tools": [
+            ".claude/skills/add-adapter",
+            ".windsurf/skills/add-adapter",
+            "CLAUDE.md",
+            "AGENTS.md",
+          ],
           ides: [],
           files: [],
         },

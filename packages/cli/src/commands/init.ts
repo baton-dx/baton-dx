@@ -8,10 +8,10 @@ import {
   collectAiToolPatterns,
   collectIdePatterns,
   computeIntersection,
-  type GitignoreSection,
   detectInstalledAITools,
   detectInstalledIdes,
   findSourceManifest,
+  type GitignoreSection,
   getDefaultGlobalSource,
   getGlobalAiTools,
   getGlobalIdePlatforms,
@@ -214,7 +214,8 @@ export const initCommand = defineCommand({
 
     // Write gitignore patterns for selected categories (files require a sync for actual targets)
     const sections: GitignoreSection[] = [];
-    if (gitignoreCategories["ai-tools"]) sections.push({ label: "ai-tools", patterns: collectAiToolPatterns() });
+    if (gitignoreCategories["ai-tools"])
+      sections.push({ label: "ai-tools", patterns: collectAiToolPatterns() });
     if (gitignoreCategories.ides) sections.push({ label: "ides", patterns: collectIdePatterns() });
 
     if (sections.length > 0) {
