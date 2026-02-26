@@ -1,7 +1,8 @@
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
 import type { AIToolAdapter } from "../adapters/types.js";
+import { atomicWriteFile } from "../utils/atomic-write.js";
 
 /**
  * Placement mode for file placement
@@ -91,7 +92,7 @@ export async function placeFile(
 
     if (!existingCanonical) {
       // First installation: create canonical copy
-      await writeFile(absolutePath, content, "utf-8");
+      await atomicWriteFile(absolutePath, content);
       canonicalFiles.set(canonicalKey, absolutePath);
 
       return {
@@ -116,7 +117,7 @@ export async function placeFile(
       };
     } catch (error) {
       // Symlink creation failed, fall back to copy mode
-      await writeFile(absolutePath, content, "utf-8");
+      await atomicWriteFile(absolutePath, content);
 
       return {
         path: absolutePath,
@@ -128,7 +129,7 @@ export async function placeFile(
   }
 
   // Copy mode: write independent copy
-  await writeFile(absolutePath, content, "utf-8");
+  await atomicWriteFile(absolutePath, content);
 
   return {
     path: absolutePath,

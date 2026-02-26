@@ -1,3 +1,4 @@
+export { atomicWriteFile } from "./atomic-write.js";
 export { type ParsedFrontmatter, parseFrontmatter } from "./frontmatter.js";
 export {
   collectAiToolPatterns,

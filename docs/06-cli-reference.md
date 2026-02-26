@@ -47,11 +47,17 @@ baton sync
 baton sync --dry-run
 baton sync --verbose
 baton sync --category ai
+baton sync --check
+baton sync --yes
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--category <type>` | Filter by category: `ai`, `files`, or `ide` |
+| `--check` | Read-only stale check — exits 0 if in sync, 1 if stale (does not write files) |
+| `--dry-run` | Show what would be done without writing files |
+| `--verbose` | Show detailed per-file report (created / updated / skipped / removed) |
+| `--yes` | Run non-interactively (skip all prompts) |
 
 **Process:**
 1. Fetches **latest versions** of all profile sources (always fresh)
@@ -59,7 +65,13 @@ baton sync --category ai
 3. Merges profiles in order (respecting weight and inheritance)
 4. Transforms configs for each AI tool's format
 5. Places files in correct locations
-6. Updates `baton.lock` with resolved commit SHAs
+6. Runs profile `post-install` / `post-update` hooks (if defined)
+7. Updates `baton.lock` with resolved commit SHAs
+
+**`--check` mode** is read-only and safe to run in CI pre-merge checks:
+```bash
+baton sync --check && echo "In sync" || echo "Run baton sync to update"
+```
 
 ---
 
@@ -73,12 +85,16 @@ baton apply --dry-run
 baton apply --verbose
 baton apply --category ai
 baton apply --fresh
+baton apply --yes
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--category <type>` | Filter by category: `ai`, `files`, or `ide` |
 | `--fresh` | Force cache bypass (re-clone even if cached) |
+| `--dry-run` | Show what would be done without writing files |
+| `--verbose` | Show detailed per-file report (created / updated / skipped / removed) |
+| `--yes` | Run non-interactively (skip all prompts) |
 
 **Use cases:** CI/CD pipelines, onboarding new team members, reproducible builds.
 

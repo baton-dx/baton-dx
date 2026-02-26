@@ -1,7 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
+import { atomicWriteFile } from "../utils/atomic-write.js";
 
 /**
  * Schema for `.baton/state.yaml` — local placement state (never committed).
@@ -61,7 +62,7 @@ export async function writeState(projectRoot: string, state: PlacementState): Pr
   const { mkdir } = await import("node:fs/promises");
   await mkdir(resolve(projectRoot, STATE_DIR), { recursive: true });
   const yamlContent = stringify(state);
-  await writeFile(getStatePath(projectRoot), yamlContent, "utf-8");
+  await atomicWriteFile(getStatePath(projectRoot), yamlContent);
 }
 
 /**

@@ -1,10 +1,12 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
   type AgentEntry,
   type AgentFile,
   type AIToolAdapter,
+  atomicWriteFile,
   type CloneContext,
+  checkStale,
   cloneGitSource,
   detectInstalledAITools,
   detectLegacyPaths,
@@ -45,14 +47,16 @@ import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
+import { runProfileHook } from "../utils/run-hook.js";
 import {
   cleanupOrphanedFiles,
   copyDirectoryRecursive,
+  createSyncStats,
+  formatSyncReport,
   getOrCreatePlacedFiles,
   handleGitignoreUpdate,
   loadPreviousPlacedPaths,
   type SyncCategory,
-  type SyncStats,
   validCategories,
   writeLockData,
   writeStateData,
@@ -85,12 +89,43 @@ export const syncCommand = defineCommand({
       description: "Show detailed output for each placed file",
       default: false,
     },
+    check: {
+      type: "boolean",
+      description:
+        "Check if configs are in sync without modifying files (exit 0 = in sync, 1 = stale)",
+      default: false,
+    },
   },
   async run({ args }) {
     const dryRun = args["dry-run"];
     const categoryArg = args.category as string | undefined;
     const autoYes = args.yes;
     const verbose = args.verbose;
+    const check = args.check;
+
+    // --check and --dry-run are mutually exclusive
+    if (check && dryRun) {
+      p.cancel("--check and --dry-run cannot be used together");
+      process.exit(1);
+    }
+
+    // --check mode: read-only stale detection
+    if (check) {
+      p.intro("🔍 Baton Sync Check");
+      const projectRoot = process.cwd();
+      const result = await checkStale(projectRoot);
+
+      if (!result.stale) {
+        p.outro("All configurations are in sync");
+        process.exit(0);
+      }
+
+      for (const reason of result.reasons) {
+        p.log.warn(reason);
+      }
+      p.outro("Configurations are stale — run `baton sync` to update");
+      process.exit(1);
+    }
 
     // Validate --category flag
     let category: SyncCategory | undefined;
@@ -111,10 +146,7 @@ export const syncCommand = defineCommand({
     p.intro(category ? `🔄 Baton Sync (category: ${category})` : "🔄 Baton Sync");
 
     // Statistics tracking
-    const stats: SyncStats = {
-      created: 0,
-      errors: 0,
-    };
+    const stats = createSyncStats();
 
     try {
       // Step 0: Load project manifest
@@ -479,13 +511,20 @@ export const syncCommand = defineCommand({
 
       // Show intersection or synced tools
       if (allIntersections) {
-        for (const [source, intersection] of allIntersections) {
-          if (verbose) {
+        if (verbose) {
+          for (const [source, intersection] of allIntersections) {
             p.log.step(`Intersection for ${source}`);
             displayIntersection(intersection);
-          } else {
+          }
+        } else {
+          // Deduplicate: show unique summaries only once
+          const seen = new Set<string>();
+          for (const [, intersection] of allIntersections) {
             const summary = formatIntersectionSummary(intersection);
-            p.log.info(`Syncing for: ${summary}`);
+            if (!seen.has(summary)) {
+              seen.add(summary);
+              p.log.info(`Syncing for: ${summary}`);
+            }
           }
         }
       }
@@ -718,7 +757,8 @@ export const syncCommand = defineCommand({
 
               // Recursively copy skill files
               const placed = await copyDirectoryRecursive(skillSourceDir, absoluteTargetDir);
-              stats.created += placed;
+              if (placed > 0) stats.created += placed;
+              else stats.skipped++;
 
               // Track tool-specific disk path for state/orphan detection
               actualPlacedPaths.add(targetSkillPath);
@@ -948,9 +988,10 @@ export const syncCommand = defineCommand({
               placementConfig,
             );
 
-            if (result.action !== "skipped") {
-              stats.created++;
-            }
+            // Track stats by action type
+            if (result.action === "created") stats.created++;
+            else if (result.action === "updated") stats.updated++;
+            else stats.skipped++;
 
             // Track tool-specific disk path for state/orphan detection
             const relPath = isAbsolute(result.path)
@@ -958,6 +999,12 @@ export const syncCommand = defineCommand({
               : result.path;
             actualPlacedPaths.add(relPath);
             aiToolPlacedPaths.add(relPath);
+
+            if (verbose) {
+              stats.details.push({ path: relPath, action: result.action });
+              const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
+              p.log.info(`  -> ${result.path} (${label})`);
+            }
 
             // Track canonical key + source content for lockfile integrity (once per canonical item)
             const canonicalKey = `${entry.type}/${entry.name}`;
@@ -969,11 +1016,6 @@ export const syncCommand = defineCommand({
                   type: entry.type as LockFileEntry["type"],
                 };
               }
-            }
-
-            if (verbose) {
-              const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
-              p.log.info(`  -> ${result.path} (${label})`);
             }
           } catch (error) {
             spinner.message(`Error placing accumulated content to ${absolutePath}: ${error}`);
@@ -1019,9 +1061,10 @@ export const syncCommand = defineCommand({
                   placementConfig,
                 );
 
-                if (result.action !== "skipped") {
-                  stats.created++;
-                }
+                // Track stats by action type
+                if (result.action === "created") stats.created++;
+                else if (result.action === "updated") stats.updated++;
+                else stats.skipped++;
 
                 // Track tool-specific disk path for state/orphan detection
                 const cmdRelPath = isAbsolute(result.path)
@@ -1038,6 +1081,7 @@ export const syncCommand = defineCommand({
                 }
 
                 if (verbose) {
+                  stats.details.push({ path: cmdRelPath, action: result.action });
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
                   p.log.info(`  -> ${result.path} (${label})`);
                 }
@@ -1076,14 +1120,21 @@ export const syncCommand = defineCommand({
 
             // Idempotency: skip if content is identical
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
-            if (existing !== content) {
-              await writeFile(targetPath, content, "utf-8");
-              stats.created++;
-              if (verbose) {
-                p.log.info(`  -> ${fileEntry.target} (created)`);
-              }
-            } else if (verbose) {
-              p.log.info(`  -> ${fileEntry.target} (unchanged, skipped)`);
+            const fileAction =
+              existing === undefined ? "created" : existing !== content ? "updated" : "skipped";
+            if (fileAction !== "skipped") {
+              await atomicWriteFile(targetPath, content);
+            }
+
+            // Track stats
+            if (fileAction === "created") stats.created++;
+            else if (fileAction === "updated") stats.updated++;
+            else stats.skipped++;
+
+            if (verbose) {
+              stats.details.push({ path: fileEntry.target, action: fileAction });
+              const label = fileAction === "skipped" ? "unchanged, skipped" : fileAction;
+              p.log.info(`  -> ${fileEntry.target} (${label})`);
             }
 
             // Track disk path for state/orphan detection
@@ -1138,20 +1189,27 @@ export const syncCommand = defineCommand({
 
             // Idempotency: skip if content is identical
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
-            if (existing !== content) {
-              await writeFile(targetPath, content, "utf-8");
-              stats.created++;
-              if (verbose) {
-                p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (created)`);
-              }
-            } else if (verbose) {
-              p.log.info(`  -> ${ideEntry.targetDir}/${ideEntry.fileName} (unchanged, skipped)`);
+            const ideAction =
+              existing === undefined ? "created" : existing !== content ? "updated" : "skipped";
+            if (ideAction !== "skipped") {
+              await atomicWriteFile(targetPath, content);
             }
+
+            // Track stats
+            if (ideAction === "created") stats.created++;
+            else if (ideAction === "updated") stats.updated++;
+            else stats.skipped++;
 
             // Track disk path for state/orphan detection
             const ideRelPath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
             actualPlacedPaths.add(ideRelPath);
             idePlacedPaths.add(ideRelPath);
+
+            if (verbose) {
+              stats.details.push({ path: ideRelPath, action: ideAction });
+              const label = ideAction === "skipped" ? "unchanged, skipped" : ideAction;
+              p.log.info(`  -> ${ideRelPath} (${label})`);
+            }
 
             // Track canonical key for lockfile integrity
             const canonicalKey = `ide/${ideEntry.ideKey}/${ideEntry.fileName}`;
@@ -1169,7 +1227,7 @@ export const syncCommand = defineCommand({
       spinner.stop(
         dryRun
           ? `Would place files for ${adapters.length} agent(s)`
-          : `Placed ${stats.created} file(s) for ${adapters.length} agent(s)`,
+          : `Placed files for ${adapters.length} agent(s)`,
       );
 
       // Step 8: Update .gitignore
@@ -1199,8 +1257,27 @@ export const syncCommand = defineCommand({
         });
       }
 
+      // Step 9c: Execute profile hooks
+      if (!dryRun) {
+        for (const profile of allProfiles) {
+          if (!profile.manifest.hooks) continue;
+          const isFirstSync = previousPaths.size === 0;
+          const hookType = isFirstSync ? "post-install" : "post-update";
+          const hookCommand = profile.manifest.hooks[hookType];
+          if (hookCommand) {
+            await runProfileHook({
+              command: hookCommand,
+              profileName: profile.name,
+              hookType,
+              projectRoot,
+              spinner,
+            });
+          }
+        }
+      }
+
       // Step 10: Remove orphaned files (comparing tool-specific disk paths)
-      await cleanupOrphanedFiles({
+      const removedCount = await cleanupOrphanedFiles({
         previousPaths,
         currentPaths: actualPlacedPaths,
         projectRoot,
@@ -1208,6 +1285,7 @@ export const syncCommand = defineCommand({
         autoYes,
         spinner,
       });
+      stats.removed = removedCount;
 
       // Summary
       if (dryRun) {
@@ -1235,8 +1313,8 @@ export const syncCommand = defineCommand({
           `[Dry Run${categoryLabel}] Would sync:\n${parts.join("\n")}\n\nFor ${adapters.length} agent(s): ${syncedAiTools.join(", ")}`,
         );
       } else {
-        const categoryLabel = category ? ` (category: ${category})` : "";
-        p.outro(`✅ Sync complete${categoryLabel}! Configurations updated.`);
+        const report = formatSyncReport(stats, verbose);
+        p.outro(`Sync complete: ${report}`);
       }
 
       process.exit(stats.errors > 0 ? 1 : 0);
