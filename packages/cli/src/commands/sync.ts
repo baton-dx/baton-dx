@@ -20,6 +20,7 @@ import {
   loadProfileManifest,
   loadProjectManifest,
   type MemoryEntry,
+  mergeMcpWithWarnings,
   type MergedSkillItem,
   mergeAgentsWithWarnings,
   mergeContentParts,
@@ -30,6 +31,8 @@ import {
   parseFrontmatter,
   parseSource,
   placeFile,
+  readModifyWriteSharedSettings,
+  readState,
   type RuleEntry,
   type RuleFile,
   resolveNpmSource,
@@ -40,6 +43,9 @@ import {
   type Scope,
   sortProfilesByWeight,
   type WeightConflictWarning,
+  writeMcpJson,
+  writeMcpJsonc,
+  writeMcpToml,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -173,6 +179,10 @@ export const syncCommand = defineCommand({
       // Step 0b: Read previous placement state to detect orphaned files later
       // Uses .baton/state.yaml (preferred) or falls back to old lockfile keys (legacy migration)
       const previousPaths = await loadPreviousPlacedPaths(projectRoot);
+
+      // Step 0c: Load previous MCP server names per tool (for shared-settings cleanup)
+      const previousState = await readState(projectRoot);
+      const previousMcpServersState: Record<string, string[]> = previousState?.mcp_servers ?? {};
 
       // Step 1: Resolve profile chain
       const spinner = p.spinner();
@@ -577,6 +587,7 @@ export const syncCommand = defineCommand({
       const aiToolPlacedPaths = new Set<string>(); // AI tool adapter placements
       const idePlacedPaths = new Set<string>(); // IDE platform placements
       const filePlacedPaths = new Set<string>(); // profile files section placements
+      let newPlacedMcpServers: Record<string, string[]> = {}; // MCP server names per tool
 
       // Build a map from profile name to local directory path
       // This is needed because profile.source may be a remote URL (e.g., "github:org/repo/subpath")
@@ -1096,6 +1107,116 @@ export const syncCommand = defineCommand({
         }
       }
 
+      // MCP Server Configuration
+      if (syncAi) {
+        const mcpResult = mergeMcpWithWarnings(weightSortedProfiles);
+
+        // Emit same-weight conflict warnings
+        for (const warning of mcpResult.warnings) {
+          p.log.warn(
+            `MCP conflict: server "${warning.key}" defined in both "${warning.profileA}" and "${warning.profileB}" (same weight ${warning.weight})`,
+          );
+        }
+
+        const newMcpServersState: Record<string, string[]> = {};
+
+        for (const adapter of adapters) {
+          if (!adapter.mcpCapabilities.supported) continue;
+
+          // Filter servers for this adapter
+          const serversForTool = mcpResult.servers.filter((server) => {
+            // tools filter: if server.tools is set, only include this adapter if listed
+            if (
+              server.tools &&
+              server.tools.length > 0 &&
+              !server.tools.includes(adapter.key)
+            ) {
+              return false;
+            }
+            // scope filter
+            if (!adapter.mcpCapabilities.supportedScopes.includes(server.scope)) {
+              if (
+                server.scope === "project" &&
+                !adapter.mcpCapabilities.supportedScopes.includes("project")
+              ) {
+                if (verbose)
+                  p.log.warn(
+                    `MCP: ${adapter.name} is global-only; server "${server.name}" skipped`,
+                  );
+              }
+              return false;
+            }
+            return true;
+          });
+
+          if (serversForTool.length === 0) continue;
+
+          const scopesToWrite = new Set(serversForTool.map((s) => s.scope));
+
+          for (const scope of scopesToWrite) {
+            const filePath = adapter.getMcpPath(scope);
+            if (!filePath) continue;
+
+            const scopeServers = serversForTool.filter((s) => s.scope === scope);
+
+            // Transform each server via adapter
+            const serverObjects: Record<string, object> = {};
+            for (const server of scopeServers) {
+              const transformed = adapter.transformMcp(server);
+              if (transformed) {
+                serverObjects[server.name] = transformed;
+              }
+            }
+
+            if (Object.keys(serverObjects).length === 0) continue;
+
+            if (dryRun) {
+              p.log.info(
+                `[dry-run] Would write MCP config for ${adapter.name} (${scope}): ${filePath}`,
+              );
+              continue;
+            }
+
+            const caps = adapter.mcpCapabilities;
+            if (caps.sharedSettingsFile) {
+              const previousNames = previousMcpServersState[adapter.key] ?? [];
+              await readModifyWriteSharedSettings(
+                filePath,
+                caps.configKey,
+                serverObjects,
+                previousNames,
+              );
+            } else if (caps.format === "toml") {
+              await writeMcpToml(
+                filePath,
+                Object.entries(serverObjects).map(([name, cfg]) => ({
+                  name,
+                  ...(cfg as object),
+                })),
+              );
+            } else if (caps.format === "jsonc") {
+              await writeMcpJsonc(filePath, caps.configKey, serverObjects);
+            } else {
+              await writeMcpJson(
+                filePath,
+                caps.configKey,
+                serverObjects,
+                caps.parentConfigPath,
+              );
+            }
+
+            if (verbose)
+              p.log.success(
+                `MCP: wrote ${Object.keys(serverObjects).length} server(s) for ${adapter.name} (${scope})`,
+              );
+          }
+
+          newMcpServersState[adapter.key] = serversForTool.map((s) => s.name);
+        }
+
+        newPlacedMcpServers = newMcpServersState;
+      }
+
       // Place project files (files/ -> project root)
       if (!dryRun && syncFiles) {
         for (const fileEntry of fileMap.values()) {
@@ -1252,6 +1373,7 @@ export const syncCommand = defineCommand({
           idePaths: idePlacedPaths,
           filePaths: filePlacedPaths,
           syncedAiTools,
+          mcpServers: newPlacedMcpServers,
           projectRoot,
           spinner,
         });
