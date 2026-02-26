@@ -219,7 +219,7 @@ async function showOverview(cwd: string): Promise<void> {
   }
 }
 
-async function handleAddProfile(cwd: string): Promise<void> {
+async function handleManageProfiles(cwd: string): Promise<void> {
   const manifestPath = join(cwd, "baton.yaml");
   const manifest = await loadProjectManifestSafe(cwd);
   if (!manifest) {
@@ -258,92 +258,69 @@ async function handleAddProfile(cwd: string): Promise<void> {
     sourceString = selectedUrl as string;
   }
 
-  // 3. Select profiles from the source (multi-select)
-  const selectedSources = await selectMultipleProfilesFromSource(sourceString);
-
-  // 4. Add each selected profile (skipping duplicates)
-  let addedCount = 0;
-  for (const source of selectedSources) {
-    if (manifest.profiles.some((pr) => pr.source === source)) {
-      p.log.warn(`Profile "${source}" is already installed — skipped.`);
-    } else {
-      manifest.profiles.push({ source });
-      p.log.success(`Added profile: ${source}`);
-      addedCount++;
-    }
+  // 3. Determine source prefix to identify installed profiles from this source
+  const parsed = parseSource(sourceString);
+  let sourcePrefix: string;
+  if (parsed.provider === "github" || parsed.provider === "gitlab") {
+    sourcePrefix = `${parsed.provider}:${parsed.org}/${parsed.repo}`;
+  } else {
+    sourcePrefix = sourceString;
   }
 
-  if (addedCount === 0) {
+  // 4. Get currently installed source strings from this source
+  const installedSources = manifest.profiles.map((pr) => pr.source);
+  const previousFromThisSource = new Set(
+    installedSources.filter(
+      (s) =>
+        s === sourcePrefix || s.startsWith(`${sourcePrefix}/`) || s.startsWith(`${sourcePrefix}@`),
+    ),
+  );
+
+  // 5. Select profiles with pre-selection of installed ones
+  const selectedSources = await selectMultipleProfilesFromSource(sourceString, {
+    installedSources,
+  });
+
+  // 6. Diff: determine adds and removes
+  const newSelection = new Set(selectedSources);
+
+  const toAdd = selectedSources.filter((s) => !previousFromThisSource.has(s));
+  const toRemove = [...previousFromThisSource].filter((s) => !newSelection.has(s));
+
+  // 7. Apply changes
+  for (const source of toRemove) {
+    const idx = manifest.profiles.findIndex((pr) => pr.source === source);
+    if (idx >= 0) {
+      manifest.profiles.splice(idx, 1);
+      p.log.success(`Removed: ${source}`);
+    }
+  }
+  for (const source of toAdd) {
+    manifest.profiles.push({ source });
+    p.log.success(`Added: ${source}`);
+  }
+
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    p.log.info("No changes.");
     return;
   }
 
-  // 5. Write updated manifest
+  // 8. Write updated manifest
   const updatedYaml = stringify(manifest);
   await writeFile(manifestPath, updatedYaml, "utf-8");
 
-  // 6. Offer to sync
+  // 9. Offer to sync
   const shouldSync = await p.confirm({
     message: "Sync profiles now?",
     initialValue: true,
   });
 
   if (p.isCancel(shouldSync) || !shouldSync) {
-    p.log.info("Run 'baton sync' later to apply the new profiles.");
+    p.log.info("Run 'baton sync' later to apply changes.");
     return;
   }
 
   await runBatonSync(cwd);
-}
-
-async function handleRemoveProfile(cwd: string): Promise<void> {
-  const manifestPath = join(cwd, "baton.yaml");
-  const manifest = await loadProjectManifestSafe(cwd);
-  if (!manifest) {
-    p.log.error("Could not load baton.yaml");
-    return;
-  }
-
-  if (manifest.profiles.length === 0) {
-    p.log.warn("No profiles installed.");
-    return;
-  }
-
-  // 1. Select profile to remove
-  const selected = await p.select({
-    message: "Which profile do you want to remove?",
-    options: manifest.profiles.map((pr) => ({
-      value: pr.source,
-      label: pr.source,
-      hint: pr.version ? `v${pr.version}` : undefined,
-    })),
-  });
-
-  if (p.isCancel(selected)) {
-    p.log.warn("Cancelled.");
-    return;
-  }
-
-  const profileSource = selected as string;
-
-  // 2. Confirm removal
-  const confirmed = await p.confirm({
-    message: `Remove profile "${profileSource}"?`,
-    initialValue: false,
-  });
-
-  if (p.isCancel(confirmed) || !confirmed) {
-    p.log.warn("Cancelled.");
-    return;
-  }
-
-  // 3. Remove from manifest and write
-  const profileIndex = manifest.profiles.findIndex((pr) => pr.source === profileSource);
-  manifest.profiles.splice(profileIndex, 1);
-
-  const updatedYaml = stringify(manifest);
-  await writeFile(manifestPath, updatedYaml, "utf-8");
-  p.log.success(`Removed profile: ${profileSource}`);
-  p.log.info("Run 'baton sync' to clean up synced files.");
 }
 
 async function handleRemoveBaton(cwd: string): Promise<boolean> {
@@ -630,8 +607,7 @@ export const manageCommand = defineCommand({
         message: "What would you like to do?",
         options: [
           { value: "overview", label: "Overview", hint: "Show project configuration" },
-          { value: "add-profile", label: "Add profile", hint: "Add a profile from a source" },
-          { value: "remove-profile", label: "Remove profile", hint: "Remove an installed profile" },
+          { value: "manage-profiles", label: "Manage profiles", hint: "Add or remove profiles" },
           {
             value: "configure-ai",
             label: "Configure AI tools for this project",
@@ -661,13 +637,9 @@ export const manageCommand = defineCommand({
         console.log("");
         await showOverview(cwd);
         console.log("");
-      } else if (action === "add-profile") {
+      } else if (action === "manage-profiles") {
         console.log("");
-        await handleAddProfile(cwd);
-        console.log("");
-      } else if (action === "remove-profile") {
-        console.log("");
-        await handleRemoveProfile(cwd);
+        await handleManageProfiles(cwd);
         console.log("");
       } else if (action === "configure-ai") {
         console.log("");

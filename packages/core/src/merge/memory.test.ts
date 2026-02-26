@@ -716,6 +716,67 @@ describe("mergeMemory", () => {
     expect(result[0].scope).toBe("project");
   });
 
+  it("deduplicates contributions when same profile appears multiple times (diamond inheritance)", () => {
+    // Simulates: profileA extends base, profileB extends base
+    // → allProfiles = [base, profileA, base, profileB]
+    const profiles: ResolvedProfile[] = [
+      {
+        source: "local",
+        name: "base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append" }],
+          },
+        },
+      },
+      {
+        source: "local",
+        name: "profileA",
+        manifest: {
+          name: "profileA",
+          version: "1.0.0",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append" }],
+          },
+        },
+      },
+      {
+        source: "local",
+        name: "base",
+        manifest: {
+          name: "base",
+          version: "1.0.0",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append" }],
+          },
+        },
+      }, // duplicate from diamond
+      {
+        source: "local",
+        name: "profileB",
+        manifest: {
+          name: "profileB",
+          version: "1.0.0",
+          ai: {
+            memory: [{ source: "CLAUDE.md", merge: "append" }],
+          },
+        },
+      },
+    ];
+
+    const result = mergeMemory(profiles);
+    expect(result).toHaveLength(1);
+    // base should appear only once despite being in input twice
+    expect(result[0].contributions).toHaveLength(3); // base, profileA, profileB
+    expect(result[0].contributions.map((c) => c.profileName)).toEqual([
+      "base",
+      "profileA",
+      "profileB",
+    ]);
+  });
+
   it("memory inherits profile scope when item scope is not set", () => {
     const profiles: ResolvedProfile[] = [
       {

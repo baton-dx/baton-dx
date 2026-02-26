@@ -128,8 +128,8 @@ export function getInheritedProfiles(
  */
 export function buildHierarchicalSelectOptions(
   roots: ProfileTreeNode[],
-): Array<{ value: string; label: string; hint?: string }> {
-  const options: Array<{ value: string; label: string; hint?: string }> = [];
+): Array<{ value: string; label: string; hint?: string; name: string }> {
+  const options: Array<{ value: string; label: string; hint?: string; name: string }> = [];
 
   function processNode(node: ProfileTreeNode, depth: number): void {
     const weight = node.profile.weight;
@@ -144,6 +144,7 @@ export function buildHierarchicalSelectOptions(
       hint: node.profile.description
         ? `${node.profile.description} (v${node.profile.version})`
         : `v${node.profile.version}`,
+      name: node.profile.name,
     });
 
     for (const child of node.children) {
@@ -156,4 +157,67 @@ export function buildHierarchicalSelectOptions(
   }
 
   return options;
+}
+
+/**
+ * Builds a map from profile name to its parent (extends) name.
+ * Root profiles (no extends) are not included.
+ */
+export function buildParentMap(profiles: SourceProfileInfo[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const profile of profiles) {
+    if (profile.extends) {
+      map.set(profile.name, profile.extends);
+    }
+  }
+  return map;
+}
+
+/**
+ * Builds a map from profile name to its direct children names.
+ * Profiles with no children are not included.
+ */
+export function buildChildrenMap(profiles: SourceProfileInfo[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const profile of profiles) {
+    if (profile.extends) {
+      const children = map.get(profile.extends);
+      if (children) {
+        children.push(profile.name);
+      } else {
+        map.set(profile.extends, [profile.name]);
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Returns all transitive ancestors of a profile (parent first, root last).
+ */
+export function getAncestors(name: string, parentMap: Map<string, string>): string[] {
+  const ancestors: string[] = [];
+  let current = parentMap.get(name);
+  while (current) {
+    ancestors.push(current);
+    current = parentMap.get(current);
+  }
+  return ancestors;
+}
+
+/**
+ * Returns all transitive descendants of a profile (BFS order).
+ */
+export function getDescendants(name: string, childrenMap: Map<string, string[]>): string[] {
+  const descendants: string[] = [];
+  const queue = childrenMap.get(name)?.slice() ?? [];
+  while (queue.length > 0) {
+    const child = queue.shift() as string;
+    descendants.push(child);
+    const grandchildren = childrenMap.get(child);
+    if (grandchildren) {
+      queue.push(...grandchildren);
+    }
+  }
+  return descendants;
 }
