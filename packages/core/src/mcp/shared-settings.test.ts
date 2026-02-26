@@ -83,7 +83,7 @@ describe("readModifyWriteSharedSettings", () => {
     const contentBefore = await readFile(filePath, "utf-8");
 
     // Second write (same content)
-    const result = await readModifyWriteSharedSettings(filePath, "mcpServers", servers, ["github"]);
+    await readModifyWriteSharedSettings(filePath, "mcpServers", servers, ["github"]);
     // Content unchanged — idempotent (no write needed when result is same)
     const contentAfter = await readFile(filePath, "utf-8");
     expect(contentBefore).toBe(contentAfter);

@@ -1,7 +1,7 @@
 import type { ConfigType, Scope } from "@baton-dx/ai-tool-paths";
 import { getAIToolMcpPath, getAIToolPath } from "@baton-dx/ai-tool-paths";
-import type { MergedMcpServer } from "../merge/mcp.js";
 import { transformEnvVars } from "../mcp/env-transform.js";
+import type { MergedMcpServer } from "../merge/mcp.js";
 import type {
   AgentFile,
   AIToolAdapter,

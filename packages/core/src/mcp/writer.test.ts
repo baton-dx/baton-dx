@@ -30,12 +30,7 @@ describe("writeMcpJson", () => {
     // nestedPath "amp.x" → parts=["amp","x"], loop runs once for i=0:
     //   sets content["amp"]={}, then current["mcpServers"]=servers
     // Result: { amp: { mcpServers: { github: ... } } }
-    await writeMcpJson(
-      filePath,
-      "mcpServers",
-      { github: { command: "npx" } },
-      "amp.x",
-    );
+    await writeMcpJson(filePath, "mcpServers", { github: { command: "npx" } }, "amp.x");
     const content = JSON.parse(await readFile(filePath, "utf-8"));
     expect(content.amp).toBeDefined();
     expect(content.amp.mcpServers).toBeDefined();
@@ -72,9 +67,7 @@ describe("writeMcpJsonc", () => {
 describe("writeMcpToml", () => {
   test("writes valid TOML array-of-tables format", async () => {
     const filePath = join(tmpDir, "config.toml");
-    await writeMcpToml(filePath, [
-      { name: "github", command: "npx", args: ["@github/mcp"] },
-    ]);
+    await writeMcpToml(filePath, [{ name: "github", command: "npx", args: ["@github/mcp"] }]);
     const raw = await readFile(filePath, "utf-8");
     expect(raw).toContain("[[mcp_servers]]");
     expect(raw).toContain('name = "github"');

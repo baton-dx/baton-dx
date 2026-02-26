@@ -20,10 +20,10 @@ import {
   loadProfileManifest,
   loadProjectManifest,
   type MemoryEntry,
-  mergeMcpWithWarnings,
   type MergedSkillItem,
   mergeAgentsWithWarnings,
   mergeContentParts,
+  mergeMcpWithWarnings,
   mergeMemoryWithWarnings,
   mergeRulesWithWarnings,
   mergeSkillsWithWarnings,
@@ -31,10 +31,10 @@ import {
   parseFrontmatter,
   parseSource,
   placeFile,
-  readModifyWriteSharedSettings,
-  readState,
   type RuleEntry,
   type RuleFile,
+  readModifyWriteSharedSettings,
+  readState,
   resolveNpmSource,
   resolvePreferences,
   resolveProfileChain,
@@ -1126,11 +1126,7 @@ export const syncCommand = defineCommand({
           // Filter servers for this adapter
           const serversForTool = mcpResult.servers.filter((server) => {
             // tools filter: if server.tools is set, only include this adapter if listed
-            if (
-              server.tools &&
-              server.tools.length > 0 &&
-              !server.tools.includes(adapter.key)
-            ) {
+            if (server.tools && server.tools.length > 0 && !server.tools.includes(adapter.key)) {
               return false;
             }
             // scope filter
@@ -1197,12 +1193,7 @@ export const syncCommand = defineCommand({
             } else if (caps.format === "jsonc") {
               await writeMcpJsonc(filePath, caps.configKey, serverObjects);
             } else {
-              await writeMcpJson(
-                filePath,
-                caps.configKey,
-                serverObjects,
-                caps.parentConfigPath,
-              );
+              await writeMcpJson(filePath, caps.configKey, serverObjects, caps.parentConfigPath);
             }
 
             if (verbose)

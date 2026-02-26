@@ -32,8 +32,8 @@ export type {
   McpCapabilities,
   McpConfigFormat,
   McpEnvVarSyntax,
-  MergedMcpServer,
   MemoryFile,
+  MergedMcpServer,
   RuleFile,
   SkillDir,
   ToolMcpServer,
@@ -125,6 +125,13 @@ export {
   readLock,
   writeLock,
 } from "./lockfile/manager.js";
+// Export MCP env-transform utility
+export { transformEnvVars } from "./mcp/env-transform.js";
+export type { SharedSettingsResult } from "./mcp/shared-settings.js";
+// Export MCP shared-settings utility
+export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
+// Export MCP writer utilities
+export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
 // Export agent merge logic
 export {
   type AgentEntry,
@@ -134,6 +141,12 @@ export {
 } from "./merge/agents.js";
 // Export content parts merge
 export { mergeContentParts } from "./merge/content-parts.js";
+// Export MCP merge logic
+export {
+  type MergeMcpResult,
+  mergeMcp,
+  mergeMcpWithWarnings,
+} from "./merge/mcp.js";
 // Export memory merge logic
 export {
   type MemoryContribution,
@@ -151,12 +164,6 @@ export {
 } from "./merge/rules.js";
 // Export scope resolution
 export { resolveScope } from "./merge/scope-resolution.js";
-// Export MCP merge logic
-export {
-  mergeMcp,
-  mergeMcpWithWarnings,
-  type MergeMcpResult,
-} from "./merge/mcp.js";
 // Export skill merge logic
 export {
   type MergedSkillItem,
@@ -216,16 +223,13 @@ export type { GlobalSourceEntry } from "./schemas/global-config.js";
 // Export types used by CLI
 export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
-// Export MCP env-transform utility
-export { transformEnvVars } from "./mcp/env-transform.js";
-// Export MCP writer utilities
-export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
-// Export MCP shared-settings utility
-export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
-export type { SharedSettingsResult } from "./mcp/shared-settings.js";
-export type { MemoryItem, McpServer, McpTransport } from "./schemas/profile-manifest.js";
+export type { McpServer, McpTransport, MemoryItem } from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
-export { KEBAB_CASE_REGEX, mcpServerSchema, profileManifestSchema } from "./schemas/profile-manifest.js";
+export {
+  KEBAB_CASE_REGEX,
+  mcpServerSchema,
+  profileManifestSchema,
+} from "./schemas/profile-manifest.js";
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
 export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";

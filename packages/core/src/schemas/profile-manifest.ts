@@ -71,12 +71,11 @@ const memorySectionSchema = z.array(memoryItemSchema).optional();
  * Env-var values in MCP server definitions must use ${VAR} or ${VAR:-default} syntax.
  * This allows Baton to transform them per-tool while preventing arbitrary shell injection.
  */
-const envVarValueSchema = z
-  .string()
-  .regex(
-    /^\$\{[A-Z_][A-Z0-9_]*(:-[^}]*)?\}$/,
-    "Env-Werte müssen ${VAR} oder ${VAR:-default} Syntax verwenden (z.B. ${HOME} oder ${PORT:-3000})",
-  );
+const envVarValueSchema = z.string().regex(
+  /^\$\{[A-Z_][A-Z0-9_]*(:-[^}]*)?\}$/,
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: intentional literal in error message
+  "Env-Werte müssen ${VAR} oder ${VAR:-default} Syntax verwenden (z.B. ${HOME} oder ${PORT:-3000})",
+);
 
 /**
  * MCP transport type

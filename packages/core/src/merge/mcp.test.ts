@@ -54,11 +54,9 @@ describe("mergeMcp", () => {
 
   test("last-wins by weight — higher weight profile overrides lower", () => {
     const base = makeProfile("base", [{ name: "github", command: "npx-base" }], { weight: 0 });
-    const override = makeProfile(
-      "override",
-      [{ name: "github", command: "npx-override" }],
-      { weight: 10 },
-    );
+    const override = makeProfile("override", [{ name: "github", command: "npx-override" }], {
+      weight: 10,
+    });
     // sortProfilesByWeight puts higher weight last (last-wins)
     const result = mergeMcp([base, override]);
     expect(result).toHaveLength(1);
