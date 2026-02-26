@@ -198,45 +198,32 @@ export async function writeStateData(params: {
 /**
  * Load previous tool-specific paths for orphan detection.
  *
- * Reads from `.baton/state.yaml` (preferred). Falls back to extracting paths
- * from an old-format `baton.lock` (legacy tool-specific keys) for migration.
+ * Reads exclusively from `.baton/state.yaml`. Returns an empty set when the file
+ * is absent or fails schema validation (e.g. first sync after upgrade from an older
+ * format). An empty set causes `cleanupOrphanedFiles` to skip orphan detection
+ * entirely, which is the correct behaviour: no previous state means no known
+ * previously-placed files to compare against.
+ *
+ * NOTE: The baton.lock file is NOT used as a fallback. Lockfile keys are always
+ * canonical paths (e.g. `skills/code-review`, `memory/MEMORY.md`) — never
+ * tool-specific disk paths. Using them as disk paths produces false-positive
+ * orphans that are silently skipped by ENOENT handling, creating a confusing UX.
  *
  * Sync-Robustheit bei Profil-Änderungen:
  * - Profile hinzugefügt: Merge akkumuliert korrekt, Weight-Sorting löst Konflikte.
- * - Profile entfernt: Neue Merge-Läufe enthalten nur verbleibende Profile →
- *   Orphan-Detection vergleicht previousPaths (state.yaml) mit currentPaths →
- *   cleanupOrphanedFiles erkennt alle Dateien des entfernten Profils als orphaned.
- * - Edge Case (kein state.yaml): Bei fresh clone gibt es keine Orphans zu bereinigen.
- *   Der lockfile-Fallback verwendet kanonische Pfade (z.B. `skills/foo`), die nicht
- *   als Disk-Pfade aufgelöst werden können — akzeptiertes Verhalten.
+ * - Profile entfernt: Orphan-Detection vergleicht previousPaths (state.yaml) mit
+ *   currentPaths → cleanupOrphanedFiles erkennt entfernte Dateien als orphaned.
+ * - Kein state.yaml (fresh clone oder erstes Sync nach Upgrade): leeres Set →
+ *   keine Orphan-Detection → korrekt. Nach dem nächsten Sync existiert state.yaml
+ *   korrekt im neuen Format.
  */
 export async function loadPreviousPlacedPaths(projectRoot: string): Promise<Set<string>> {
-  // Preferred: read from local state
   const state = await readState(projectRoot);
   if (state) {
     return new Set(flattenPlacedFiles(state.placed_files));
   }
-
-  // Legacy fallback: extract tool-specific paths from old baton.lock
-  // (These are paths like `.claude/skills/foo` which were used as lockfile keys before)
-  try {
-    const { readLock } = await import("@baton-dx/core");
-    const lockfilePath = resolve(projectRoot, "baton.lock");
-    const previousLock = await readLock(lockfilePath);
-    const paths = new Set<string>();
-    for (const pkg of Object.values(previousLock.packages)) {
-      for (const filePath of Object.keys(pkg.integrity)) {
-        // Only include paths that look tool-specific (contain a dot-prefixed directory)
-        // Canonical paths like `skills/foo` are NOT tool-specific disk paths
-        if (filePath.startsWith(".") || filePath.includes("/")) {
-          paths.add(filePath);
-        }
-      }
-    }
-    return paths;
-  } catch {
-    return new Set();
-  }
+  // No valid state.yaml → no known previous paths → skip orphan detection
+  return new Set();
 }
 
 /**
