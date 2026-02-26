@@ -1,5 +1,21 @@
 # @baton-dx/cli
 
+## 0.12.1
+
+### Patch Changes
+
+- [#117](https://github.com/baton-dx/baton-dx/pull/117) [`c6aac66`](https://github.com/baton-dx/baton-dx/commit/c6aac66860c3bc84067f1139b55032fcc1112cfa) Thanks [@mantaray0](https://github.com/mantaray0)! - fix(cli): remove false-positive orphan detection from lockfile fallback
+
+  After upgrading from an older state.yaml format, users were seeing up to 39
+  false-positive "orphaned files" on the next `baton sync`. Confirming removal
+  had no effect (0 files removed) because the lockfile stores canonical paths
+  (e.g. `skills/code-review`) — not tool-specific disk paths.
+
+  `loadPreviousPlacedPaths` now reads exclusively from `.baton/state.yaml`.
+  When state.yaml is absent or fails schema validation, an empty set is returned,
+  skipping orphan detection entirely. This is correct: no previous state means
+  no known previously-placed files to compare against.
+
 ## 0.12.0
 
 ### Minor Changes
