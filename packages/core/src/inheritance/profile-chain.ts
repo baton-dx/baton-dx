@@ -65,10 +65,13 @@ export async function resolveProfileChain(
   // profile directory as baseDir (i.e. dirname(manifestPath)), so use it directly.
   const initialLocalPath = isLocal ? resolve(baseDir, parsed.path) : baseDir;
 
-  // Start with the root profile
+  // Start with the root profile.
+  // logicalSource is the original source string (before normalization) — used in the lockfile.
+  // normalizedSource is used as the cycle-detection key (absolute path for local sources).
   await resolveChainRecursive(
     manifest,
     normalizedSource,
+    source,
     baseDir,
     chain,
     visited,
@@ -84,7 +87,8 @@ export async function resolveProfileChain(
  * Recursively resolve profile chain
  *
  * @param manifest - Current profile manifest
- * @param source - Source URL or path
+ * @param source - Cycle-detection key (normalized absolute path for local, logical URL for git)
+ * @param logicalSource - Logical source reference written to the lockfile (never a local cache path)
  * @param baseDir - Base directory for resolving relative paths
  * @param chain - Accumulator for resolved profiles
  * @param visited - Set of visited sources (for circular detection)
@@ -95,6 +99,7 @@ export async function resolveProfileChain(
 async function resolveChainRecursive(
   manifest: ProfileManifest,
   source: string,
+  logicalSource: string,
   baseDir: string,
   chain: ResolvedProfile[],
   visited: Set<string>,
@@ -123,6 +128,7 @@ async function resolveChainRecursive(
   // Process extends (single parent profile)
   if (manifest.extends) {
     const extendSource = resolveExtendsToPath(manifest.extends, localPath);
+    const extendLogicalSource = resolveExtendsLogicalSource(manifest.extends, logicalSource);
     try {
       // Load parent profile
       const { manifest: parentManifest, localPath: parentLocalPath } = await loadProfileFromSource(
@@ -135,6 +141,7 @@ async function resolveChainRecursive(
       await resolveChainRecursive(
         parentManifest,
         extendSource,
+        extendLogicalSource,
         baseDir,
         chain,
         currentVisited,
@@ -158,10 +165,11 @@ async function resolveChainRecursive(
     }
   }
 
-  // Add current profile to chain (after parents)
+  // Add current profile to chain (after parents).
+  // Use logicalSource (not the cycle-detection key) so the lockfile stores a portable reference.
   chain.push({
     manifest,
-    source,
+    source: logicalSource,
     name: manifest.name,
     localPath,
   });
@@ -186,6 +194,25 @@ function resolveExtendsToPath(extendsValue: string, localPath?: string): string 
   }
   // Already a path or URL — return as-is (legacy support, prevented by schema)
   return extendsValue;
+}
+
+/**
+ * Derives the logical lockfile source for a sibling profile from the parent's logical source.
+ *
+ * Replaces the last path segment of the parent's logical source with the sibling name.
+ * This keeps the lockfile free of user-specific local cache paths when a remote profile
+ * uses `extends` to reference a sibling profile.
+ *
+ * Examples:
+ *   "github:org/repo/profiles/maintainer" + "base" → "github:org/repo/profiles/base"
+ *   "./profiles/advanced" + "base"                 → "./profiles/base"
+ */
+function resolveExtendsLogicalSource(siblingName: string, parentLogicalSource: string): string {
+  const lastSlash = parentLogicalSource.lastIndexOf("/");
+  if (lastSlash === -1) {
+    return siblingName;
+  }
+  return `${parentLogicalSource.slice(0, lastSlash)}/${siblingName}`;
 }
 
 /**

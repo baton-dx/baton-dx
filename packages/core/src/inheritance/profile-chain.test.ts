@@ -374,6 +374,49 @@ extends: base
       expect(chain[1].name).toBe("child-profile");
       expect(chain[1].localPath).toBe(childPath);
     });
+
+    it("uses logical source (not local cache path) for extends-derived profiles", async () => {
+      // Regression test: when a git-hosted profile extends a sibling, the lockfile
+      // source for the sibling must be a logical reference, not a local cache path.
+      // e.g. "github:org/repo/profiles/maintainer" extends "base"
+      //   → base.source = "github:org/repo/profiles/base" (not "/Users/.../.baton/cache/.../base")
+
+      const basePath = join(profilesDir, "base");
+      await mkdir(basePath, { recursive: true });
+      await writeFile(
+        join(basePath, "baton.profile.yaml"),
+        "name: base\nversion: 1.0.0\n",
+        "utf-8",
+      );
+
+      const maintainerPath = join(profilesDir, "maintainer");
+      await mkdir(maintainerPath, { recursive: true });
+      await writeFile(
+        join(maintainerPath, "baton.profile.yaml"),
+        "name: maintainer\nversion: 1.0.0\nextends: base\n",
+        "utf-8",
+      );
+
+      const manifest = { name: "maintainer", version: "1.0.0", extends: "base" };
+
+      // Simulate what sync.ts does for a git source: pass the logical github: reference
+      const chain = await resolveProfileChain(
+        manifest,
+        "github:baton-dx/baton-dx-source/profiles/maintainer",
+        maintainerPath,
+      );
+
+      expect(chain).toHaveLength(2);
+
+      // The base profile's source must be the logical reference, not a local path
+      expect(chain[0].name).toBe("base");
+      expect(chain[0].source).toBe("github:baton-dx/baton-dx-source/profiles/base");
+      expect(chain[0].source).not.toMatch(/^\//); // must not be an absolute path
+
+      // The root profile keeps its original logical source
+      expect(chain[1].name).toBe("maintainer");
+      expect(chain[1].source).toBe("github:baton-dx/baton-dx-source/profiles/maintainer");
+    });
   });
 
   describe("hard error on extends resolution failure", () => {

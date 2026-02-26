@@ -42,6 +42,8 @@ scripts/ralph/.last-branch
 .baton/
 
 # Baton managed
+
+## ai-tools
 .agent/agents/
 .agent/rules/
 .agent/skills/
@@ -50,7 +52,6 @@ scripts/ralph/.last-branch
 .agents/commands/
 .agents/rules/
 .agents/skills/
-.antigravity/
 .claude/agents/
 .claude/commands/
 .claude/rules/
@@ -63,8 +64,6 @@ scripts/ralph/.last-branch
 .codex/commands/
 .codex/rules/
 .codex/skills/
-.config/zed/
-.cursor/
 .cursor/agents/
 .cursor/commands/
 .cursor/rules/
@@ -74,7 +73,6 @@ scripts/ralph/.last-branch
 .github/copilot-instructions.md
 .github/copilot/commands/
 .github/skills/
-.idea/
 .junie/agents/
 .junie/commands/
 .junie/rules/
@@ -95,8 +93,6 @@ scripts/ralph/.last-branch
 .trae/commands/
 .trae/rules/
 .trae/skills/
-.vscode/
-.windsurf/
 .windsurf/agents/
 .windsurf/rules/
 .windsurf/skills/
@@ -109,4 +105,13 @@ scripts/ralph/.last-branch
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+## ides
+.antigravity/
+.config/zed/
+.cursor/
+.idea/
+.vscode/
+.windsurf/
+
 # End Baton managed
