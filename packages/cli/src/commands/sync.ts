@@ -534,7 +534,10 @@ export const syncCommand = defineCommand({
 
       // Track ACTUAL tool-specific file paths placed on disk (e.g., ".claude/skills/add-adapter")
       // Used for state.yaml and orphan detection — never written to lockfile
-      const actualPlacedPaths = new Set<string>();
+      const actualPlacedPaths = new Set<string>(); // combined for orphan detection
+      const aiToolPlacedPaths = new Set<string>(); // AI tool adapter placements
+      const idePlacedPaths = new Set<string>(); // IDE platform placements
+      const filePlacedPaths = new Set<string>(); // profile files section placements
 
       // Build a map from profile name to local directory path
       // This is needed because profile.source may be a remote URL (e.g., "github:org/repo/subpath")
@@ -719,6 +722,7 @@ export const syncCommand = defineCommand({
 
               // Track tool-specific disk path for state/orphan detection
               actualPlacedPaths.add(targetSkillPath);
+              aiToolPlacedPaths.add(targetSkillPath);
 
               // Track canonical key + source content for lockfile integrity (once per skill, not per adapter)
               const canonicalKey = `skills/${skillItem.name}`;
@@ -953,6 +957,7 @@ export const syncCommand = defineCommand({
               ? relative(projectRoot, result.path)
               : result.path;
             actualPlacedPaths.add(relPath);
+            aiToolPlacedPaths.add(relPath);
 
             // Track canonical key + source content for lockfile integrity (once per canonical item)
             const canonicalKey = `${entry.type}/${entry.name}`;
@@ -1023,6 +1028,7 @@ export const syncCommand = defineCommand({
                   ? relative(projectRoot, result.path)
                   : result.path;
                 actualPlacedPaths.add(cmdRelPath);
+                aiToolPlacedPaths.add(cmdRelPath);
 
                 // Track canonical key + source content for lockfile (once per command)
                 const canonicalKey = `commands/${commandName}`;
@@ -1082,6 +1088,7 @@ export const syncCommand = defineCommand({
 
             // Track disk path for state/orphan detection
             actualPlacedPaths.add(fileEntry.target);
+            filePlacedPaths.add(fileEntry.target);
 
             // Track canonical key for lockfile integrity
             const canonicalKey = `files/${fileEntry.target}`;
@@ -1144,6 +1151,7 @@ export const syncCommand = defineCommand({
             // Track disk path for state/orphan detection
             const ideRelPath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
             actualPlacedPaths.add(ideRelPath);
+            idePlacedPaths.add(ideRelPath);
 
             // Track canonical key for lockfile integrity
             const canonicalKey = `ide/${ideEntry.ideKey}/${ideEntry.fileName}`;
@@ -1170,6 +1178,7 @@ export const syncCommand = defineCommand({
           projectManifest,
           projectRoot,
           spinner,
+          fileTargets: [...filePlacedPaths],
         });
       }
 
@@ -1181,7 +1190,9 @@ export const syncCommand = defineCommand({
       // Step 9b: Write local state (tool-specific disk paths, never committed)
       if (!dryRun) {
         await writeStateData({
-          actualPlacedPaths,
+          aiToolPaths: aiToolPlacedPaths,
+          idePaths: idePlacedPaths,
+          filePaths: filePlacedPaths,
           syncedAiTools,
           projectRoot,
           spinner,

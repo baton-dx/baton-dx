@@ -271,6 +271,7 @@ export {
 export { resolveVersion } from "./sources/version-resolver.js";
 // Export local placement state
 export {
+  flattenPlacedFiles,
   getStatePath,
   type PlacementState,
   placementStateSchema,
@@ -287,8 +288,15 @@ export {
 } from "./substitution/variables.js";
 // Export utility functions
 export {
+  collectAiToolPatterns,
   collectComprehensivePatterns,
+  collectFilePatterns,
+  collectIdePatterns,
   ensureBatonDirGitignored,
+  type GitignoreConfig,
+  type GitignoreSection,
+  parseGitignoreConfig,
+  updateGitignoreWithSections,
   loadLockfile,
   loadProfileManifest,
   loadProjectManifest,

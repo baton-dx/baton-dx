@@ -74,6 +74,15 @@ const BATON_SECTION_START = "# Baton managed";
 const BATON_SECTION_END = "# End Baton managed";
 
 /**
+ * A labeled group of gitignore patterns rendered as a `## label` block
+ * inside the Baton managed section.
+ */
+export interface GitignoreSection {
+  label: string;
+  patterns: string[];
+}
+
+/**
  * Update .gitignore with patterns for baton-managed files.
  *
  * Manages a dedicated "# Baton managed" section in .gitignore.
@@ -81,7 +90,47 @@ const BATON_SECTION_END = "# End Baton managed";
  */
 export async function updateGitignore(projectRoot: string, patterns: string[]): Promise<boolean> {
   if (patterns.length === 0) return false;
+  return updateGitignoreContent(projectRoot, patterns.join("\n"));
+}
 
+/**
+ * Update .gitignore with categorized sections inside the Baton managed block.
+ *
+ * Each section is rendered with a `## label` header and an empty line separator.
+ * Empty sections are omitted. Idempotent.
+ *
+ * Example output:
+ * ```
+ * # Baton managed
+ *
+ * ## ai-tools
+ * .claude/
+ * .cursor/
+ *
+ * ## ides
+ * .vscode/
+ *
+ * # End Baton managed
+ * ```
+ */
+export async function updateGitignoreWithSections(
+  projectRoot: string,
+  sections: GitignoreSection[],
+): Promise<boolean> {
+  const nonEmpty = sections.filter((s) => s.patterns.length > 0);
+  if (nonEmpty.length === 0) return false;
+
+  const sectionContent = nonEmpty
+    .map((s) => `## ${s.label}\n${s.patterns.join("\n")}`)
+    .join("\n\n");
+
+  return updateGitignoreContent(projectRoot, `\n${sectionContent}\n`);
+}
+
+/**
+ * Shared implementation: write/replace the Baton managed block.
+ */
+async function updateGitignoreContent(projectRoot: string, inner: string): Promise<boolean> {
   const gitignorePath = join(projectRoot, ".gitignore");
 
   let content = "";
@@ -91,20 +140,16 @@ export async function updateGitignore(projectRoot: string, patterns: string[]): 
     // .gitignore doesn't exist yet
   }
 
-  const sectionContent = patterns.join("\n");
-  const newSection = `${BATON_SECTION_START}\n${sectionContent}\n${BATON_SECTION_END}`;
+  const newSection = `${BATON_SECTION_START}\n${inner}\n${BATON_SECTION_END}`;
 
-  // Check if section already exists
   const startIdx = content.indexOf(BATON_SECTION_START);
   const endIdx = content.indexOf(BATON_SECTION_END);
 
   let newContent: string;
 
   if (startIdx !== -1 && endIdx !== -1) {
-    // Replace existing section
     const existingSection = content.substring(startIdx, endIdx + BATON_SECTION_END.length);
     if (existingSection === newSection) {
-      // No changes needed
       return false;
     }
     newContent =
@@ -112,7 +157,6 @@ export async function updateGitignore(projectRoot: string, patterns: string[]): 
       newSection +
       content.substring(endIdx + BATON_SECTION_END.length);
   } else {
-    // Append new section
     newContent = content ? `${content.trimEnd()}\n\n${newSection}\n` : `${newSection}\n`;
   }
 
@@ -154,21 +198,51 @@ export async function removeGitignoreManagedSection(projectRoot: string): Promis
 }
 
 /**
- * Collect comprehensive gitignore patterns for ALL known AI tools and IDE platforms.
+ * Normalized gitignore configuration with explicit booleans for each category.
  *
- * Generates patterns for the entire tool and IDE registry, ensuring stable,
- * predictable .gitignore content regardless of which tools a profile supports
- * or a developer has installed.
- *
- * Note: Project files (from the `files` section in profile manifests) are NOT
- * gitignored — they should be committed so the project works without Baton.
- *
- * Returns deduplicated, sorted patterns for AI tool and IDE configurations.
+ * Produced by `parseGitignoreConfig` from the raw baton.yaml `gitignore` field.
  */
-export function collectComprehensivePatterns(): string[] {
+export interface GitignoreConfig {
+  aiTools: boolean;
+  ides: boolean;
+  files: boolean;
+}
+
+/**
+ * Normalize the raw `gitignore` field from baton.yaml into a `GitignoreConfig`.
+ *
+ * Defaults:
+ *   - `undefined` / `true` → { aiTools: true, ides: true, files: false }
+ *   - `false`              → { aiTools: false, ides: false, files: false }
+ *   - Object               → respects individual fields; missing fields use defaults
+ *     (aiTools/ides default to true, files defaults to false)
+ */
+export function parseGitignoreConfig(
+  raw: boolean | { "ai-tools"?: boolean; ides?: boolean; files?: boolean } | undefined,
+): GitignoreConfig {
+  if (raw === false) {
+    return { aiTools: false, ides: false, files: false };
+  }
+  if (raw === true || raw === undefined) {
+    return { aiTools: true, ides: true, files: false };
+  }
+  // Object form — apply per-category defaults
+  return {
+    aiTools: raw["ai-tools"] ?? true,
+    ides: raw.ides ?? true,
+    files: raw.files ?? false,
+  };
+}
+
+/**
+ * Collect gitignore patterns for ALL known AI tool adapters.
+ *
+ * Generates patterns for the entire adapter registry, ensuring stable,
+ * predictable .gitignore content regardless of which tools a developer has installed.
+ */
+export function collectAiToolPatterns(): string[] {
   const patterns = new Set<string>();
 
-  // AI tool patterns: directories, memory files, and legacy paths for ALL known adapters
   const allAdapters = getAllAIToolAdapters();
   for (const adapter of allAdapters) {
     const commandPath = adapter.getPath("commands", "project", "_probe");
@@ -191,7 +265,15 @@ export function collectComprehensivePatterns(): string[] {
     }
   }
 
-  // IDE patterns: directories for ALL known IDE platforms
+  return [...patterns].sort();
+}
+
+/**
+ * Collect gitignore patterns for ALL known IDE platforms.
+ */
+export function collectIdePatterns(): string[] {
+  const patterns = new Set<string>();
+
   const allIdePlatforms = getRegisteredIdePlatforms();
   for (const ideKey of allIdePlatforms) {
     const targetDir = getIdePlatformTargetDir(ideKey);
@@ -202,4 +284,37 @@ export function collectComprehensivePatterns(): string[] {
   }
 
   return [...patterns].sort();
+}
+
+/**
+ * Convert placed file target paths into gitignore patterns.
+ *
+ * Used when `gitignore.files: true` is set to gitignore custom profile files
+ * (e.g. biome.json, tsconfig.json placed by a profile's `files` section).
+ */
+export function collectFilePatterns(filePaths: string[]): string[] {
+  const patterns = new Set<string>();
+  for (const filePath of filePaths) {
+    addPathPattern(patterns, filePath);
+  }
+  return [...patterns].sort();
+}
+
+/**
+ * Collect comprehensive gitignore patterns for ALL known AI tools and IDE platforms.
+ *
+ * Generates patterns for the entire tool and IDE registry, ensuring stable,
+ * predictable .gitignore content regardless of which tools a profile supports
+ * or a developer has installed.
+ *
+ * Note: Project files (from the `files` section in profile manifests) are NOT
+ * gitignored — they should be committed so the project works without Baton.
+ *
+ * Returns deduplicated, sorted patterns for AI tool and IDE configurations.
+ *
+ * @deprecated Use `collectAiToolPatterns()` and `collectIdePatterns()` separately
+ * for granular control. This function remains for backward compatibility.
+ */
+export function collectComprehensivePatterns(): string[] {
+  return [...new Set([...collectAiToolPatterns(), ...collectIdePatterns()])].sort();
 }

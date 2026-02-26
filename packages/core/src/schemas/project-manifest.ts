@@ -38,8 +38,29 @@ export const projectManifestSchema = z.object({
   extras: extrasSectionSchema,
   overrides: overridesSectionSchema,
   variables: z.record(z.string(), z.string()).optional(),
-  /** Whether baton-managed files should be added to .gitignore (defaults to true when absent) */
-  gitignore: z.boolean().optional(),
+  /**
+   * Controls which categories of baton-managed files are added to .gitignore.
+   *
+   * Simple form (backward-compatible):
+   *   gitignore: true   → all categories enabled (ai-tools, ides; files: false)
+   *   gitignore: false  → all categories disabled
+   *
+   * Granular form:
+   *   gitignore:
+   *     ai-tools: true   # default: true — AI tool configs (.claude/, .cursor/, ...)
+   *     ides: true        # default: true — IDE configs (.vscode/, .idea/, ...)
+   *     files: false      # default: false — custom files (biome.json, etc.) stay committed
+   */
+  gitignore: z
+    .union([
+      z.boolean(),
+      z.object({
+        "ai-tools": z.boolean().optional(),
+        ides: z.boolean().optional(),
+        files: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
 });
 
 /**

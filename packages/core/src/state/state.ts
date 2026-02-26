@@ -6,13 +6,23 @@ import { z } from "zod";
 /**
  * Schema for `.baton/state.yaml` — local placement state (never committed).
  *
- * Tracks which tool-specific files were placed on disk during the last sync/apply.
- * Used for orphan detection and cleanup when tools or configs change.
+ * Tracks which tool-specific files were placed on disk during the last sync/apply,
+ * categorized by type for targeted gitignore and cleanup support.
  */
 export const placementStateSchema = z.object({
   synced_at: z.string().describe("ISO 8601 timestamp of the last sync/apply"),
   tools: z.array(z.string()).describe("AI tool keys that were synced"),
-  placed_files: z.array(z.string()).describe("Tool-specific relative paths placed on disk"),
+  placed_files: z
+    .object({
+      "ai-tools": z
+        .array(z.string())
+        .describe("Paths placed for AI tool adapters (.claude/, .cursor/, ...)"),
+      ides: z.array(z.string()).describe("Paths placed for IDE platforms (.vscode/, .idea/, ...)"),
+      files: z
+        .array(z.string())
+        .describe("Paths placed from profile files sections (biome.json, tsconfig.json, ...)"),
+    })
+    .describe("Tool-specific relative paths placed on disk, grouped by category"),
 });
 
 export type PlacementState = z.infer<typeof placementStateSchema>;
@@ -52,4 +62,16 @@ export async function writeState(projectRoot: string, state: PlacementState): Pr
   await mkdir(resolve(projectRoot, STATE_DIR), { recursive: true });
   const yamlContent = stringify(state);
   await writeFile(getStatePath(projectRoot), yamlContent, "utf-8");
+}
+
+/**
+ * Flatten all placement categories into a single set of paths.
+ * Used for orphan detection, which compares a flat set of previous vs current paths.
+ */
+export function flattenPlacedFiles(placedFiles: PlacementState["placed_files"]): string[] {
+  return [
+    ...placedFiles["ai-tools"],
+    ...placedFiles.ides,
+    ...placedFiles.files,
+  ];
 }

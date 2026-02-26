@@ -1,16 +1,21 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  collectComprehensivePatterns,
+  collectAiToolPatterns,
+  collectFilePatterns,
+  collectIdePatterns,
   ensureBatonDirGitignored,
+  flattenPlacedFiles,
   generateLock,
+  type GitignoreSection,
   type LockFileEntry,
+  parseGitignoreConfig,
   type PlacementState,
   type ProjectManifest,
   readState,
   removeGitignoreManagedSection,
   removePlacedFiles,
-  updateGitignore,
+  updateGitignoreWithSections,
   writeLock,
   writeState,
 } from "@baton-dx/core";
@@ -72,26 +77,42 @@ export async function copyDirectoryRecursive(
 /**
  * Handle .gitignore update based on the project manifest's gitignore setting.
  *
- * When gitignore is enabled (default): writes comprehensive patterns for ALL
- * known AI tools and IDE platforms to ensure stable, dev-independent content.
- * When disabled: removes any existing managed section.
+ * Supports granular categories (ai-tools, ides, files) or a simple boolean.
+ * When all categories are disabled: removes any existing managed section.
  * Always ensures .baton/ is gitignored regardless of setting.
+ *
+ * @param fileTargets - Placed file target paths from the `files` section of profiles.
+ *   Only included in .gitignore patterns when `gitignore.files: true`.
  */
 export async function handleGitignoreUpdate(params: {
   projectManifest: ProjectManifest;
   projectRoot: string;
   spinner: ReturnType<typeof p.spinner>;
+  fileTargets?: string[];
 }): Promise<void> {
-  const { projectManifest, projectRoot, spinner } = params;
-  const gitignoreEnabled = projectManifest.gitignore !== false;
+  const { projectManifest, projectRoot, spinner, fileTargets = [] } = params;
+  const config = parseGitignoreConfig(projectManifest.gitignore);
 
   // Always ensure .baton/ is gitignored
   await ensureBatonDirGitignored(projectRoot);
 
-  if (gitignoreEnabled) {
+  const anyEnabled = config.aiTools || config.ides || config.files;
+
+  if (anyEnabled) {
     spinner.start("Updating .gitignore...");
-    const patterns = collectComprehensivePatterns();
-    const updated = await updateGitignore(projectRoot, patterns);
+    const sections: GitignoreSection[] = [];
+    if (config.aiTools) sections.push({ label: "ai-tools", patterns: collectAiToolPatterns() });
+    if (config.ides) sections.push({ label: "ides", patterns: collectIdePatterns() });
+    if (config.files && fileTargets.length > 0) {
+      sections.push({ label: "files", patterns: collectFilePatterns(fileTargets) });
+    }
+
+    if (sections.every((s) => s.patterns.length === 0)) {
+      spinner.stop(".gitignore unchanged (no patterns to write)");
+      return;
+    }
+
+    const updated = await updateGitignoreWithSections(projectRoot, sections);
     spinner.stop(
       updated ? "Updated .gitignore with managed patterns" : ".gitignore already up to date",
     );
@@ -145,22 +166,29 @@ export async function writeLockData(params: {
 
 /**
  * Write local placement state to `.baton/state.yaml`.
- * Tracks tool-specific file paths placed on disk for orphan detection.
+ * Tracks tool-specific file paths placed on disk for orphan detection,
+ * categorized by type (ai-tools, ides, files).
  */
 export async function writeStateData(params: {
-  actualPlacedPaths: Set<string>;
+  aiToolPaths: Set<string>;
+  idePaths: Set<string>;
+  filePaths: Set<string>;
   syncedAiTools: string[];
   projectRoot: string;
   spinner: ReturnType<typeof p.spinner>;
 }): Promise<void> {
-  const { actualPlacedPaths, syncedAiTools, projectRoot, spinner } = params;
+  const { aiToolPaths, idePaths, filePaths, syncedAiTools, projectRoot, spinner } = params;
 
   spinner.start("Writing local state...");
 
   const state: PlacementState = {
     synced_at: new Date().toISOString(),
     tools: syncedAiTools,
-    placed_files: [...actualPlacedPaths].sort(),
+    placed_files: {
+      "ai-tools": [...aiToolPaths].sort(),
+      ides: [...idePaths].sort(),
+      files: [...filePaths].sort(),
+    },
   };
 
   await writeState(projectRoot, state);
@@ -172,12 +200,21 @@ export async function writeStateData(params: {
  *
  * Reads from `.baton/state.yaml` (preferred). Falls back to extracting paths
  * from an old-format `baton.lock` (legacy tool-specific keys) for migration.
+ *
+ * Sync-Robustheit bei Profil-Änderungen:
+ * - Profile hinzugefügt: Merge akkumuliert korrekt, Weight-Sorting löst Konflikte.
+ * - Profile entfernt: Neue Merge-Läufe enthalten nur verbleibende Profile →
+ *   Orphan-Detection vergleicht previousPaths (state.yaml) mit currentPaths →
+ *   cleanupOrphanedFiles erkennt alle Dateien des entfernten Profils als orphaned.
+ * - Edge Case (kein state.yaml): Bei fresh clone gibt es keine Orphans zu bereinigen.
+ *   Der lockfile-Fallback verwendet kanonische Pfade (z.B. `skills/foo`), die nicht
+ *   als Disk-Pfade aufgelöst werden können — akzeptiertes Verhalten.
  */
 export async function loadPreviousPlacedPaths(projectRoot: string): Promise<Set<string>> {
   // Preferred: read from local state
   const state = await readState(projectRoot);
   if (state) {
-    return new Set(state.placed_files);
+    return new Set(flattenPlacedFiles(state.placed_files));
   }
 
   // Legacy fallback: extract tool-specific paths from old baton.lock

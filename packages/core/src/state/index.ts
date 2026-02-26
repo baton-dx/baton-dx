@@ -1,4 +1,5 @@
 export {
+  flattenPlacedFiles,
   getStatePath,
   type PlacementState,
   placementStateSchema,
