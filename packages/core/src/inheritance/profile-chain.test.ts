@@ -383,7 +383,11 @@ extends: base
 
       const basePath = join(profilesDir, "base");
       await mkdir(basePath, { recursive: true });
-      await writeFile(join(basePath, "baton.profile.yaml"), "name: base\nversion: 1.0.0\n", "utf-8");
+      await writeFile(
+        join(basePath, "baton.profile.yaml"),
+        "name: base\nversion: 1.0.0\n",
+        "utf-8",
+      );
 
       const maintainerPath = join(profilesDir, "maintainer");
       await mkdir(maintainerPath, { recursive: true });
