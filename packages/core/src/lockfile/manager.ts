@@ -41,6 +41,7 @@ export function generateLock(
       files: Record<string, string | LockFileEntry>;
     }
   >,
+  batonVersion?: string,
 ): LockFile {
   const lockedPackages: Record<string, LockedPackage> = {};
 
@@ -69,6 +70,7 @@ export function generateLock(
   }
 
   return {
+    ...(batonVersion !== undefined ? { baton_version: batonVersion } : {}),
     locked_at: new Date().toISOString(),
     packages: lockedPackages,
   };

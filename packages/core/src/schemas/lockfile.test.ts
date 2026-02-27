@@ -2,6 +2,31 @@ import { describe, expect, it } from "vitest";
 import { lockfileSchema } from "./lockfile.js";
 
 describe("Schema Validation - Lockfile", () => {
+  describe("baton_version field", () => {
+    it("is optional — lockfiles without baton_version are valid (backward-compat)", () => {
+      const result = lockfileSchema.safeParse({
+        locked_at: "2025-02-13T10:30:45.123Z",
+        packages: {},
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.baton_version).toBeUndefined();
+      }
+    });
+
+    it("accepts a semver string when present", () => {
+      const result = lockfileSchema.safeParse({
+        baton_version: "1.4.2",
+        locked_at: "2025-02-13T10:30:45.123Z",
+        packages: {},
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.baton_version).toBe("1.4.2");
+      }
+    });
+  });
+
   describe("Valid lockfiles", () => {
     it("validates lockfile with one package (legacy string integrity)", () => {
       const result = lockfileSchema.safeParse({

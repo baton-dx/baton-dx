@@ -6,6 +6,7 @@ import {
   type AIToolAdapter,
   atomicWriteFile,
   type CloneContext,
+  checkLockfileVersion,
   cloneGitSource,
   detectInstalledAITools,
   detectLegacyPaths,
@@ -47,6 +48,7 @@ import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
+import { readCurrentVersion } from "../utils/read-current-version.js";
 import { runProfileHook } from "../utils/run-hook.js";
 import {
   cleanupOrphanedFiles,
@@ -160,6 +162,7 @@ export const applyCommand = defineCommand({
       await promptFirstRunPreferences(projectRoot, !!args.yes);
 
       // Step 0b: Read lockfile for locked SHAs
+      const currentVersion = await readCurrentVersion();
       const lockfilePath = resolve(projectRoot, "baton.lock");
       let lockfile: LockFile | null = null;
       try {
@@ -168,6 +171,34 @@ export const applyCommand = defineCommand({
         // No lockfile — fall back to manifest versions
         if (verbose) {
           p.log.warn("No lockfile found. Falling back to manifest versions.");
+        }
+      }
+
+      // Step 0b+: Check if installed Baton is older than the lockfile version
+      if (lockfile) {
+        const versionWarning = checkLockfileVersion(lockfile, currentVersion);
+        if (versionWarning) {
+          p.log.warn(versionWarning);
+          if (!autoYes) {
+            const { detectInstallMethod, formatInstallCommand } = await import("@baton-dx/core");
+            const installMethod = await detectInstallMethod();
+            if (installMethod.type !== "unknown") {
+              const confirmed = await p.confirm({
+                message: `Run \`${formatInstallCommand(installMethod)}\` now to update?`,
+                initialValue: false,
+              });
+              if (!p.isCancel(confirmed) && confirmed) {
+                const { execFile } = await import("node:child_process");
+                await new Promise<void>((resolve, reject) => {
+                  execFile(installMethod.bin, installMethod.args, (error) => {
+                    if (error) reject(error);
+                    else resolve();
+                  });
+                });
+                p.log.success("Baton updated — continuing apply with new version...");
+              }
+            }
+          }
         }
       }
 
@@ -1161,7 +1192,14 @@ export const applyCommand = defineCommand({
 
       // Step 9: Write lockfile (canonical keys, tool-agnostic)
       if (!dryRun) {
-        await writeLockData({ allProfiles, sourceShas, placedFiles, projectRoot, spinner });
+        await writeLockData({
+          allProfiles,
+          sourceShas,
+          placedFiles,
+          projectRoot,
+          spinner,
+          batonVersion: currentVersion,
+        });
       }
 
       // Step 9b: Write local state (tool-specific disk paths, never committed)

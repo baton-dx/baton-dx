@@ -1,7 +1,4 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   checkLatestVersion,
   detectInstallMethod,
@@ -10,17 +7,7 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-async function readCurrentVersion(): Promise<string> {
-  try {
-    const pkg = JSON.parse(await readFile(join(__dirname, "../package.json"), "utf-8"));
-    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
-}
+import { readCurrentVersion } from "../utils/read-current-version.js";
 
 export const selfUpdateCommand = defineCommand({
   meta: {
