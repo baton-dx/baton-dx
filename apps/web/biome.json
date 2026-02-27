@@ -1,0 +1,12 @@
+{
+  "extends": ["../../biome.json"],
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/.open-next"
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+---
+title: IDE Platforms Reference
+description: Supported IDE platforms and how to configure IDE settings in profiles
+order: 9
+section: Reference
+---
+
+Baton can place IDE-specific settings and configurations alongside AI tool configs.
+
+## Supported Platforms
+
+| Platform | Key | Target Directory | Detection |
+|----------|-----|-----------------|-----------|
+| VS Code | `vscode` | `.vscode/` | `code` binary, `~/.vscode/` |
+| JetBrains | `jetbrains` | `.idea/` | `idea` binary, `~/.config/JetBrains/` |
+| Cursor | `cursor` | `.cursor/` | `cursor` binary, `~/.cursor/` |
+| Windsurf | `windsurf` | `.windsurf/` | `windsurf` binary, `~/.windsurf/` |
+| Antigravity | `antigravity` | `.antigravity/` | `antigravity` binary |
+| Zed | `zed` | `.config/zed/` | `zed` binary, `~/.config/zed/` |
+
+## Detection
+
+```bash
+baton ides scan
+```
+
+Detection checks for:
+1. **CLI binary** in `PATH`
+2. **Config directory** in the user's home directory
+
+## Configuring IDE Settings in Profiles
+
+In a profile manifest (`baton.profile.yaml`):
+
+```yaml
+ide:
+  vscode:
+    settings: ide/vscode/settings.json
+    extensions: ide/vscode/extensions.json
+  jetbrains:
+    settings: ide/jetbrains/settings.xml
+```
+
+The `settings` and `extensions` paths are relative to the profile directory.
+
+## Profile Directory Structure
+
+```
+profiles/frontend/
+└── ide/
+    ├── vscode/
+    │   ├── settings.json
+    │   └── extensions.json
+    └── jetbrains/
+        └── settings.xml
+```
+
+## Example: VS Code Settings
+
+```json
+{
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+  "typescript.preferences.importModuleSpecifier": "relative"
+}
+```
+
+## Example: VS Code Extensions
+
+```json
+{
+  "recommendations": [
+    "biomejs.biome",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next"
+  ]
+}
+```

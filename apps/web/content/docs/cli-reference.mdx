@@ -1,0 +1,198 @@
+---
+title: CLI Reference
+description: Complete reference for all Baton CLI commands and flags
+order: 6
+section: Reference
+---
+
+Complete reference for all Baton CLI commands.
+
+## Global Options
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--help` | `-h` | Show help message |
+| `--version` | `-v` | Show version number |
+| `--yes` | `-y` | Suppress all interactive prompts |
+| `--dry-run` | | Show what would be done without writing files |
+| `--verbose` | | Enable debug logging |
+
+---
+
+## Project Commands
+
+### `baton init`
+
+Initialize Baton in your project. Runs an interactive wizard that detects AI tools and IDEs, lets you select a source and profiles, and creates `baton.yaml`.
+
+```bash
+baton init
+baton init --profile github:org/repo/profile-name
+baton init --yes
+baton init --force
+```
+
+| Flag | Description |
+|------|-------------|
+| `--profile <source>` | Use a specific profile source (skip source selection) |
+| `--force` | Overwrite existing `baton.yaml` |
+
+**Creates:** `baton.yaml`, `.baton/` directory, updates `.gitignore`
+
+---
+
+### `baton sync`
+
+Fetch the latest versions of all sources, merge, transform, and place configurations.
+
+```bash
+baton sync
+baton sync --dry-run
+baton sync --verbose
+baton sync --category ai
+baton sync --check
+```
+
+| Flag | Description |
+|------|-------------|
+| `--category <type>` | Filter: `ai`, `files`, or `ide` |
+| `--check` | Read-only stale check (exits 0 if in sync) |
+| `--dry-run` | Show what would be done without writing files |
+| `--verbose` | Show detailed per-file report |
+| `--yes` | Run non-interactively |
+
+---
+
+### `baton apply`
+
+Apply locked configurations from `baton.lock` for deterministic builds.
+
+```bash
+baton apply
+baton apply --dry-run
+baton apply --fresh
+```
+
+| Flag | Description |
+|------|-------------|
+| `--category <type>` | Filter: `ai`, `files`, or `ide` |
+| `--fresh` | Force cache bypass (re-clone even if cached) |
+| `--dry-run` | Show what would be done without writing files |
+
+**Use cases:** CI/CD pipelines, onboarding, reproducible builds.
+
+---
+
+### `baton diff`
+
+Compare local files with remote source versions.
+
+```bash
+baton diff
+baton diff --name-only
+```
+
+**Exit codes:** `0` — No differences. `1` — Differences detected.
+
+---
+
+### `baton manage`
+
+Interactive project management wizard.
+
+```bash
+baton manage
+```
+
+Options: Overview, Add Profile, Remove Profile, Remove Baton.
+
+---
+
+## Source Commands
+
+### `baton source create <name>`
+
+```bash
+baton source create my-configs
+baton source create my-configs --yes
+```
+
+### `baton source connect <url>`
+
+Register a source repository globally for reuse across projects.
+
+```bash
+baton source connect github:org/repo --name my-team
+baton source connect file:///path/to/local/source --name local
+```
+
+### `baton source list`
+
+```bash
+baton source list
+```
+
+### `baton source disconnect <name>`
+
+```bash
+baton source disconnect my-team
+```
+
+---
+
+## Profile Commands
+
+### `baton profile create <name>`
+
+```bash
+cd my-source-repo
+baton profile create frontend
+```
+
+### `baton profile list`
+
+```bash
+baton profile list
+```
+
+### `baton profile remove <name>`
+
+```bash
+baton profile remove backend
+```
+
+---
+
+## AI Tools Commands
+
+### `baton ai-tools scan`
+
+```bash
+baton ai-tools scan
+baton ai-tools scan --yes
+```
+
+### `baton ai-tools list`
+
+```bash
+baton ai-tools list
+baton ai-tools list --all
+baton ai-tools list --json
+```
+
+---
+
+## IDE Commands
+
+### `baton ides scan`
+
+```bash
+baton ides scan
+```
+
+### `baton ides list`
+
+```bash
+baton ides list
+baton ides list --all
+```

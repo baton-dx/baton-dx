@@ -1,0 +1,179 @@
+---
+title: Creating Profiles
+description: Define profile manifests and configure AI tools, files, and IDE settings
+order: 4
+section: Creating
+---
+
+A **profile** is a self-contained bundle of AI tool configurations, file placements, and IDE settings. Profiles live inside source repositories and are the primary unit of reuse in Baton.
+
+---
+
+## Profile Manifest (`baton.profile.yaml`)
+
+```yaml
+name: frontend
+version: 1.0.0
+description: Frontend development standards
+extends: ../base
+weight: 10
+ai:
+  tools: [claude-code, cursor, windsurf]
+  skills:
+    - name: code-review
+      scope: project
+  rules:
+    - name: coding-style
+      scope: project
+  memory:
+    - source: MEMORY.md
+      merge: append
+  agents:
+    - name: reviewer
+      scope: project
+files:
+  - source: files/.editorconfig
+    target: .editorconfig
+    merge: replace
+  - source: files/biome.json
+    target: biome.json
+    merge: deep
+ide:
+  vscode:
+    settings: ide/vscode/settings.json
+    extensions: ide/vscode/extensions.json
+variables:
+  project_type: frontend
+  framework: react
+```
+
+### Field Reference
+
+| Field         | Type     | Required | Default | Description                                                      |
+| ------------- | -------- | -------- | ------- | ---------------------------------------------------------------- |
+| `name`        | string   | yes      | —       | Unique identifier within its source.                             |
+| `version`     | string   | no       | —       | Semver version of the profile.                                   |
+| `description` | string   | no       | —       | Human-readable description.                                      |
+| `extends`     | string   | no       | —       | Path to a parent profile for inheritance.                        |
+| `weight`      | number   | no       | `0`     | Priority ordering for multi-profile layering.                    |
+| `ai`          | object   | no       | —       | AI tool configuration block.                                     |
+| `files`       | array    | no       | `[]`    | File placement declarations.                                     |
+| `ide`         | object   | no       | —       | IDE-specific settings.                                           |
+| `variables`   | object   | no       | `{}`    | Key-value pairs for template substitution.                       |
+
+---
+
+## AI Configuration
+
+### Supported Tools
+
+`claude-code` | `cursor` | `windsurf` | `antigravity` | `codex` | `github-copilot` | `opencode` | `amp` | `kiro` | `zed` | `cline` | `roo` | `junie` | `trae`
+
+### Skills
+
+Skills are directories containing a `SKILL.md` file. They represent reusable capabilities.
+
+```yaml
+ai:
+  skills:
+    - name: code-review
+      scope: project
+```
+
+### Rules
+
+Rules are Markdown files providing instructions to AI tools.
+
+```yaml
+ai:
+  rules:
+    - name: coding-style
+      scope: project
+```
+
+Rules placed directly in `ai/rules/` are **universal** — applied to all targeted tools. Rules in a subdirectory named after a tool (e.g. `ai/rules/cursor/`) are **tool-specific**.
+
+### Agents
+
+```yaml
+ai:
+  agents:
+    - name: reviewer
+      scope: project
+```
+
+### Memory
+
+```yaml
+ai:
+  memory:
+    - source: MEMORY.md
+      merge: append
+```
+
+---
+
+## File Placements
+
+```yaml
+files:
+  - source: files/.editorconfig
+    target: .editorconfig
+    merge: replace
+  - source: files/biome.json
+    target: biome.json
+    merge: deep
+```
+
+See [Merge Strategies](/docs/merge-strategies) for all available strategies.
+
+---
+
+## Inheritance
+
+Profiles can extend other profiles using the `extends` field:
+
+```yaml
+extends: ../base
+```
+
+When a profile extends another:
+1. The parent profile's configurations are loaded first.
+2. The child profile's configurations are layered on top.
+3. Conflicts are resolved in favor of the child.
+
+---
+
+## Weight
+
+The `weight` field controls priority when multiple profiles target the same file:
+
+| Value | Meaning                                                     |
+| ----- | ----------------------------------------------------------- |
+| `-1`  | Lowest priority.                                            |
+| `0`   | Default weight.                                             |
+| `10`  | Higher priority. Overrides profiles with lower weight.      |
+| `100` | Very high priority. Use for critical, non-negotiable rules. |
+
+---
+
+## Variables and Substitution
+
+```yaml
+variables:
+  project_type: frontend
+  framework: react
+```
+
+Use `{{variable_name}}` syntax in Markdown or config files:
+
+```markdown
+This is a {{project_type}} project using {{framework}}.
+```
+
+---
+
+## Next Steps
+
+- [Using Profiles](/docs/using-profiles) — Consume profiles in your projects.
+- [Merge Strategies](/docs/merge-strategies) — How configs are combined.

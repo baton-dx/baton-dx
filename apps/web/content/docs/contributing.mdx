@@ -1,0 +1,140 @@
+---
+title: Contributing
+description: How to contribute to Baton DX
+order: 11
+section: Contributing
+---
+
+Thank you for your interest in contributing to Baton!
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 20
+- Bun (package manager and runtime)
+- Git
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/baton-dx/baton-dx.git
+cd baton-dx
+
+# Install dependencies
+bun install
+
+# Build all packages
+bun run build
+
+# Link the CLI globally (for testing)
+bun link --cwd packages/cli
+
+# Verify
+baton --version
+```
+
+## Project Structure
+
+```
+baton-dx/
+├── packages/
+│   ├── ai-tool-paths/   # @baton-dx/ai-tool-paths — Path registry (zero deps)
+│   ├── core/            # @baton-dx/core — Business logic
+│   └── cli/             # @baton-dx/cli — User-facing CLI
+├── docs/                # Documentation
+└── test-fixtures/       # Shared test fixtures
+```
+
+**Dependency flow:** `ai-tool-paths` → `core` → `cli` (one direction only).
+
+## Development Workflow
+
+### 1. Create a Feature Branch
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+```
+
+### 2. Make Changes
+
+Key principles:
+
+- **TypeScript strict mode** — no `any` types
+- **Named exports only** — no `export default`
+- **Functional composition** — except adapters (class inheritance)
+- **Async file I/O** — always `fs/promises`
+- **Zod schemas** — source of truth for all data types
+- **Co-located tests** — `foo.test.ts` next to `foo.ts`
+
+### 3. Verify
+
+```bash
+bun run typecheck   # TypeScript strict check
+bun run lint        # Biome linting
+bun run test        # Vitest tests
+bun run build       # Build all packages
+```
+
+### 4. Commit
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+git commit -m "feat(cli): add profile wizard"
+git commit -m "fix(core): handle empty manifest"
+git commit -m "refactor(ai-tool-paths): simplify registry lookup"
+```
+
+**Scopes:** `cli`, `core`, `ai-tool-paths`, `docs`, `deps`
+
+## AI-Assisted Development
+
+Use the official **maintainer profile** for full monorepo context:
+
+```bash
+baton init --profile github:baton-dx/baton-dx-source/maintainer
+baton sync
+```
+
+The maintainer profile includes 8 skills, 2 agents, 3 rules, and 3 commands — all transformed for your AI tools.
+
+## Common Contribution Tasks
+
+### Adding a New AI Tool Adapter
+
+1. Add path config to `packages/ai-tool-paths/src/registry.ts`
+2. Create adapter class in `packages/core/src/adapters/<tool>.ts`
+3. Register in `packages/core/src/adapters/registry.ts`
+4. Add tests in `packages/core/src/adapters/<tool>.test.ts`
+
+### Adding a New IDE Platform
+
+1. Add to `packages/core/src/ide/platform-registry.ts`
+2. Add detection logic
+3. Update docs
+
+## Running Tests
+
+```bash
+# All tests
+bun run test
+
+# Watch mode
+bun run test --watch
+
+# Single package
+cd packages/core && bun test
+```
+
+## Questions?
+
+- Check existing [issues](https://github.com/baton-dx/baton-dx/issues)
+- Open a new issue with the "question" label
+
+## Code of Conduct
+
+This project follows a [Contributor Code of Conduct](https://github.com/baton-dx/baton-dx/blob/main/CODE_OF_CONDUCT.md).

@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "docs": "Docs",
+    "github": "GitHub",
+    "install": "Get Started"
+  },
+  "hero": {
+    "headline": "Manage AI Tool Configs Like a Pro",
+    "subheadline": "Baton DX is a CLI package manager for Developer Experience & AI configuration. Version, share, and sync AI tool configs across 14 tools with a single command.",
+    "cta_install": "npm install -g @baton-dx/cli",
+    "cta_docs": "Read the Docs",
+    "cta_github": "View on GitHub"
+  },
+  "features": {
+    "title": "Everything you need to manage AI configs",
+    "versioned_profiles_title": "Versioned Profiles",
+    "versioned_profiles_desc": "Store configs in Git repos or npm packages. Track changes, rollback anytime.",
+    "tools_title": "14 AI Tools",
+    "tools_desc": "Supports Claude, Cursor, Copilot, Windsurf, Zed, and 9 more AI coding tools.",
+    "merge_title": "8 Merge Strategies",
+    "merge_desc": "Replace, deep-merge, append, prepend, skip, prompt, directory, or import. Full control.",
+    "scope_title": "Project & Global Scope",
+    "scope_desc": "Apply configs per-project or globally. Profiles compose and override cleanly."
+  },
+  "tools": {
+    "title": "Supports 14 AI Coding Tools"
+  },
+  "how_it_works": {
+    "title": "Get started in 3 steps",
+    "step1_title": "Install Baton DX",
+    "step1_desc": "Install the CLI globally with npm, Homebrew, or your preferred package manager.",
+    "step2_title": "Create a Source",
+    "step2_desc": "Point Baton to a Git repo or npm package containing your AI tool configurations.",
+    "step3_title": "Sync Profiles",
+    "step3_desc": "Run baton sync to pull profiles into your project or home directory."
+  },
+  "cta": {
+    "title": "Start managing your AI configs today",
+    "desc": "Join developers who use Baton DX to keep their AI tools in sync.",
+    "install": "npm install -g @baton-dx/cli",
+    "docs_link": "Read the documentation →"
+  },
+  "footer": {
+    "tagline": "CLI package manager for AI tool configs.",
+    "links_title": "Links",
+    "docs": "Documentation",
+    "github": "GitHub",
+    "npm": "npm Package",
+    "changelog": "Changelog",
+    "copyright": "© 2026 Baton DX. MIT License."
+  },
+  "docs": {
+    "on_this_page": "On this page",
+    "prev": "Previous",
+    "next": "Next",
+    "edit_on_github": "Edit on GitHub",
+    "search_placeholder": "Search docs...",
+    "getting_started": "Getting Started",
+    "reference": "Reference",
+    "contributing": "Contributing"
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "headline": "Discover Community Profiles",
+    "desc": "Browse and share Baton profiles from the community. Find ready-made AI tool configurations for your workflow.",
+    "coming_soon": "Coming Soon",
+    "notify_title": "Get notified when it launches",
+    "notify_desc": "Be the first to know when the Baton DX Marketplace opens.",
+    "email_placeholder": "your@email.com",
+    "notify_button": "Notify Me",
+    "back_to_docs": "← Back to Docs"
+  }
+}

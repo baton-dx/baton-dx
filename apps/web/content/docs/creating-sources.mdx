@@ -1,0 +1,153 @@
+---
+title: Creating Sources
+description: Build and publish versioned source repositories for Baton profiles
+order: 3
+section: Creating
+---
+
+A **source repository** is the distribution unit for Baton configurations. It groups one or more **profiles** into a single, versioned package that teams can consume from GitHub, GitLab, npm, or a local filesystem. Think of a source as an npm package, and profiles as the modules it exports.
+
+---
+
+## What is a Source Repository
+
+A source repository is any directory (typically a Git repo) that contains a `baton.source.yaml` manifest at its root. The manifest declares metadata about the source — its name, version, description, and the list of profiles it provides.
+
+Sources can be hosted on any supported transport:
+
+| Prefix     | Example                                  | Description                        |
+| ---------- | ---------------------------------------- | ---------------------------------- |
+| `github:`  | `github:my-org/dx-configs`               | GitHub repository                  |
+| `gitlab:`  | `gitlab:my-org/dx-configs`               | GitLab repository                  |
+| `git:`     | `git:https://git.internal.co/dx-configs` | Any Git remote                     |
+| `npm:`     | `npm:@my-org/dx-configs`                 | npm registry package               |
+| `file:`    | `file:../local-configs`                  | Local filesystem path              |
+
+---
+
+## Creating a Source
+
+The fastest way to scaffold a new source is with the `baton source create` command:
+
+```bash
+baton source create my-team-configs
+```
+
+You can also pass options:
+
+```bash
+baton source create my-team-configs \
+  --description "Team DX standards" \
+  --profile frontend \
+  --profile backend
+```
+
+---
+
+## Source Manifest (`baton.source.yaml`)
+
+```yaml
+name: my-team-configs
+version: 1.0.0
+description: Team DX standards
+repository: github:my-org/dx-configs
+profiles:
+  - name: frontend
+    path: profiles/frontend
+  - name: backend
+    path: profiles/backend
+```
+
+### Field Reference
+
+| Field         | Type     | Required | Description                                                        |
+| ------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `name`        | string   | yes      | Unique name for the source.                                        |
+| `version`     | string   | yes      | Semver version string (e.g. `1.0.0`).                             |
+| `description` | string   | no       | Human-readable description.                                        |
+| `repository`  | string   | no       | Canonical URI where the source is hosted.                          |
+| `profiles`    | array    | yes      | List of profile entries provided by this source.                   |
+
+---
+
+## Directory Layout
+
+```
+my-team-configs/
+├── baton.source.yaml
+├── profiles/
+│   ├── frontend/
+│   │   ├── baton.profile.yaml
+│   │   ├── ai/
+│   │   │   ├── skills/
+│   │   │   ├── rules/
+│   │   │   ├── agents/
+│   │   │   ├── memory/
+│   │   │   └── commands/
+│   │   ├── files/
+│   │   └── ide/
+│   └── backend/
+│       └── baton.profile.yaml
+└── README.md
+```
+
+---
+
+## Publishing
+
+### GitHub
+
+```bash
+git init
+git add .
+git commit -m "feat: initial source release"
+git remote add origin git@github.com:my-org/dx-configs.git
+git push -u origin main
+```
+
+Consumers reference it as:
+
+```yaml
+source: github:my-org/dx-configs/frontend
+```
+
+### npm
+
+```bash
+npm init --scope=@my-org
+npm publish
+```
+
+```yaml
+source: npm:@my-org/dx-configs/frontend
+```
+
+### Local / File
+
+```yaml
+source: file:../dx-configs/frontend
+```
+
+---
+
+## Versioning
+
+Tag releases with a `v` prefix to allow consumers to pin to specific versions:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Consumers can then pin:
+
+```yaml
+source: github:my-org/dx-configs@v1.2.0/frontend
+```
+
+---
+
+## Next Steps
+
+- [Creating Profiles](/docs/creating-profiles) — Learn how to define profile manifests.
+- [Using Profiles](/docs/using-profiles) — Learn how to consume profiles in your projects.

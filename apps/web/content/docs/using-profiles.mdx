@@ -1,0 +1,135 @@
+---
+title: Using Profiles
+description: Consume profiles in your projects with baton init, sync, and apply
+order: 5
+section: Using
+---
+
+Once a source repository has been published with one or more profiles, you can consume those profiles in any project.
+
+---
+
+## Initializing a Project
+
+```bash
+baton init
+```
+
+The interactive flow prompts you to:
+1. Choose which AI tools your project targets.
+2. Add one or more source/profile references.
+3. Set any project-level variables.
+
+You can also pass options directly:
+
+```bash
+baton init \
+  --target claude-code \
+  --target cursor \
+  --profile github:my-org/dx-configs/frontend
+```
+
+---
+
+## Project Manifest (`baton.yaml`)
+
+```yaml
+profiles:
+  - source: github:my-org/dx-configs/frontend
+  - source: github:my-org/dx-configs/backend
+ai:
+  targets: [claude-code, cursor]
+variables:
+  project_name: My App
+overrides:
+  files:
+    .gitignore:
+      merge: skip
+```
+
+---
+
+## Syncing
+
+```bash
+baton sync
+```
+
+What happens:
+1. Baton reads `baton.yaml`.
+2. Sources are fetched at their **latest version** (always fresh).
+3. Profiles are resolved and sorted by weight.
+4. AI configurations are generated for each targeted tool.
+5. Files are placed according to their merge strategies.
+6. `baton.lock` is updated with exact commit SHAs.
+
+### Dry run
+
+```bash
+baton sync --dry-run
+```
+
+---
+
+## Applying (Deterministic)
+
+```bash
+baton apply
+```
+
+Uses the **locked SHAs from `baton.lock`** for reproducible builds — ideal for CI/CD and team onboarding.
+
+| Scenario | Command |
+| -------- | ------- |
+| Get the latest versions | `baton sync` |
+| Reproduce exact locked state (CI) | `baton apply` |
+| First-time setup | `baton sync` |
+
+---
+
+## Lockfile (`baton.lock`)
+
+Always commit `baton.lock` to your repository:
+
+```bash
+git add baton.lock
+git commit -m "chore: update baton lockfile"
+```
+
+| Command       | Lockfile behavior                            |
+| ------------- | -------------------------------------------- |
+| `baton sync`  | Fetches latest, **writes** the lockfile.     |
+| `baton apply` | **Reads** the lockfile for determinism.      |
+
+---
+
+## Multi-Profile Layering
+
+When using multiple profiles, Baton merges in a deterministic order:
+
+1. Profiles sorted by **weight** (lowest first).
+2. Equal weight → order in `baton.yaml`.
+3. Later profiles layer on top.
+4. Project-level `overrides` applied last.
+
+---
+
+## Official Baton Profiles
+
+| Profile | Audience | What you get |
+| ------- | -------- | ------------ |
+| `consumer` | Project developers | CLI reference, sync workflows, troubleshooting |
+| `creator` | Source/profile authors | Profile schemas, merge strategies, publishing guides |
+| `maintainer` | Baton contributors | Monorepo architecture, adapter development |
+
+```bash
+baton init --profile github:baton-dx/baton-dx-source/consumer
+baton sync
+```
+
+---
+
+## Next Steps
+
+- [CLI Reference](/docs/cli-reference) — All available commands.
+- [Merge Strategies](/docs/merge-strategies) — How configs are combined.
