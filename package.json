@@ -1,10 +1,7 @@
 {
   "name": "baton-dx-monorepo",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "build": "bun run --filter '*' build",
     "test": "vitest run --passWithNoTests",

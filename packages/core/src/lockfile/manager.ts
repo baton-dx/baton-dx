@@ -4,8 +4,8 @@ import { parse, stringify } from "yaml";
 import { FileNotFoundError } from "../errors.js";
 import type {
   FileMetadata,
-  LockedPackage,
   LockFile,
+  LockedPackage,
   LockfileConfigType,
 } from "../schemas/lockfile.js";
 import { lockfileSchema } from "../schemas/lockfile.js";

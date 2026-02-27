@@ -1,4 +1,5 @@
-locked_at: 2026-02-26T21:08:26.657Z
+baton_version: 0.14.1
+locked_at: 2026-02-27T14:10:52.052Z
 packages:
   base:
     source: github:baton-dx/baton-dx-source/profiles/base
@@ -7,22 +8,22 @@ packages:
     sha: unknown
     integrity:
       memory/CLAUDE.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
         type: memory
       memory/AGENTS.md:
-        hash: 48a46acc4833ec5b0984379acffef4e08b5ea7f8018d8fc2d0f7fc670770d6bb
+        hash: 0868c8bba992a03e1c2eba70d6418261ae9e738bf74281d747b2cde0cddb2881
         type: memory
       memory/GEMINI.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
         type: memory
-      memory/copilot-instructions.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
-        type: memory
+      files/.claude/settings.json:
+        hash: 045e9261aafd6b18151327785f20998d5c343d59813a8a0f12e93e0f1813018b
+        type: files
   maintainer:
     source: github:baton-dx/baton-dx-source/profiles/maintainer
     resolved: github:baton-dx/baton-dx-source/profiles/maintainer
     version: 0.1.0
-    sha: 1d15f2782657701b2e3e58840eae84addca3a873
+    sha: 4181521786de4c1635c67f33a612fd843f64d29e
     integrity:
       skills/add-adapter:
         hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
@@ -58,14 +59,14 @@ packages:
         hash: a12dd3a7fd3203a452eb34d91a9be20569d5e337a3384347068895c07f3e0c5a
         type: skills
       memory/CLAUDE.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
         type: memory
       memory/AGENTS.md:
-        hash: 48a46acc4833ec5b0984379acffef4e08b5ea7f8018d8fc2d0f7fc670770d6bb
+        hash: 0868c8bba992a03e1c2eba70d6418261ae9e738bf74281d747b2cde0cddb2881
         type: memory
       memory/GEMINI.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
+        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
         type: memory
-      memory/copilot-instructions.md:
-        hash: d8aca4a91b121df81e82bd29514e3d1359e6485024165927b85cea49138544f8
-        type: memory
+      files/biome.json:
+        hash: 391830b541850afeb37f93552da6c90b5417560c5ac53f7b7d7d42d4f8e6299d
+        type: files

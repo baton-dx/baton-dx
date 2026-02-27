@@ -1,3 +1,6 @@
 profiles:
   - source: github:baton-dx/baton-dx-source/profiles/maintainer
-gitignore: true
+gitignore:
+  ai-tools: true
+  ides: true
+  files: true

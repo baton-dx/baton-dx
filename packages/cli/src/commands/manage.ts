@@ -2,12 +2,12 @@ import { access, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ProjectManifest } from "@baton-dx/core";
 import {
+  FileNotFoundError,
   cloneGitSource,
   collectAiToolPatterns,
   collectFilePatterns,
   collectIdePatterns,
   ensureBatonDirGitignored,
-  FileNotFoundError,
   flattenPlacedFiles,
   getAllAIToolAdapters,
   getDefaultGlobalSource,

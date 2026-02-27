@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import {
   type ResolvedProfileSupport,
-  resolveProfileSupport,
   type SourceManifest,
+  resolveProfileSupport,
 } from "./profile-support.js";
 
 /**
