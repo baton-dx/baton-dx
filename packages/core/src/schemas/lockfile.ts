@@ -48,6 +48,10 @@ const lockedPackageSchema = z.object({
 
 // Schema for the complete lockfile
 export const lockfileSchema = z.object({
+  baton_version: z
+    .string()
+    .optional()
+    .describe("Baton CLI version that generated this lockfile (semver)"),
   locked_at: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, {

@@ -172,8 +172,9 @@ export async function writeLockData(params: {
   placedFiles: Map<string, Record<string, LockFileEntry>>;
   projectRoot: string;
   spinner: ReturnType<typeof p.spinner>;
+  batonVersion?: string;
 }): Promise<void> {
-  const { allProfiles, sourceShas, placedFiles, projectRoot, spinner } = params;
+  const { allProfiles, sourceShas, placedFiles, projectRoot, spinner, batonVersion } = params;
 
   spinner.start("Updating lockfile...");
 
@@ -198,7 +199,7 @@ export async function writeLockData(params: {
     };
   }
 
-  const lockData = generateLock(lockPackages);
+  const lockData = generateLock(lockPackages, batonVersion);
   await writeLock(lockData, resolve(projectRoot, "baton.lock"));
 
   spinner.stop("Lockfile updated");
