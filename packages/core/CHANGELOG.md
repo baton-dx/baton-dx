@@ -1,5 +1,22 @@
 # @baton-dx/core
 
+## 0.14.1
+
+### Patch Changes
+
+- [#129](https://github.com/baton-dx/baton-dx/pull/129) [`379f26a`](https://github.com/baton-dx/baton-dx/commit/379f26ad709bafc45d8f6f7144d5f812665bb341) Thanks [@mantaray0](https://github.com/mantaray0)! - Track Baton CLI version in lockfile and warn on downgrade
+
+  `baton.lock` now records a `baton_version` field (the CLI version that ran `sync` or `apply`).
+  When a developer runs `baton sync` or `baton apply` with an older Baton version than the one that
+  generated the lockfile, a warning is shown and an interactive update prompt is offered.
+
+  - Old lockfiles without `baton_version` are silently accepted (backward-compatible).
+  - Newer Baton reading an older lockfile produces no warning.
+  - `checkLockfileVersion(lockfile, currentVersion)` exported from `@baton-dx/core`.
+
+- Updated dependencies []:
+  - @baton-dx/ai-tool-paths@0.14.1
+
 ## 0.14.0
 
 ### Minor Changes
