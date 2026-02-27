@@ -1,0 +1,15 @@
+name = "baton-dx-web"
+compatibility_date = "2025-11-01"
+compatibility_flags = ["nodejs_compat"]
+main = ".open-next/worker.js"
+
+[assets]
+directory = ".open-next/assets"
+
+[[routes]]
+pattern = "batondx.dev/*"
+zone_name = "batondx.dev"
+
+[[routes]]
+pattern = "*.batondx.dev/*"
+zone_name = "batondx.dev"

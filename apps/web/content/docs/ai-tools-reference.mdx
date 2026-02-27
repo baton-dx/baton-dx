@@ -1,0 +1,91 @@
+---
+title: AI Tools Reference
+description: Adapter details for all 14 supported AI coding tools
+order: 8
+section: Reference
+---
+
+Baton supports 14 AI coding tools with specialized adapters. Each adapter transforms canonical profile data into the format expected by the specific tool.
+
+## Supported Tools
+
+| Tool | Key | Config Dir | Memory File | Rule Format |
+|------|-----|-----------|-------------|-------------|
+| Claude Code | `claude-code` | `.claude/` | `CLAUDE.md` | Markdown |
+| Cursor | `cursor` | `.cursor/` | `AGENTS.md` | `.mdc` (frontmatter) |
+| Windsurf | `windsurf` | `.windsurf/` | `AGENTS.md` | Markdown |
+| Antigravity | `antigravity` | `.agent/` | `GEMINI.md` | Markdown |
+| Codex CLI | `codex` | `.codex/` | `AGENTS.md` | Markdown |
+| GitHub Copilot | `github-copilot` | `.github/` | `copilot-instructions.md` | Markdown |
+| OpenCode | `opencode` | `.opencode/` | `AGENTS.md` | Markdown |
+| Amp | `amp` | `.agents/` | `AGENTS.md` | Markdown |
+| Kiro | `kiro` | `.kiro/` | `AGENTS.md` | Markdown |
+| Zed | `zed` | `.zed/` | `AGENTS.md` | Markdown |
+| Cline | `cline` | `.cline/` | `AGENTS.md` | Markdown |
+| Roo | `roo` | `.roo/` | `AGENTS.md` | Markdown |
+| Junie | `junie` | `.junie/` | `AGENTS.md` | Markdown |
+| Trae | `trae` | `.trae/` | `AGENTS.md` | Markdown |
+
+## Detection
+
+Baton detects installed tools by checking for:
+
+1. **CLI binary** in `PATH` (e.g., `claude`, `cursor`, `code`)
+2. **Config directory** existence (e.g., `~/.claude/`, `~/.cursor/`)
+
+```bash
+baton ai-tools scan
+```
+
+## Config Types
+
+| Type | Description |
+|------|-------------|
+| `skills` | Skill directories with `SKILL.md` |
+| `rules` | Markdown rule files |
+| `agents` | Agent files with YAML frontmatter |
+| `memory` | Context memory files |
+| `commands` | Slash command files |
+
+Each config type has both **project** scope (project directory) and **global** scope (home directory).
+
+## Tool-Specific Behavior
+
+### Claude Code
+
+- **Memory file:** `CLAUDE.md` (project root or `~/.claude/CLAUDE.md`)
+- **Rules:** Standard Markdown, placed in `.claude/rules/`
+- **Skills:** Directory-based with `SKILL.md`, placed in `.claude/skills/`
+- **Commands:** Placed in `.claude/commands/`
+
+### Cursor
+
+- **Memory file:** `AGENTS.md` (project root)
+- **Rules:** Transformed to `.mdc` format with `description`, `globs`, and `alwaysApply` frontmatter
+- **Legacy paths:** `.cursorrules` (single rules file, deprecated)
+
+### GitHub Copilot
+
+- **Memory file:** `.github/copilot-instructions.md`
+- **Rules:** Placed in `.github/instructions/` with `.instructions.md` extension
+
+### Windsurf
+
+- **Memory file:** `AGENTS.md` (project root)
+- **Rules:** Placed in `.windsurf/rules/` as standard Markdown (no frontmatter)
+
+## Targeting Tools
+
+Limit which tools Baton configures in your `baton.yaml`:
+
+```yaml
+ai:
+  targets: [claude-code, cursor]
+```
+
+Or in a profile manifest:
+
+```yaml
+ai:
+  tools: [claude-code, cursor, windsurf]
+```

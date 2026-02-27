@@ -1,0 +1,89 @@
+---
+title: Quick Start
+description: Get Baton running in your project in under 5 minutes
+order: 2
+section: Getting Started
+---
+
+Get Baton running in your project in under 5 minutes.
+
+## Step 1: Install Baton
+
+```bash
+# bun (recommended)
+bun install -g @baton-dx/cli
+
+# pnpm
+pnpm add -g @baton-dx/cli
+
+# npm
+npm install -g @baton-dx/cli
+
+# homebrew
+brew install baton-dx
+```
+
+## Step 2: Connect a Source
+
+Register a source repository that contains your team's profiles:
+
+```bash
+baton source connect github:your-org/dx-configs --name my-team
+```
+
+> **Don't have a source yet?** Create one with `baton source create my-configs`.
+> See [Creating Sources](/docs/creating-sources) for details.
+>
+> **Want AI-assisted Baton usage?** Connect the official Baton source and sync the `consumer` profile:
+>
+> ```bash
+> baton init --profile github:baton-dx/baton-dx-source/consumer
+> ```
+>
+> This gives your AI tools full context about Baton's CLI, sync workflows, and project management.
+
+## Step 3: Initialize Your Project
+
+```bash
+cd your-project
+baton init
+```
+
+The interactive wizard will:
+1. Detect installed AI tools and IDEs
+2. Let you select a source repository
+3. Let you choose profiles to install
+4. Create `baton.yaml` in your project
+
+## Step 4: Sync Configurations
+
+```bash
+baton sync
+```
+
+This resolves all profiles, merges configurations, transforms them for each AI tool, and places files in the correct locations.
+
+After sync, you'll find:
+- AI tool configs (`.claude/`, `.cursor/`, etc.)
+- IDE settings (`.vscode/`, `.idea/`, etc.)
+- Shared files (`.editorconfig`, `.gitignore`, etc.)
+- A `baton.lock` file pinning exact versions
+
+## Step 5: Commit and Share
+
+```bash
+git add baton.yaml baton.lock
+git commit -m "feat: add Baton configuration"
+```
+
+Your teammates can now:
+```bash
+baton sync  # Apply the same configs
+```
+
+## What's Next?
+
+- [Creating Sources](/docs/creating-sources) — Build your own source repository
+- [Creating Profiles](/docs/creating-profiles) — Design profile manifests
+- [CLI Reference](/docs/cli-reference) — All available commands
+- [Merge Strategies](/docs/merge-strategies) — How configs are combined

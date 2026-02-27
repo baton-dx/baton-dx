@@ -1,0 +1,20 @@
+# Next.js
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Velite generated
+.velite/
+
+# Misc
+.DS_Store
+*.local
+
+# Wrangler
+.wrangler/
+.dev.vars
