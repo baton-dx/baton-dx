@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ProjectManifest, SourceManifest } from "@baton-dx/core";
 import {
-  type GitignoreSection,
   clearAIToolCache,
   clearIdeCache,
   cloneGitSource,
@@ -12,6 +11,7 @@ import {
   detectInstalledAITools,
   detectInstalledIdes,
   findSourceManifest,
+  type GitignoreSection,
   getDefaultGlobalSource,
   getGlobalAiTools,
   getGlobalIdePlatforms,

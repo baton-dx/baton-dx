@@ -1,4 +1,4 @@
-import { KEBAB_CASE_REGEX, SourceParseError, addGlobalSource, parseSource } from "@baton-dx/core";
+import { addGlobalSource, KEBAB_CASE_REGEX, parseSource, SourceParseError } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { selectMultipleProfilesFromSource } from "../../utils/profile-selection.js";

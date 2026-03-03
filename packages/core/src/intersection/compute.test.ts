@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedProfileSupport } from "../inheritance/profile-support.js";
-import { type DeveloperTools, computeIntersection } from "./compute.js";
+import { computeIntersection, type DeveloperTools } from "./compute.js";
 
 /**
  * Helper to create developer tools config

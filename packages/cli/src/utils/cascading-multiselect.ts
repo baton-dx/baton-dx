@@ -1,12 +1,12 @@
 import type { SourceProfileInfo } from "@baton-dx/core";
 import { MultiSelectPrompt } from "@clack/core";
 import {
+  limitOptions,
   S_BAR,
   S_BAR_END,
   S_CHECKBOX_ACTIVE,
   S_CHECKBOX_INACTIVE,
   S_CHECKBOX_SELECTED,
-  limitOptions,
   symbol,
 } from "@clack/prompts";
 import color from "picocolors";

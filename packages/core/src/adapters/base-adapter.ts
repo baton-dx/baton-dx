@@ -3,8 +3,8 @@ import { getAIToolMcpPath, getAIToolPath } from "@baton-dx/ai-tool-paths";
 import { transformEnvVars } from "../mcp/env-transform.js";
 import type { MergedMcpServer } from "../merge/mcp.js";
 import type {
-  AIToolAdapter,
   AgentFile,
+  AIToolAdapter,
   CommandFile,
   McpCapabilities,
   McpEnvVarSyntax,

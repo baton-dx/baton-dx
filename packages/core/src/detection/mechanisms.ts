@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { constants, access, readdir } from "node:fs/promises";
+import { access, constants, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type {

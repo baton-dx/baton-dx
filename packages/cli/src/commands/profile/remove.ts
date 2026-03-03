@@ -1,4 +1,4 @@
-import { readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
