@@ -18,12 +18,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "prepack": "cp ../../README.md ."
+    "prepack": "cp ../../README.md .",
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "dependencies": {},
   "devDependencies": {

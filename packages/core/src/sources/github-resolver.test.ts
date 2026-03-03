@@ -1,24 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitSourceError } from "../errors.js";
 import { parseSource } from "../utils/source-parser.js";
+import * as authCascade from "./auth-cascade.js";
 import * as gitClone from "./git-clone.js";
 import { resolveGitHubSource } from "./github-resolver.js";
 
 describe("GitHub Resolver", () => {
-    const originalEnv = process.env.GITHUB_TOKEN;
-
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env.GITHUB_TOKEN = undefined;
+        // Default: no auth (public repo scenario)
+        vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({ method: "none" });
     });
 
     afterEach(() => {
-        // Restore original GITHUB_TOKEN
-        if (originalEnv !== undefined) {
-            process.env.GITHUB_TOKEN = originalEnv;
-        } else {
-            process.env.GITHUB_TOKEN = undefined;
-        }
+        vi.restoreAllMocks();
     });
 
     describe("resolveGitHubSource", () => {
@@ -47,11 +42,15 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: undefined,
                 useCache: true,
+                authToken: undefined,
             });
         });
 
-        it("should resolve GitHub source with authentication token", async () => {
-            process.env.GITHUB_TOKEN = "ghp_test_token_123";
+        it("should resolve GitHub source with env token", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "env",
+                token: "ghp_test_token_123",
+            });
 
             const source = parseSource("github:baton/private-repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
@@ -72,12 +71,13 @@ describe("GitHub Resolver", () => {
                 sha: "xyz789abc123",
             });
 
-            // Verify URL was enhanced with token
+            // Verify token is passed via authToken (not embedded in URL)
             expect(cloneSpy).toHaveBeenCalledWith({
-                url: "https://ghp_test_token_123@github.com/baton/private-repo.git",
+                url: "https://github.com/baton/private-repo.git",
                 ref: undefined,
                 subpath: undefined,
                 useCache: true,
+                authToken: "ghp_test_token_123",
             });
         });
 
@@ -106,6 +106,7 @@ describe("GitHub Resolver", () => {
                 ref: "v2.0",
                 subpath: undefined,
                 useCache: true,
+                authToken: undefined,
             });
         });
 
@@ -134,6 +135,7 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: "frontend",
                 useCache: true,
+                authToken: undefined,
             });
         });
 
@@ -156,6 +158,7 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: undefined,
                 useCache: false,
+                authToken: undefined,
             });
         });
 
@@ -168,7 +171,7 @@ describe("GitHub Resolver", () => {
             );
 
             await expect(resolveGitHubSource({ source })).rejects.toThrow(
-                /GitHub authentication failed.*Set GITHUB_TOKEN/,
+                /GitHub authentication failed.*gh auth login/,
             );
         });
 
@@ -222,9 +225,12 @@ describe("GitHub Resolver", () => {
         });
     });
 
-    describe("GitHub Token Authentication", () => {
-        it("should enhance URL with GITHUB_TOKEN when available", async () => {
-            process.env.GITHUB_TOKEN = "ghp_secret_token";
+    describe("Auth Cascade Integration", () => {
+        it("should use SSH URL when auth cascade returns useSSH", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "ssh",
+                useSSH: true,
+            });
 
             const source = parseSource("github:org/repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
@@ -241,12 +247,42 @@ describe("GitHub Resolver", () => {
 
             expect(cloneSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    url: "https://ghp_secret_token@github.com/org/repo.git",
+                    url: "git@github.com:org/repo.git",
                 }),
             );
         });
 
-        it("should not modify URL when GITHUB_TOKEN is not set", async () => {
+        it("should pass gh-cli token via authToken (not in URL)", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "gh-cli",
+                token: "gho_cli_token",
+            });
+
+            const source = parseSource("github:org/repo");
+            if (source.provider !== "github") throw new Error("Expected GitHub source");
+
+            const cloneSpy = vi.spyOn(gitClone, "cloneGitSource").mockResolvedValue({
+                localPath: "/cache/test",
+                fromCache: false,
+                sha: "test123",
+                cachePath: "/cache/test",
+                sparseCheckout: false,
+            });
+
+            await resolveGitHubSource({ source });
+
+            // Token must NOT appear in URL — it's passed via authToken
+            expect(cloneSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: "https://github.com/org/repo.git",
+                    authToken: "gho_cli_token",
+                }),
+            );
+        });
+
+        it("should use plain HTTPS URL when no auth is found", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({ method: "none" });
+
             const source = parseSource("github:org/repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
 
@@ -263,6 +299,7 @@ describe("GitHub Resolver", () => {
             expect(cloneSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: "https://github.com/org/repo.git",
+                    authToken: undefined,
                 }),
             );
         });

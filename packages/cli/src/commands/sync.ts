@@ -13,8 +13,9 @@ import {
     detectInstalledAITools,
     detectLegacyPaths,
     FileNotFoundError,
-    GitAuthenticationError,
     getAIToolAdaptersForKeys,
+    getAuthenticatedUrl,
+    getAuthSetupInstructions,
     getIdePlatformTargetDir,
     getProfileWeight,
     isKnownIdePlatform,
@@ -40,6 +41,7 @@ import {
     readLock,
     readModifyWriteSharedSettings,
     readState,
+    resolveAuth,
     resolveNpmSource,
     resolvePreferences,
     resolveProfileChain,
@@ -279,65 +281,43 @@ export const syncCommand = defineCommand({
                             throw new Error(`Invalid source: ${profileSource.source}`);
                         }
 
+                        // Pre-resolve auth via cascade
+                        const hostname = new URL(url).hostname;
+                        const auth = await resolveAuth(hostname);
+                        if (auth.method === "none") {
+                            p.log.warn(
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                            );
+                            continue;
+                        }
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
+
                         // Always resolve to latest version
                         let resolvedRef: string;
-                        let interactive = false;
                         try {
-                            resolvedRef = await resolveVersion(url, "latest");
+                            resolvedRef = await resolveVersion(cloneUrl, "latest", auth.token);
                             if (verbose) {
                                 p.log.info(
                                     `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
                                 );
                             }
-                        } catch (resolveError) {
-                            if (resolveError instanceof GitAuthenticationError) {
-                                spinner.stop("Authentication required");
-                                p.log.info(
-                                    "Git credentials needed. Please complete authentication...",
+                        } catch {
+                            // Fallback to profileSource.version if resolution fails
+                            resolvedRef = profileSource.version || "HEAD";
+                            if (verbose) {
+                                p.log.warn(
+                                    `Could not resolve latest for ${url}, using ${resolvedRef}`,
                                 );
-                                resolvedRef = await resolveVersion(url, "latest", {
-                                    interactive: true,
-                                });
-                                interactive = true;
-                                spinner.start("Resolving profile chain...");
-                            } else {
-                                // Fallback to profileSource.version if resolution fails
-                                resolvedRef = profileSource.version || "HEAD";
-                                if (verbose) {
-                                    p.log.warn(
-                                        `Could not resolve latest for ${url}, using ${resolvedRef}`,
-                                    );
-                                }
                             }
                         }
 
-                        let cloned: Awaited<ReturnType<typeof cloneGitSource>>;
-                        try {
-                            cloned = await cloneGitSource({
-                                url,
-                                ref: resolvedRef,
-                                subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                                useCache: false,
-                                interactive,
-                            });
-                        } catch (cloneError) {
-                            if (cloneError instanceof GitAuthenticationError && !interactive) {
-                                spinner.stop("Authentication required");
-                                p.log.info(
-                                    "Git credentials needed. Please complete authentication...",
-                                );
-                                cloned = await cloneGitSource({
-                                    url,
-                                    ref: resolvedRef,
-                                    subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                                    useCache: false,
-                                    interactive: true,
-                                });
-                                spinner.start("Resolving profile chain...");
-                            } else {
-                                throw cloneError;
-                            }
-                        }
+                        const cloned = await cloneGitSource({
+                            url: cloneUrl,
+                            ref: resolvedRef,
+                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                            useCache: false,
+                            authToken: auth.token,
+                        });
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);
                         cloneContext = {

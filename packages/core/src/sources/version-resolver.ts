@@ -1,10 +1,13 @@
 import { maxSatisfying, valid } from "semver";
 import type { SimpleGit } from "simple-git";
 import { GitAuthenticationError, VersionNotFoundError } from "../errors.js";
-import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
+import { createGit, isAuthError, redactUrl, withTokenAuth } from "./git-utils.js";
 
 /**
  * Resolves a version specification to a specific Git ref (commit SHA, tag, or branch).
+ *
+ * Callers should pass a pre-authenticated URL (with token embedded or SSH format)
+ * via the auth cascade. This function always uses non-interactive git.
  *
  * Supported version specs:
  * - Semver range: "^1.0.0", "~2.3.0", ">=1.0.0 <2.0.0"
@@ -13,16 +16,18 @@ import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
  * - Commit SHA: "abc1234567890def"
  * - "latest": resolves to newest semver tag, or HEAD if no tags
  *
- * @param repoUrl - The Git repository URL
+ * @param repoUrl - The Git repository URL (clean, without embedded credentials)
  * @param versionSpec - The version specification to resolve (default: "latest")
+ * @param authToken - Optional auth token injected via git HTTP header env vars
  * @returns The resolved Git ref (commit SHA)
  */
 export async function resolveVersion(
     repoUrl: string,
     versionSpec = "latest",
-    options?: { interactive?: boolean },
+    authToken?: string,
 ): Promise<string> {
-    const git: SimpleGit = options?.interactive ? createInteractiveGit() : createGit();
+    const git: SimpleGit = authToken ? withTokenAuth(createGit(), repoUrl, authToken) : createGit();
+    const safeUrl = redactUrl(repoUrl);
 
     try {
         // Fetch all refs from remote without cloning
@@ -66,7 +71,7 @@ export async function resolveVersion(
                 return defaultBranch;
             }
 
-            throw new VersionNotFoundError(`No versions found in repository: ${repoUrl}`);
+            throw new VersionNotFoundError(`No versions found in repository: ${safeUrl}`);
         }
 
         // Check if it's a commit SHA (40 hex chars) - do this before other checks
@@ -95,7 +100,7 @@ export async function resolveVersion(
 
         if (semverTags.length === 0) {
             throw new VersionNotFoundError(
-                `No semver tags found in repository: ${repoUrl}. Available branches: ${Array.from(branches.keys()).join(", ")}`,
+                `No semver tags found in repository: ${safeUrl}. Available branches: ${Array.from(branches.keys()).join(", ")}`,
             );
         }
 
@@ -120,10 +125,10 @@ export async function resolveVersion(
             throw error;
         }
         if (isAuthError(error)) {
-            throw new GitAuthenticationError(`Authentication required for ${repoUrl}`, error);
+            throw new GitAuthenticationError(`Authentication required for ${safeUrl}`, error);
         }
         throw new VersionNotFoundError(
-            `Failed to resolve version "${versionSpec}" for ${repoUrl}: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to resolve version "${versionSpec}" for ${safeUrl}: ${error instanceof Error ? error.message : String(error)}`,
         );
     }
 }

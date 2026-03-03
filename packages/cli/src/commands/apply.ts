@@ -12,8 +12,9 @@ import {
     detectInstalledAITools,
     detectLegacyPaths,
     FileNotFoundError,
-    GitAuthenticationError,
     getAIToolAdaptersForKeys,
+    getAuthenticatedUrl,
+    getAuthSetupInstructions,
     getIdePlatformTargetDir,
     getProfileWeight,
     isKnownIdePlatform,
@@ -38,6 +39,7 @@ import {
     type RuleEntry,
     type RuleFile,
     readLock,
+    resolveAuth,
     resolvePreferences,
     resolveProfileChain,
     resolveScope,
@@ -259,6 +261,17 @@ export const applyCommand = defineCommand({
                             throw new Error(`Invalid source: ${profileSource.source}`);
                         }
 
+                        // Pre-resolve auth via cascade
+                        const hostname = new URL(url).hostname;
+                        const auth = await resolveAuth(hostname);
+                        if (auth.method === "none") {
+                            p.log.warn(
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                            );
+                            continue;
+                        }
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
+
                         // Determine ref: use locked SHA if available, otherwise profileSource.version
                         let ref = profileSource.version;
                         if (lockfile) {
@@ -277,34 +290,14 @@ export const applyCommand = defineCommand({
                             }
                         }
 
-                        let cloned: Awaited<ReturnType<typeof cloneGitSource>>;
-                        try {
-                            cloned = await cloneGitSource({
-                                url,
-                                ref,
-                                subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                                useCache: true,
-                                maxCacheAgeMs,
-                            });
-                        } catch (cloneError) {
-                            if (cloneError instanceof GitAuthenticationError) {
-                                spinner.stop("Authentication required");
-                                p.log.info(
-                                    "Git credentials needed. Please complete authentication...",
-                                );
-                                cloned = await cloneGitSource({
-                                    url,
-                                    ref,
-                                    subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                                    useCache: true,
-                                    maxCacheAgeMs,
-                                    interactive: true,
-                                });
-                                spinner.start("Resolving profile chain...");
-                            } else {
-                                throw cloneError;
-                            }
-                        }
+                        const cloned = await cloneGitSource({
+                            url: cloneUrl,
+                            ref,
+                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                            useCache: true,
+                            maxCacheAgeMs,
+                            authToken: auth.token,
+                        });
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);
                         cloneContext = {

@@ -1,5 +1,6 @@
 import { GitSourceError } from "../errors.js";
 import type { ParsedSource } from "../utils/source-parser.js";
+import { type AuthResult, resolveAuth } from "./auth-cascade.js";
 import { type ClonedSource, cloneGitSource } from "./git-clone.js";
 
 export interface GitHubResolverOptions {
@@ -18,7 +19,7 @@ export interface ResolvedGitHubSource {
  *
  * Features:
  * - Supports branch/tag via @ref
- * - Authentication via GitHub Token (GITHUB_TOKEN env var or git credentials)
+ * - Authentication via auth cascade (env vars, SSH, gh CLI, git credential helper)
  * - Caching support (default: enabled)
  * - Error handling for common issues (repo not found, no permission, network errors)
  *
@@ -31,8 +32,10 @@ export async function resolveGitHubSource(
 ): Promise<ResolvedGitHubSource> {
     const { source, useCache = true } = options;
 
-    // Enhance URL with GitHub token if available
-    const url = getAuthenticatedUrl(source.url);
+    // Resolve auth via cascade and build the appropriate URL
+    const hostname = extractHostname(source.url);
+    const auth = await resolveAuth(hostname);
+    const url = await getAuthenticatedUrl(source.url, auth);
 
     try {
         const cloned: ClonedSource = await cloneGitSource({
@@ -40,6 +43,7 @@ export async function resolveGitHubSource(
             ref: source.ref,
             subpath: source.subpath,
             useCache,
+            authToken: auth.token,
         });
 
         return {
@@ -53,7 +57,7 @@ export async function resolveGitHubSource(
 
         if (errorMessage.includes("Authentication failed")) {
             throw new GitSourceError(
-                `GitHub authentication failed for ${source.org}/${source.repo}. Set GITHUB_TOKEN environment variable for private repos.`,
+                `GitHub authentication failed for ${source.org}/${source.repo}. Run \`gh auth login\` or set GITHUB_TOKEN for private repos.`,
                 { cause: error },
             );
         }
@@ -67,7 +71,7 @@ export async function resolveGitHubSource(
 
         if (errorMessage.includes("Permission denied") || errorMessage.includes("403")) {
             throw new GitSourceError(
-                `Permission denied for GitHub repository: ${source.org}/${source.repo}. Verify your access rights or provide a valid GITHUB_TOKEN.`,
+                `Permission denied for GitHub repository: ${source.org}/${source.repo}. Verify your access rights or run \`gh auth login\`.`,
                 { cause: error },
             );
         }
@@ -89,28 +93,35 @@ export async function resolveGitHubSource(
 }
 
 /**
- * Enhances the GitHub URL with authentication token if available
- * Supports GITHUB_TOKEN environment variable for private repos
+ * Builds a clone URL using the resolved auth result.
+ * Converts to SSH URL when useSSH is true. Tokens are never embedded in the URL —
+ * they are injected via git env vars in cloneGitSource/resolveVersion instead.
  */
-function getAuthenticatedUrl(url: string): string {
-    const token = process.env.GITHUB_TOKEN;
-
-    // Check for undefined or empty string
-    if (!token || token === "undefined") {
-        // No token - rely on git credentials or public access
-        return url;
+export async function getAuthenticatedUrl(url: string, auth: AuthResult): Promise<string> {
+    // SSH: convert HTTPS to git@ URL
+    if (auth.useSSH && url.startsWith("https://")) {
+        const parsed = new URL(url);
+        const path = parsed.pathname.replace(/^\//, "");
+        return `git@${parsed.hostname}:${path}`;
     }
 
-    // Convert https://github.com/org/repo.git to https://token@github.com/org/repo.git
-    if (url.startsWith("https://github.com/")) {
-        return url.replace("https://github.com/", `https://${token}@github.com/`);
-    }
-
-    // For other HTTPS URLs (GHE), insert token as well
-    if (url.startsWith("https://")) {
-        return url.replace("https://", `https://${token}@`);
-    }
-
-    // For git@ URLs, leave unchanged (git credentials will be used)
+    // Return URL as-is — token auth is handled via git HTTP header env vars
     return url;
+}
+
+function extractHostname(url: string): string {
+    try {
+        if (url.startsWith("https://") || url.startsWith("http://")) {
+            return new URL(url).hostname;
+        }
+        // git@github.com:org/repo.git
+        const atIdx = url.indexOf("@");
+        const colonIdx = atIdx !== -1 ? url.indexOf(":", atIdx + 1) : -1;
+        if (atIdx !== -1 && colonIdx !== -1) {
+            return url.slice(atIdx + 1, colonIdx);
+        }
+        return "github.com";
+    } catch {
+        return "github.com";
+    }
 }

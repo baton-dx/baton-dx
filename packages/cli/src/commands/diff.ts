@@ -4,8 +4,9 @@ import {
     type ClonedSource,
     cloneGitSource,
     detectInstalledAITools,
-    GitAuthenticationError,
     getAIToolAdaptersForKeys,
+    getAuthenticatedUrl,
+    getAuthSetupInstructions,
     getGlobalAiTools,
     getGlobalIdePlatforms,
     getIdePlatformTargetDir,
@@ -22,6 +23,7 @@ import {
     parseSource,
     type RuleEntry,
     type RuleFile,
+    resolveAuth,
     resolveNpmSource,
     resolveProfileChain,
     resolveScope,
@@ -98,32 +100,25 @@ export const diffCommand = defineCommand({
                             parsed.provider === "github" || parsed.provider === "gitlab"
                                 ? parsed.subpath
                                 : undefined;
-                        let cloned: ClonedSource;
-                        try {
-                            cloned = await cloneGitSource({
-                                url,
-                                ref: profileSource.version || undefined,
-                                subpath,
-                                useCache: false, // Always fetch fresh for diff
-                            });
-                        } catch (cloneError) {
-                            if (cloneError instanceof GitAuthenticationError) {
-                                spinner.stop("Authentication required");
-                                p.log.info(
-                                    "Git credentials needed. Please complete authentication...",
-                                );
-                                cloned = await cloneGitSource({
-                                    url,
-                                    ref: profileSource.version || undefined,
-                                    subpath,
-                                    useCache: false,
-                                    interactive: true,
-                                });
-                                spinner.start("Resolving profile chain...");
-                            } else {
-                                throw cloneError;
-                            }
+
+                        // Pre-resolve auth via cascade
+                        const hostname = new URL(url).hostname;
+                        const auth = await resolveAuth(hostname);
+                        if (auth.method === "none") {
+                            spinner.message(
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                            );
+                            continue;
                         }
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
+
+                        const cloned: ClonedSource = await cloneGitSource({
+                            url: cloneUrl,
+                            ref: profileSource.version || undefined,
+                            subpath,
+                            useCache: false, // Always fetch fresh for diff
+                            authToken: auth.token,
+                        });
                         localPath = cloned.localPath;
                         profileManifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                     }

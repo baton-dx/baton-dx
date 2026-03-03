@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isFirstRun } from "@baton-dx/core";
 import { defineCommand, runMain } from "citty";
 import { aiToolsCommand } from "./commands/ai-tools/index.js";
 import { applyCommand } from "./commands/apply.js";
@@ -64,7 +65,12 @@ const main = defineCommand({
         ides: idesCommand,
         "self-update": selfUpdateCommand,
     },
-    run({ args }) {
+    async run({ args }) {
+        // First-run hint (non-blocking)
+        if (await isFirstRun()) {
+            console.log("Tip: run `baton init` to set up Baton in your project.\n");
+        }
+
         // Show help when no arguments provided
         if (Object.keys(args).length === 0) {
             console.log(`baton v${packageJson.version}`);

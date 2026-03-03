@@ -2,45 +2,63 @@
 
 Common issues and solutions when using Baton.
 
-## Git operations hang (spinner never stops)
+## Authentication errors for private repos
 
-**Symptoms:** Running `baton init`, `baton sync`, `baton apply`, or `baton diff` with a GitHub/GitLab source causes the CLI to hang — the spinner keeps spinning but nothing happens.
+**Symptoms:** `baton init`, `baton sync`, `baton apply`, or `baton diff` fails with "No authentication found for …" when using a private source repository.
 
-**Cause:** The source repository requires authentication (private repo, or rate-limited), but no git credentials are available. Git tries to prompt for a username/password, but the prompt is hidden behind Baton's spinner.
+**How Baton resolves auth:** Baton automatically detects credentials using an auth cascade — it never prompts interactively and never hangs. The cascade checks these sources in order:
 
-**Since v0.x.x:** Baton automatically detects this condition, stops the spinner, and shows `Authentication required` so your credential manager or browser OAuth flow can run.
+1. **Environment variables** — `GITHUB_TOKEN`, `GH_TOKEN`, or `BATON_GIT_TOKEN`
+2. **SSH keys** — looks for `~/.ssh/id_*` keys and verifies connectivity
+3. **GitHub CLI** — runs `gh auth token` (GitHub hosts only)
+4. **Git credential helper** — queries your system credential store (macOS Keychain, Windows Credential Manager, etc.)
 
-**If you're on an older version**, or the auto-detection doesn't trigger:
+If none succeed, Baton shows a clear error with setup instructions.
 
 ### Solutions
 
-1. **Set up a GitHub personal access token (recommended):**
+1. **GitHub CLI (recommended):**
 
    ```bash
-   # Store token in git credential manager
    gh auth login
-   # or
-   git config --global credential.helper store
    ```
 
-2. **Use SSH instead of HTTPS:**
+   This is the fastest path — it stores a token that both `gh` and Baton can use.
 
-   Update your source string to use SSH:
+2. **SSH key:**
+
+   If you have SSH keys, Baton auto-detects them. To add one:
+
+   ```bash
+   ssh-keygen -t ed25519
+   ssh-add
+   ```
+
+   Then add the public key to your Git host. You can also use SSH source URLs explicitly:
+
    ```yaml
    # baton.yaml
    profiles:
      - source: git:git@github.com:org/repo.git
    ```
 
-3. **Set `GITHUB_TOKEN` environment variable:**
+3. **Environment variable:**
 
    ```bash
+   # GitHub
    export GITHUB_TOKEN=ghp_your_token_here
+   # or
+   export GH_TOKEN=ghp_your_token_here
+
+   # Other Git hosts
+   export BATON_GIT_TOKEN=your_token_here
    ```
+
+   > **Tip:** Running `export TOKEN=...` in an interactive shell writes the token to your shell history. To avoid this, add the export to `~/.zshenv` (zsh) or `~/.bash_profile` (bash) instead.
 
 4. **For public repos hitting rate limits:**
 
-   Even public repos can trigger auth prompts when GitHub rate-limits unauthenticated requests. Setting up any form of authentication (steps 1-3) resolves this.
+   Even public repos can trigger auth failures when GitHub rate-limits unauthenticated requests. Setting up any form of authentication (steps 1-3) resolves this.
 
 ### How to diagnose
 

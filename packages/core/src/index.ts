@@ -48,6 +48,8 @@ export {
 } from "./adapters/types.js";
 export { WindsurfAdapter } from "./adapters/windsurf.js";
 export { ZedAdapter } from "./adapters/zed.js";
+// Export first-run detection
+export { isFirstRun } from "./config/first-run.js";
 // Export global config management
 export {
     addGlobalSource,
@@ -256,6 +258,14 @@ export {
     type LatestVersionResult,
     type UpdateCheckResult,
 } from "./self-update/index.js";
+// Export auth cascade
+export {
+    type AuthMethod,
+    type AuthResult,
+    clearAuthCache,
+    getAuthSetupInstructions,
+    resolveAuth,
+} from "./sources/auth-cascade.js";
 // Export File resolver
 export {
     type FileResolverOptions,
@@ -270,10 +280,17 @@ export {
     expandSparseCheckout,
 } from "./sources/git-clone.js";
 // Export Git utilities
-export { createGit, createInteractiveGit, isAuthError } from "./sources/git-utils.js";
+export {
+    createGit,
+    createInteractiveGit,
+    isAuthError,
+    redactUrl,
+    withTokenAuth,
+} from "./sources/git-utils.js";
 // Export GitHub resolver
 export {
     type GitHubResolverOptions,
+    getAuthenticatedUrl,
     type ResolvedGitHubSource,
     resolveGitHubSource,
 } from "./sources/github-resolver.js";

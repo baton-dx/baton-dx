@@ -28,6 +28,8 @@ baton source connect github:your-org/dx-configs --name my-team
 >
 > This gives your AI tools full context about Baton's CLI, sync workflows, and project management.
 
+> **Using a private source?** Baton auto-detects credentials via SSH keys, GitHub CLI, or environment variables. The quickest setup is `gh auth login`. See [Configuration Reference → Environment Variables](./07-configuration-reference.md#environment-variables) for details.
+
 ## Step 3: Initialize Your Project
 
 ```bash
