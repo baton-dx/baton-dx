@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.14.4
+
+### Patch Changes
+
+- Harden git authentication: tokens are no longer embedded in clone URLs (injected via scoped HTTP header env vars instead), preventing leakage in error messages, logs, and cached .git/config files. SSH connectivity checks use ephemeral known_hosts, hostnames are validated before use, and child process timeouts use SIGKILL.
+
 ## 0.14.3
 
 ### Patch Changes
