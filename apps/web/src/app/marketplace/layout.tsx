@@ -5,7 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 export default function MarketplaceLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header section="marketplace" />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>

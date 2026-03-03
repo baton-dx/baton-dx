@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { docs } from "@/.velite";
 import { Sidebar } from "@/components/docs/Sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Header } from "@/components/layout/Header";
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
   const sortedDocs = [...docs].sort((a, b) => a.order - b.order);
@@ -14,28 +14,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Docs Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-8xl items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-foreground">
-            <img src="/baton-dx_Logo.svg" alt="Baton" className="h-6 w-auto" />
-            <span className="text-sm">Baton</span>
-          </Link>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="text-sm text-muted-foreground">Docs</span>
-
-          <div className="ml-auto flex items-center gap-4">
-            <Link
-              href="https://github.com/batondx/baton-dx"
-              className="text-sm text-muted-foreground hover:text-foreground"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header section="docs" />
 
       {/* Main */}
       <div className="mx-auto flex w-full max-w-8xl flex-1 px-4 sm:px-6">

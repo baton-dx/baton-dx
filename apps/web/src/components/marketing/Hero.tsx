@@ -51,12 +51,6 @@ export function Hero() {
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                href="https://docs.batondx.dev/installation"
-                className={buttonVariants({ size: "lg" })}
-              >
-                Get Started →
-              </Link>
-              <Link
                 href="https://github.com/batondx/baton-dx"
                 target="_blank"
                 rel="noopener noreferrer"
