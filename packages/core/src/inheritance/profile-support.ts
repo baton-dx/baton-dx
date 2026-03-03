@@ -12,10 +12,10 @@ export type SourceManifest = z.infer<typeof sourceManifestSchema>;
  * after applying inheritance from source to profile.
  */
 export interface ResolvedProfileSupport {
-  /** Resolved AI tools (from profile if defined, otherwise from source) */
-  aiTools: string[];
-  /** Resolved IDE platforms (from profile if defined, otherwise from source) */
-  idePlatforms: string[];
+    /** Resolved AI tools (from profile if defined, otherwise from source) */
+    aiTools: string[];
+    /** Resolved IDE platforms (from profile if defined, otherwise from source) */
+    idePlatforms: string[];
 }
 
 /**
@@ -35,36 +35,36 @@ export interface ResolvedProfileSupport {
  * @returns Resolved support with effective tools and platforms
  */
 export function resolveProfileSupport(
-  profileManifest: ProfileManifest,
-  sourceManifest: SourceManifest,
+    profileManifest: ProfileManifest,
+    sourceManifest: SourceManifest,
 ): ResolvedProfileSupport {
-  // AI Tools: profile overrides source if defined
-  const aiTools = resolveAiTools(profileManifest, sourceManifest);
+    // AI Tools: profile overrides source if defined
+    const aiTools = resolveAiTools(profileManifest, sourceManifest);
 
-  // IDE Platforms: profile overrides source if defined
-  const idePlatforms = resolveIdePlatforms(profileManifest, sourceManifest);
+    // IDE Platforms: profile overrides source if defined
+    const idePlatforms = resolveIdePlatforms(profileManifest, sourceManifest);
 
-  return { aiTools, idePlatforms };
+    return { aiTools, idePlatforms };
 }
 
 /**
  * Resolve AI tools: prefer profile's ai.tools, fall back to source's ai.tools
  */
 function resolveAiTools(
-  profileManifest: ProfileManifest,
-  sourceManifest: SourceManifest,
+    profileManifest: ProfileManifest,
+    sourceManifest: SourceManifest,
 ): string[] {
-  // If profile explicitly defines ai.tools (even empty array), use it
-  if (profileManifest.ai?.tools !== undefined) {
-    return profileManifest.ai.tools;
-  }
+    // If profile explicitly defines ai.tools (even empty array), use it
+    if (profileManifest.ai?.tools !== undefined) {
+        return profileManifest.ai.tools;
+    }
 
-  // Fall back to source's ai.tools
-  if (sourceManifest.ai?.tools !== undefined) {
-    return sourceManifest.ai.tools;
-  }
+    // Fall back to source's ai.tools
+    if (sourceManifest.ai?.tools !== undefined) {
+        return sourceManifest.ai.tools;
+    }
 
-  return [];
+    return [];
 }
 
 /**
@@ -75,18 +75,18 @@ function resolveAiTools(
  * but both express "which platforms are supported".
  */
 function resolveIdePlatforms(
-  profileManifest: ProfileManifest,
-  sourceManifest: SourceManifest,
+    profileManifest: ProfileManifest,
+    sourceManifest: SourceManifest,
 ): string[] {
-  // If profile has an ide section, extract platform keys
-  if (profileManifest.ide !== undefined) {
-    return Object.keys(profileManifest.ide);
-  }
+    // If profile has an ide section, extract platform keys
+    if (profileManifest.ide !== undefined) {
+        return Object.keys(profileManifest.ide);
+    }
 
-  // Fall back to source's ide.platforms
-  if (sourceManifest.ide?.platforms !== undefined) {
-    return sourceManifest.ide.platforms;
-  }
+    // Fall back to source's ide.platforms
+    if (sourceManifest.ide?.platforms !== undefined) {
+        return sourceManifest.ide.platforms;
+    }
 
-  return [];
+    return [];
 }

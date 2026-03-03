@@ -8,14 +8,14 @@ import { dirname, join } from "node:path";
  * @returns true if baton.source.yaml exists in cwd, false otherwise
  */
 export async function isInSourceRepo(cwd: string = process.cwd()): Promise<boolean> {
-  const manifestPath = join(cwd, "baton.source.yaml");
+    const manifestPath = join(cwd, "baton.source.yaml");
 
-  try {
-    await access(manifestPath);
-    return true;
-  } catch {
-    return false;
-  }
+    try {
+        await access(manifestPath);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -26,22 +26,22 @@ export async function isInSourceRepo(cwd: string = process.cwd()): Promise<boole
  * @returns The absolute path to the source root, or null (or cwd) if not found
  */
 export async function findSourceRoot(
-  cwd: string = process.cwd(),
-  options?: { fallbackToStart?: boolean },
+    cwd: string = process.cwd(),
+    options?: { fallbackToStart?: boolean },
 ): Promise<string | null> {
-  let current = cwd;
+    let current = cwd;
 
-  while (true) {
-    const manifestPath = join(current, "baton.source.yaml");
-    try {
-      await access(manifestPath);
-      return current;
-    } catch {
-      const parent = dirname(current);
-      if (parent === current) {
-        return options?.fallbackToStart ? cwd : null;
-      }
-      current = parent;
+    while (true) {
+        const manifestPath = join(current, "baton.source.yaml");
+        try {
+            await access(manifestPath);
+            return current;
+        } catch {
+            const parent = dirname(current);
+            if (parent === current) {
+                return options?.fallbackToStart ? cwd : null;
+            }
+            current = parent;
+        }
     }
-  }
 }

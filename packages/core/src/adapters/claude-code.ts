@@ -13,16 +13,16 @@ import type { McpCapabilities } from "./types.js";
  * - MCP: .mcp.json / ~/.claude/mcp.json — "mcpServers" key, ${VAR} env syntax
  */
 export class ClaudeCodeAdapter extends BaseAIToolAdapter {
-  readonly key = "claude-code";
-  readonly name = "Claude Code";
-  protected override memoryFilename = "CLAUDE.md";
+    readonly key = "claude-code";
+    readonly name = "Claude Code";
+    protected override memoryFilename = "CLAUDE.md";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcpServers",
-    envVarSyntax: "dollar-brace",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcpServers",
+        envVarSyntax: "dollar-brace",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

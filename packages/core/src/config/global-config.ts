@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import { ManifestValidationError } from "../errors.js";
 import {
-  type GlobalConfig,
-  type GlobalSourceEntry,
-  globalConfigSchema,
+    type GlobalConfig,
+    type GlobalSourceEntry,
+    globalConfigSchema,
 } from "../schemas/global-config.js";
 
 /**
@@ -18,7 +18,7 @@ import {
  * @returns Absolute path to the Baton home directory
  */
 export function getBatonHome(): string {
-  return process.env.BATON_HOME ?? join(homedir(), ".baton");
+    return process.env.BATON_HOME ?? join(homedir(), ".baton");
 }
 
 /**
@@ -27,7 +27,7 @@ export function getBatonHome(): string {
  * @returns Absolute path to ~/.baton/config.yaml (or $BATON_HOME/config.yaml)
  */
 export function getGlobalConfigPath(): string {
-  return join(getBatonHome(), "config.yaml");
+    return join(getBatonHome(), "config.yaml");
 }
 
 /**
@@ -40,26 +40,26 @@ export function getGlobalConfigPath(): string {
  * @returns The parsed and validated global configuration
  */
 export async function loadGlobalConfig(): Promise<GlobalConfig> {
-  const configPath = getGlobalConfigPath();
+    const configPath = getGlobalConfigPath();
 
-  try {
-    const content = await readFile(configPath, "utf-8");
-    const parsed = parse(content);
+    try {
+        const content = await readFile(configPath, "utf-8");
+        const parsed = parse(content);
 
-    // Validate against schema
-    return globalConfigSchema.parse(parsed);
-  } catch (error) {
-    // File doesn't exist - return default config
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return globalConfigSchema.parse({});
+        // Validate against schema
+        return globalConfigSchema.parse(parsed);
+    } catch (error) {
+        // File doesn't exist - return default config
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return globalConfigSchema.parse({});
+        }
+
+        // Validation error
+        throw new ManifestValidationError(
+            `Invalid global config at ${configPath}: ${(error as Error).message}`,
+            { cause: error as Error },
+        );
     }
-
-    // Validation error
-    throw new ManifestValidationError(
-      `Invalid global config at ${configPath}: ${(error as Error).message}`,
-      { cause: error as Error },
-    );
-  }
 }
 
 /**
@@ -72,18 +72,18 @@ export async function loadGlobalConfig(): Promise<GlobalConfig> {
  * @throws {Error} If file write fails
  */
 export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
-  // Validate before saving
-  const validated = globalConfigSchema.parse(config);
+    // Validate before saving
+    const validated = globalConfigSchema.parse(config);
 
-  const configPath = getGlobalConfigPath();
-  const configDir = getBatonHome();
+    const configPath = getGlobalConfigPath();
+    const configDir = getBatonHome();
 
-  // Ensure directory exists
-  await mkdir(configDir, { recursive: true });
+    // Ensure directory exists
+    await mkdir(configDir, { recursive: true });
 
-  // Write as YAML
-  const yamlContent = stringify(validated);
-  await writeFile(configPath, yamlContent, "utf-8");
+    // Write as YAML
+    const yamlContent = stringify(validated);
+    await writeFile(configPath, yamlContent, "utf-8");
 }
 
 /**
@@ -98,49 +98,49 @@ export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
  * @throws {Error} If a source with the same URL already exists
  */
 export async function addGlobalSource(
-  url: string,
-  options?: {
-    name?: string;
-    description?: string;
-    setAsDefault?: boolean;
-  },
+    url: string,
+    options?: {
+        name?: string;
+        description?: string;
+        setAsDefault?: boolean;
+    },
 ): Promise<void> {
-  const config = await loadGlobalConfig();
+    const config = await loadGlobalConfig();
 
-  // Check for duplicate URL
-  const existing = config.sources?.find((s) => s.url === url);
-  if (existing) {
-    throw new Error(`Source with URL "${url}" is already registered as "${existing.name}"`);
-  }
-
-  // Generate name if not provided
-  const name = options?.name ?? inferNameFromUrl(url);
-
-  // Check for duplicate name
-  const existingByName = config.sources?.find((s) => s.name === name);
-  if (existingByName) {
-    throw new Error(`Source with name "${name}" already exists (URL: "${existingByName.url}")`);
-  }
-
-  // If setting as default, clear other defaults
-  if (options?.setAsDefault && config.sources) {
-    for (const source of config.sources) {
-      source.default = false;
+    // Check for duplicate URL
+    const existing = config.sources?.find((s) => s.url === url);
+    if (existing) {
+        throw new Error(`Source with URL "${url}" is already registered as "${existing.name}"`);
     }
-  }
 
-  // Create new entry
-  const newSource: GlobalSourceEntry = {
-    name,
-    url,
-    default: options?.setAsDefault ?? false,
-    description: options?.description,
-  };
+    // Generate name if not provided
+    const name = options?.name ?? inferNameFromUrl(url);
 
-  // Add to sources
-  config.sources = [...(config.sources ?? []), newSource];
+    // Check for duplicate name
+    const existingByName = config.sources?.find((s) => s.name === name);
+    if (existingByName) {
+        throw new Error(`Source with name "${name}" already exists (URL: "${existingByName.url}")`);
+    }
 
-  await saveGlobalConfig(config);
+    // If setting as default, clear other defaults
+    if (options?.setAsDefault && config.sources) {
+        for (const source of config.sources) {
+            source.default = false;
+        }
+    }
+
+    // Create new entry
+    const newSource: GlobalSourceEntry = {
+        name,
+        url,
+        default: options?.setAsDefault ?? false,
+        description: options?.description,
+    };
+
+    // Add to sources
+    config.sources = [...(config.sources ?? []), newSource];
+
+    await saveGlobalConfig(config);
 }
 
 /**
@@ -150,17 +150,17 @@ export async function addGlobalSource(
  * @throws {Error} If no matching source is found
  */
 export async function removeGlobalSource(nameOrUrl: string): Promise<void> {
-  const config = await loadGlobalConfig();
+    const config = await loadGlobalConfig();
 
-  const index = config.sources?.findIndex((s) => s.name === nameOrUrl || s.url === nameOrUrl);
+    const index = config.sources?.findIndex((s) => s.name === nameOrUrl || s.url === nameOrUrl);
 
-  if (index === undefined || index === -1) {
-    throw new Error(`Source "${nameOrUrl}" not found in global configuration`);
-  }
+    if (index === undefined || index === -1) {
+        throw new Error(`Source "${nameOrUrl}" not found in global configuration`);
+    }
 
-  config.sources?.splice(index, 1);
+    config.sources?.splice(index, 1);
 
-  await saveGlobalConfig(config);
+    await saveGlobalConfig(config);
 }
 
 /**
@@ -169,8 +169,8 @@ export async function removeGlobalSource(nameOrUrl: string): Promise<void> {
  * @returns Array of global source entries (empty if none registered)
  */
 export async function getGlobalSources(): Promise<GlobalSourceEntry[]> {
-  const config = await loadGlobalConfig();
-  return config.sources ?? [];
+    const config = await loadGlobalConfig();
+    return config.sources ?? [];
 }
 
 /**
@@ -179,8 +179,8 @@ export async function getGlobalSources(): Promise<GlobalSourceEntry[]> {
  * @returns The default source entry, or null if no default is set
  */
 export async function getDefaultGlobalSource(): Promise<GlobalSourceEntry | null> {
-  const sources = await getGlobalSources();
-  return sources.find((s) => s.default) ?? null;
+    const sources = await getGlobalSources();
+    return sources.find((s) => s.default) ?? null;
 }
 
 /**
@@ -189,8 +189,8 @@ export async function getDefaultGlobalSource(): Promise<GlobalSourceEntry | null
  * @returns Array of tool keys (empty if none configured)
  */
 export async function getGlobalAiTools(): Promise<string[]> {
-  const config = await loadGlobalConfig();
-  return config.ai?.tools ?? [];
+    const config = await loadGlobalConfig();
+    return config.ai?.tools ?? [];
 }
 
 /**
@@ -199,9 +199,9 @@ export async function getGlobalAiTools(): Promise<string[]> {
  * @param tools - Array of tool keys to persist
  */
 export async function setGlobalAiTools(tools: string[]): Promise<void> {
-  const config = await loadGlobalConfig();
-  config.ai = { ...config.ai, tools };
-  await saveGlobalConfig(config);
+    const config = await loadGlobalConfig();
+    config.ai = { ...config.ai, tools };
+    await saveGlobalConfig(config);
 }
 
 /**
@@ -210,8 +210,8 @@ export async function setGlobalAiTools(tools: string[]): Promise<void> {
  * @returns Array of platform keys (empty if none configured)
  */
 export async function getGlobalIdePlatforms(): Promise<string[]> {
-  const config = await loadGlobalConfig();
-  return config.ide?.platforms ?? [];
+    const config = await loadGlobalConfig();
+    return config.ide?.platforms ?? [];
 }
 
 /**
@@ -220,9 +220,9 @@ export async function getGlobalIdePlatforms(): Promise<string[]> {
  * @param platforms - Array of platform keys to persist
  */
 export async function setGlobalIdePlatforms(platforms: string[]): Promise<void> {
-  const config = await loadGlobalConfig();
-  config.ide = { ...config.ide, platforms };
-  await saveGlobalConfig(config);
+    const config = await loadGlobalConfig();
+    config.ide = { ...config.ide, platforms };
+    await saveGlobalConfig(config);
 }
 
 /**
@@ -237,19 +237,19 @@ export async function setGlobalIdePlatforms(platforms: string[]): Promise<void> 
  * @returns Inferred name (fallback: sanitized URL)
  */
 function inferNameFromUrl(url: string): string {
-  // Try to extract org from github:/gitlab: URLs
-  const githubMatch = url.match(/^(?:github|gitlab):([^/]+)\//);
-  if (githubMatch) {
-    return githubMatch[1];
-  }
+    // Try to extract org from github:/gitlab: URLs
+    const githubMatch = url.match(/^(?:github|gitlab):([^/]+)\//);
+    if (githubMatch) {
+        return githubMatch[1];
+    }
 
-  // For file paths, use last segment
-  const segments = url.split("/");
-  const lastSegment = segments[segments.length - 1];
-  if (lastSegment) {
-    return lastSegment.replace(/[^a-zA-Z0-9-_]/g, "-");
-  }
+    // For file paths, use last segment
+    const segments = url.split("/");
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment) {
+        return lastSegment.replace(/[^a-zA-Z0-9-_]/g, "-");
+    }
 
-  // Fallback: sanitize full URL
-  return url.replace(/[^a-zA-Z0-9-_]/g, "-");
+    // Fallback: sanitize full URL
+    return url.replace(/[^a-zA-Z0-9-_]/g, "-");
 }

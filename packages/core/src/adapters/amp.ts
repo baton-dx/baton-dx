@@ -7,16 +7,16 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .amp/mcp.json / ~/.config/amp/mcp.json — "amp.mcpServers" nested key, ${VAR} env syntax
  */
 export class AmpAdapter extends BaseAIToolAdapter {
-  readonly key = "amp";
-  readonly name = "Amp";
+    readonly key = "amp";
+    readonly name = "Amp";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcpServers",
-    parentConfigPath: "amp",
-    envVarSyntax: "dollar-brace",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcpServers",
+        parentConfigPath: "amp",
+        envVarSyntax: "dollar-brace",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

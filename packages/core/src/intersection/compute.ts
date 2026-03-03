@@ -4,32 +4,32 @@ import type { ResolvedProfileSupport } from "../inheritance/profile-support.js";
  * Developer's configured tools — from ~/.baton/config.yaml
  */
 export interface DeveloperTools {
-  /** AI tool keys the developer has installed (e.g., ["claude-code", "cursor"]) */
-  aiTools: string[];
-  /** IDE platform keys the developer has installed (e.g., ["vscode", "jetbrains"]) */
-  idePlatforms: string[];
+    /** AI tool keys the developer has installed (e.g., ["claude-code", "cursor"]) */
+    aiTools: string[];
+    /** IDE platform keys the developer has installed (e.g., ["vscode", "jetbrains"]) */
+    idePlatforms: string[];
 }
 
 /**
  * Result of a single dimension's intersection computation (AI tools or IDE platforms).
  */
 export interface DimensionIntersection {
-  /** Tools/platforms in both developer config AND profile support (will be synced) */
-  synced: string[];
-  /** Tools/platforms the developer has but the profile does NOT support */
-  unsupported: string[];
-  /** Tools/platforms the profile supports but the developer does NOT have */
-  unavailable: string[];
+    /** Tools/platforms in both developer config AND profile support (will be synced) */
+    synced: string[];
+    /** Tools/platforms the developer has but the profile does NOT support */
+    unsupported: string[];
+    /** Tools/platforms the profile supports but the developer does NOT have */
+    unavailable: string[];
 }
 
 /**
  * Full intersection result across both dimensions.
  */
 export interface IntersectionResult {
-  /** AI tools intersection */
-  aiTools: DimensionIntersection;
-  /** IDE platforms intersection */
-  idePlatforms: DimensionIntersection;
+    /** AI tools intersection */
+    aiTools: DimensionIntersection;
+    /** IDE platforms intersection */
+    idePlatforms: DimensionIntersection;
 }
 
 /**
@@ -45,16 +45,16 @@ export interface IntersectionResult {
  * @returns Intersection result for both AI tools and IDE platforms
  */
 export function computeIntersection(
-  developerTools: DeveloperTools,
-  profileSupport: ResolvedProfileSupport,
+    developerTools: DeveloperTools,
+    profileSupport: ResolvedProfileSupport,
 ): IntersectionResult {
-  return {
-    aiTools: computeDimensionIntersection(developerTools.aiTools, profileSupport.aiTools),
-    idePlatforms: computeDimensionIntersection(
-      developerTools.idePlatforms,
-      profileSupport.idePlatforms,
-    ),
-  };
+    return {
+        aiTools: computeDimensionIntersection(developerTools.aiTools, profileSupport.aiTools),
+        idePlatforms: computeDimensionIntersection(
+            developerTools.idePlatforms,
+            profileSupport.idePlatforms,
+        ),
+    };
 }
 
 /**
@@ -66,31 +66,31 @@ export function computeIntersection(
  * - unavailable = B \ A
  */
 function computeDimensionIntersection(
-  developerItems: string[],
-  profileItems: string[],
+    developerItems: string[],
+    profileItems: string[],
 ): DimensionIntersection {
-  const devSet = new Set(developerItems);
-  const profileSet = new Set(profileItems);
+    const devSet = new Set(developerItems);
+    const profileSet = new Set(profileItems);
 
-  const synced: string[] = [];
-  const unsupported: string[] = [];
-  const unavailable: string[] = [];
+    const synced: string[] = [];
+    const unsupported: string[] = [];
+    const unavailable: string[] = [];
 
-  // Iterate developer items: classify as synced or unsupported
-  for (const item of developerItems) {
-    if (profileSet.has(item)) {
-      synced.push(item);
-    } else {
-      unsupported.push(item);
+    // Iterate developer items: classify as synced or unsupported
+    for (const item of developerItems) {
+        if (profileSet.has(item)) {
+            synced.push(item);
+        } else {
+            unsupported.push(item);
+        }
     }
-  }
 
-  // Iterate profile items: find unavailable (profile has, developer doesn't)
-  for (const item of profileItems) {
-    if (!devSet.has(item)) {
-      unavailable.push(item);
+    // Iterate profile items: find unavailable (profile has, developer doesn't)
+    for (const item of profileItems) {
+        if (!devSet.has(item)) {
+            unavailable.push(item);
+        }
     }
-  }
 
-  return { synced, unsupported, unavailable };
+    return { synced, unsupported, unavailable };
 }

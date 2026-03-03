@@ -7,15 +7,15 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .kiro/mcp.json / ~/.kiro/mcp.json — "mcpServers" key, ${VAR} env syntax
  */
 export class KiroAdapter extends BaseAIToolAdapter {
-  readonly key = "kiro";
-  readonly name = "Kiro";
+    readonly key = "kiro";
+    readonly name = "Kiro";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcpServers",
-    envVarSyntax: "dollar-brace",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcpServers",
+        envVarSyntax: "dollar-brace",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

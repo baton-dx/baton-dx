@@ -8,9 +8,9 @@
 import type { DetectionConfig } from "@baton-dx/ai-tool-paths";
 
 export interface IdePlatformEntry {
-  targetDir: string;
-  /** Structured detection configuration using OR-of-ANDs logic */
-  detectionConfig: DetectionConfig;
+    targetDir: string;
+    /** Structured detection configuration using OR-of-ANDs logic */
+    detectionConfig: DetectionConfig;
 }
 
 /**
@@ -20,90 +20,90 @@ export interface IdePlatformEntry {
  * Values contain the target directory relative to the project root.
  */
 export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
-  vscode: {
-    targetDir: ".vscode",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "code" }],
-        [{ type: "app", name: "Visual Studio Code.app" }],
-        [{ type: "directory", path: "~/.vscode/", markerFile: "extensions" }],
-      ],
+    vscode: {
+        targetDir: ".vscode",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "code" }],
+                [{ type: "app", name: "Visual Studio Code.app" }],
+                [{ type: "directory", path: "~/.vscode/", markerFile: "extensions" }],
+            ],
+        },
     },
-  },
-  jetbrains: {
-    targetDir: ".idea",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "idea" }],
-        [
-          {
-            type: "directory",
-            path: "~/.config/JetBrains/",
-            platforms: ["linux"],
-          },
-        ],
-        [
-          {
-            type: "directory",
-            path: "~/Library/Application Support/JetBrains/",
-            platforms: ["darwin"],
-          },
-        ],
-      ],
+    jetbrains: {
+        targetDir: ".idea",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "idea" }],
+                [
+                    {
+                        type: "directory",
+                        path: "~/.config/JetBrains/",
+                        platforms: ["linux"],
+                    },
+                ],
+                [
+                    {
+                        type: "directory",
+                        path: "~/Library/Application Support/JetBrains/",
+                        platforms: ["darwin"],
+                    },
+                ],
+            ],
+        },
     },
-  },
-  cursor: {
-    targetDir: ".cursor",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "cursor" }],
-        [{ type: "app", name: "Cursor.app" }],
-        [{ type: "directory", path: "~/.cursor/", markerFile: "extensions" }],
-      ],
+    cursor: {
+        targetDir: ".cursor",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "cursor" }],
+                [{ type: "app", name: "Cursor.app" }],
+                [{ type: "directory", path: "~/.cursor/", markerFile: "extensions" }],
+            ],
+        },
     },
-  },
-  windsurf: {
-    targetDir: ".windsurf",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "windsurf" }],
-        [{ type: "app", name: "Windsurf.app" }],
-        [
-          {
-            type: "directory",
-            path: "~/.windsurf/",
-            markerFile: "extensions",
-          },
-        ],
-      ],
+    windsurf: {
+        targetDir: ".windsurf",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "windsurf" }],
+                [{ type: "app", name: "Windsurf.app" }],
+                [
+                    {
+                        type: "directory",
+                        path: "~/.windsurf/",
+                        markerFile: "extensions",
+                    },
+                ],
+            ],
+        },
     },
-  },
-  antigravity: {
-    targetDir: ".antigravity",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "agy" }],
-        [{ type: "binary", name: "antigravity" }],
-        [{ type: "app", name: "Antigravity.app" }],
-      ],
+    antigravity: {
+        targetDir: ".antigravity",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "agy" }],
+                [{ type: "binary", name: "antigravity" }],
+                [{ type: "app", name: "Antigravity.app" }],
+            ],
+        },
     },
-  },
-  zed: {
-    targetDir: ".config/zed",
-    detectionConfig: {
-      groups: [
-        [{ type: "binary", name: "zed" }],
-        [{ type: "app", name: "Zed.app" }],
-        [
-          {
-            type: "directory",
-            path: "~/.config/zed/",
-            markerFile: "settings.json",
-          },
-        ],
-      ],
+    zed: {
+        targetDir: ".config/zed",
+        detectionConfig: {
+            groups: [
+                [{ type: "binary", name: "zed" }],
+                [{ type: "app", name: "Zed.app" }],
+                [
+                    {
+                        type: "directory",
+                        path: "~/.config/zed/",
+                        markerFile: "settings.json",
+                    },
+                ],
+            ],
+        },
     },
-  },
 };
 
 /**
@@ -111,19 +111,19 @@ export const idePlatformRegistry: Record<string, IdePlatformEntry> = {
  * Returns undefined if the key is not in the registry.
  */
 export function getIdePlatformTargetDir(ideKey: string): string | undefined {
-  return idePlatformRegistry[ideKey]?.targetDir;
+    return idePlatformRegistry[ideKey]?.targetDir;
 }
 
 /**
  * Check if an IDE platform key is registered.
  */
 export function isKnownIdePlatform(ideKey: string): boolean {
-  return ideKey in idePlatformRegistry;
+    return ideKey in idePlatformRegistry;
 }
 
 /**
  * Get all registered IDE platform keys.
  */
 export function getRegisteredIdePlatforms(): string[] {
-  return Object.keys(idePlatformRegistry);
+    return Object.keys(idePlatformRegistry);
 }

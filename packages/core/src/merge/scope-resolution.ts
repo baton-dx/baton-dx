@@ -9,5 +9,5 @@ import type { Scope } from "@baton-dx/ai-tool-paths";
  *   3. System default: "project"
  */
 export function resolveScope(itemScope: Scope | undefined, profileScope: Scope | undefined): Scope {
-  return itemScope ?? profileScope ?? "project";
+    return itemScope ?? profileScope ?? "project";
 }

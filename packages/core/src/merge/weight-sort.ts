@@ -8,7 +8,7 @@ export const WEIGHT_LOCK = -1;
  * Weight defaults to 0 if not set.
  */
 export function getProfileWeight(profile: ResolvedProfile): number {
-  return profile.manifest.weight ?? 0;
+    return profile.manifest.weight ?? 0;
 }
 
 /**
@@ -16,7 +16,7 @@ export function getProfileWeight(profile: ResolvedProfile): number {
  * Locked profiles' entries cannot be overridden by any other profile.
  */
 export function isLockedProfile(profile: ResolvedProfile): boolean {
-  return getProfileWeight(profile) === WEIGHT_LOCK;
+    return getProfileWeight(profile) === WEIGHT_LOCK;
 }
 
 /**
@@ -33,11 +33,11 @@ export function isLockedProfile(profile: ResolvedProfile): boolean {
  * @returns New array sorted by weight (ascending)
  */
 export function sortProfilesByWeight(profiles: ResolvedProfile[]): ResolvedProfile[] {
-  return [...profiles].sort((a, b) => {
-    const weightA = getProfileWeight(a);
-    const weightB = getProfileWeight(b);
-    return weightA - weightB;
-  });
+    return [...profiles].sort((a, b) => {
+        const weightA = getProfileWeight(a);
+        const weightB = getProfileWeight(b);
+        return weightA - weightB;
+    });
 }
 
 /**
@@ -45,9 +45,9 @@ export function sortProfilesByWeight(profiles: ResolvedProfile[]): ResolvedProfi
  * define conflicting values for the same key.
  */
 export interface WeightConflictWarning {
-  key: string;
-  category: "skill" | "rule" | "memory" | "command" | "file" | "ide" | "agent" | "mcp";
-  profileA: string;
-  profileB: string;
-  weight: number;
+    key: string;
+    category: "skill" | "rule" | "memory" | "command" | "file" | "ide" | "agent" | "mcp";
+    profileA: string;
+    profileB: string;
+    weight: number;
 }

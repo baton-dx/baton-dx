@@ -13,50 +13,50 @@ import { dirname, isAbsolute, resolve } from "node:path";
  * @returns Count of successfully removed items
  */
 export async function removePlacedFiles(filePaths: string[], projectRoot: string): Promise<number> {
-  let removedCount = 0;
+    let removedCount = 0;
 
-  for (const filePath of filePaths) {
-    const absolutePath = isAbsolute(filePath) ? filePath : resolve(projectRoot, filePath);
+    for (const filePath of filePaths) {
+        const absolutePath = isAbsolute(filePath) ? filePath : resolve(projectRoot, filePath);
 
-    try {
-      const fileStat = await stat(absolutePath);
-
-      if (fileStat.isDirectory()) {
-        await rm(absolutePath, { recursive: true, force: true });
-      } else {
-        await unlink(absolutePath);
-      }
-
-      removedCount++;
-
-      // Clean up empty parent directories up to (but not including) projectRoot
-      let dir = dirname(absolutePath);
-      while (dir !== projectRoot && dir.startsWith(projectRoot)) {
         try {
-          const entries = await readdir(dir);
-          if (entries.length === 0) {
-            await rmdir(dir);
-            dir = dirname(dir);
-          } else {
-            break;
-          }
-        } catch {
-          break;
-        }
-      }
-    } catch (error: unknown) {
-      // Already deleted (ENOENT) — silently skip
-      if (
-        error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT"
-      ) {
-        continue;
-      }
-      // Re-throw unexpected errors
-      throw error;
-    }
-  }
+            const fileStat = await stat(absolutePath);
 
-  return removedCount;
+            if (fileStat.isDirectory()) {
+                await rm(absolutePath, { recursive: true, force: true });
+            } else {
+                await unlink(absolutePath);
+            }
+
+            removedCount++;
+
+            // Clean up empty parent directories up to (but not including) projectRoot
+            let dir = dirname(absolutePath);
+            while (dir !== projectRoot && dir.startsWith(projectRoot)) {
+                try {
+                    const entries = await readdir(dir);
+                    if (entries.length === 0) {
+                        await rmdir(dir);
+                        dir = dirname(dir);
+                    } else {
+                        break;
+                    }
+                } catch {
+                    break;
+                }
+            }
+        } catch (error: unknown) {
+            // Already deleted (ENOENT) — silently skip
+            if (
+                error instanceof Error &&
+                "code" in error &&
+                (error as NodeJS.ErrnoException).code === "ENOENT"
+            ) {
+                continue;
+            }
+            // Re-throw unexpected errors
+            throw error;
+        }
+    }
+
+    return removedCount;
 }

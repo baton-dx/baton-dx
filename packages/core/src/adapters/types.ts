@@ -7,31 +7,31 @@ import type { McpTransport } from "../schemas/profile-manifest.js";
  * These replace unsafe `as` casts with runtime narrowing.
  */
 export function isSkillDir(file: unknown): file is SkillDir {
-  return typeof file === "object" && file !== null && "name" in file && "skillFile" in file;
+    return typeof file === "object" && file !== null && "name" in file && "skillFile" in file;
 }
 
 export function isRuleFile(file: unknown): file is RuleFile {
-  return typeof file === "object" && file !== null && "name" in file && "content" in file;
+    return typeof file === "object" && file !== null && "name" in file && "content" in file;
 }
 
 export function isAgentFile(file: unknown): file is AgentFile {
-  return typeof file === "object" && file !== null && "name" in file && "frontmatter" in file;
+    return typeof file === "object" && file !== null && "name" in file && "frontmatter" in file;
 }
 
 export function isMemoryFile(file: unknown): file is MemoryFile {
-  return typeof file === "object" && file !== null && "filename" in file && "content" in file;
+    return typeof file === "object" && file !== null && "filename" in file && "content" in file;
 }
 
 export function isCommandFile(file: unknown): file is CommandFile {
-  return typeof file === "object" && file !== null && "name" in file && "content" in file;
+    return typeof file === "object" && file !== null && "name" in file && "content" in file;
 }
 
 /**
  * Validation result returned by adapter validate() methods
  */
 export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
+    valid: boolean;
+    errors: string[];
 }
 
 /**
@@ -39,11 +39,11 @@ export interface ValidationResult {
  * Skills are directories with SKILL.md and optional scripts/
  */
 export interface SkillDir {
-  name: string;
-  /** Path to SKILL.md file */
-  skillFile: string;
-  /** All file paths in the skill directory */
-  files: string[];
+    name: string;
+    /** Path to SKILL.md file */
+    skillFile: string;
+    /** All file paths in the skill directory */
+    files: string[];
 }
 
 /**
@@ -51,16 +51,16 @@ export interface SkillDir {
  * Rules are Markdown files with optional YAML frontmatter
  */
 export interface RuleFile {
-  name: string;
-  /** Rule content (with or without YAML frontmatter) */
-  content: string;
-  /** Optional YAML frontmatter data */
-  frontmatter?: {
-    paths?: string[];
-    globs?: string[];
-    alwaysApply?: boolean;
-    [key: string]: unknown;
-  };
+    name: string;
+    /** Rule content (with or without YAML frontmatter) */
+    content: string;
+    /** Optional YAML frontmatter data */
+    frontmatter?: {
+        paths?: string[];
+        globs?: string[];
+        alwaysApply?: boolean;
+        [key: string]: unknown;
+    };
 }
 
 /**
@@ -68,19 +68,19 @@ export interface RuleFile {
  * Agents are Markdown files with YAML frontmatter
  */
 export interface AgentFile {
-  name: string;
-  /** Agent description */
-  description?: string;
-  /** Agent content */
-  content: string;
-  /** YAML frontmatter data */
-  frontmatter: {
     name: string;
+    /** Agent description */
     description?: string;
-    tools?: string[];
-    model?: string;
-    [key: string]: unknown;
-  };
+    /** Agent content */
+    content: string;
+    /** YAML frontmatter data */
+    frontmatter: {
+        name: string;
+        description?: string;
+        tools?: string[];
+        model?: string;
+        [key: string]: unknown;
+    };
 }
 
 /**
@@ -88,10 +88,10 @@ export interface AgentFile {
  * Memory files are Markdown files (CLAUDE.md, AGENTS.md, GEMINI.md, etc.)
  */
 export interface MemoryFile {
-  /** Filename (e.g., CLAUDE.md, AGENTS.md) */
-  filename: string;
-  /** Memory content */
-  content: string;
+    /** Filename (e.g., CLAUDE.md, AGENTS.md) */
+    filename: string;
+    /** Memory content */
+    content: string;
 }
 
 /**
@@ -99,9 +99,9 @@ export interface MemoryFile {
  * Commands are Markdown files (slash commands)
  */
 export interface CommandFile {
-  name: string;
-  /** Command content */
-  content: string;
+    name: string;
+    /** Command content */
+    content: string;
 }
 
 /**
@@ -120,39 +120,39 @@ export type McpConfigFormat = "json" | "jsonc" | "toml";
  * Describes an AI tool's MCP capabilities.
  */
 export interface McpCapabilities {
-  /** Whether this tool supports MCP configuration via Baton */
-  supported: boolean;
-  /** The JSON/TOML key for the MCP servers map (e.g., "mcpServers", "servers", "context_servers") */
-  configKey: string;
-  /**
-   * Optional parent path for nested configs. For example, Amp stores MCP servers at
-   * `amp.mcpServers`, so configKey = "mcpServers" and parentConfigPath = "amp".
-   */
-  parentConfigPath?: string;
-  /** How env-var references should be written in this tool's config */
-  envVarSyntax: McpEnvVarSyntax;
-  /** Config file format */
-  format: McpConfigFormat;
-  /**
-   * Whether the MCP config is embedded in a shared settings file (Zed, Cline, Antigravity, Codex).
-   * When true, readModifyWriteSharedSettings() is used instead of a direct atomic write.
-   */
-  sharedSettingsFile: boolean;
-  /** Supported scopes — tools with project: null only support ["global"] */
-  supportedScopes: Scope[];
-  /** Transports supported by this tool (undefined = all) */
-  supportedTransports?: McpTransport[];
+    /** Whether this tool supports MCP configuration via Baton */
+    supported: boolean;
+    /** The JSON/TOML key for the MCP servers map (e.g., "mcpServers", "servers", "context_servers") */
+    configKey: string;
+    /**
+     * Optional parent path for nested configs. For example, Amp stores MCP servers at
+     * `amp.mcpServers`, so configKey = "mcpServers" and parentConfigPath = "amp".
+     */
+    parentConfigPath?: string;
+    /** How env-var references should be written in this tool's config */
+    envVarSyntax: McpEnvVarSyntax;
+    /** Config file format */
+    format: McpConfigFormat;
+    /**
+     * Whether the MCP config is embedded in a shared settings file (Zed, Cline, Antigravity, Codex).
+     * When true, readModifyWriteSharedSettings() is used instead of a direct atomic write.
+     */
+    sharedSettingsFile: boolean;
+    /** Supported scopes — tools with project: null only support ["global"] */
+    supportedScopes: Scope[];
+    /** Transports supported by this tool (undefined = all) */
+    supportedTransports?: McpTransport[];
 }
 
 /**
  * Tool-specific MCP server representation, after adapter transformation.
  */
 export interface ToolMcpServer {
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    url?: string;
+    headers?: Record<string, string>;
 }
 
 // Re-export for external consumers
@@ -165,91 +165,91 @@ export type { MergedMcpServer } from "../merge/mcp.js";
  * into the format expected by a specific AI tool (Claude Code, Cursor, etc.)
  */
 export interface AIToolAdapter {
-  /** Unique tool key (e.g., 'claude-code', 'cursor') */
-  key: string;
+    /** Unique tool key (e.g., 'claude-code', 'cursor') */
+    key: string;
 
-  /** Human-readable tool name (e.g., 'Claude Code', 'Cursor') */
-  name: string;
+    /** Human-readable tool name (e.g., 'Claude Code', 'Cursor') */
+    name: string;
 
-  /**
-   * Check if this tool is installed on the system
-   * Checks for CLI binary in PATH and/or config directory existence
-   */
-  isInstalled(): Promise<boolean>;
+    /**
+     * Check if this tool is installed on the system
+     * Checks for CLI binary in PATH and/or config directory existence
+     */
+    isInstalled(): Promise<boolean>;
 
-  /**
-   * Get the path where a config file should be placed
-   * @param type - Config type (skills, rules, agents, memory, commands)
-   * @param scope - Scope (project or global)
-   * @param name - Name of the config item (for placeholder replacement)
-   * @returns Absolute path where the file should be placed
-   */
-  getPath(type: ConfigType, scope: Scope, name: string): string;
+    /**
+     * Get the path where a config file should be placed
+     * @param type - Config type (skills, rules, agents, memory, commands)
+     * @param scope - Scope (project or global)
+     * @param name - Name of the config item (for placeholder replacement)
+     * @returns Absolute path where the file should be placed
+     */
+    getPath(type: ConfigType, scope: Scope, name: string): string;
 
-  /**
-   * Get legacy paths for backward compatibility
-   * @param type - Config type
-   * @returns Array of legacy path strings (e.g., ['.cursorrules'])
-   */
-  getLegacyPaths(type: ConfigType): string[];
+    /**
+     * Get legacy paths for backward compatibility
+     * @param type - Config type
+     * @returns Array of legacy path strings (e.g., ['.cursorrules'])
+     */
+    getLegacyPaths(type: ConfigType): string[];
 
-  /**
-   * Transform a skill from canonical format to tool-specific format
-   * @param skill - Canonical skill directory structure
-   * @returns Transformed skill content (may be unchanged for 1:1 copy)
-   */
-  transformSkill(skill: SkillDir): SkillDir;
+    /**
+     * Transform a skill from canonical format to tool-specific format
+     * @param skill - Canonical skill directory structure
+     * @returns Transformed skill content (may be unchanged for 1:1 copy)
+     */
+    transformSkill(skill: SkillDir): SkillDir;
 
-  /**
-   * Transform a rule from canonical format to tool-specific format
-   * @param rule - Canonical rule file
-   * @returns Transformed rule content
-   */
-  transformRule(rule: RuleFile): RuleFile;
+    /**
+     * Transform a rule from canonical format to tool-specific format
+     * @param rule - Canonical rule file
+     * @returns Transformed rule content
+     */
+    transformRule(rule: RuleFile): RuleFile;
 
-  /**
-   * Transform an agent from canonical format to tool-specific format
-   * @param agent - Canonical agent file
-   * @returns Transformed agent content
-   */
-  transformAgent(agent: AgentFile): AgentFile;
+    /**
+     * Transform an agent from canonical format to tool-specific format
+     * @param agent - Canonical agent file
+     * @returns Transformed agent content
+     */
+    transformAgent(agent: AgentFile): AgentFile;
 
-  /**
-   * Transform a memory file from canonical format to tool-specific format
-   * @param memory - Canonical memory file
-   * @returns Transformed memory content
-   */
-  transformMemory(memory: MemoryFile): MemoryFile;
+    /**
+     * Transform a memory file from canonical format to tool-specific format
+     * @param memory - Canonical memory file
+     * @returns Transformed memory content
+     */
+    transformMemory(memory: MemoryFile): MemoryFile;
 
-  /**
-   * Transform a command from canonical format to tool-specific format
-   * @param command - Canonical command file
-   * @returns Transformed command content
-   */
-  transformCommand(command: CommandFile): CommandFile;
+    /**
+     * Transform a command from canonical format to tool-specific format
+     * @param command - Canonical command file
+     * @returns Transformed command content
+     */
+    transformCommand(command: CommandFile): CommandFile;
 
-  /**
-   * Validate that a file matches the tool's expected format
-   * @param type - Config type
-   * @param file - File content to validate
-   * @returns Validation result with errors
-   */
-  validate(type: ConfigType, file: unknown): ValidationResult;
+    /**
+     * Validate that a file matches the tool's expected format
+     * @param type - Config type
+     * @param file - File content to validate
+     * @returns Validation result with errors
+     */
+    validate(type: ConfigType, file: unknown): ValidationResult;
 
-  /** MCP capabilities descriptor for this tool */
-  readonly mcpCapabilities: McpCapabilities;
+    /** MCP capabilities descriptor for this tool */
+    readonly mcpCapabilities: McpCapabilities;
 
-  /**
-   * Get the absolute path for the MCP config file.
-   * Returns null if this tool does not support the requested scope
-   * (e.g., global-only tools return null for "project").
-   */
-  getMcpPath(scope: Scope): string | null;
+    /**
+     * Get the absolute path for the MCP config file.
+     * Returns null if this tool does not support the requested scope
+     * (e.g., global-only tools return null for "project").
+     */
+    getMcpPath(scope: Scope): string | null;
 
-  /**
-   * Transform a canonical MCP server definition to this tool's format.
-   * Returns null if this tool does not support MCP or if the transport
-   * is not supported by this tool.
-   */
-  transformMcp(server: MergedMcpServer): ToolMcpServer | null;
+    /**
+     * Transform a canonical MCP server definition to this tool's format.
+     * Returns null if this tool does not support MCP or if the transport
+     * is not supported by this tool.
+     */
+    transformMcp(server: MergedMcpServer): ToolMcpServer | null;
 }

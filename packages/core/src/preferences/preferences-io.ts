@@ -12,7 +12,7 @@ import { type ProjectPreferences, projectPreferencesSchema } from "./preferences
  * @returns Absolute path to .baton/preferences.yaml
  */
 export function getPreferencesPath(projectRoot: string): string {
-  return join(projectRoot, ".baton", "preferences.yaml");
+    return join(projectRoot, ".baton", "preferences.yaml");
 }
 
 /**
@@ -23,24 +23,24 @@ export function getPreferencesPath(projectRoot: string): string {
  * @throws {ManifestValidationError} If the file exists but contains invalid data
  */
 export async function readProjectPreferences(
-  projectRoot: string,
+    projectRoot: string,
 ): Promise<ProjectPreferences | null> {
-  const prefsPath = getPreferencesPath(projectRoot);
+    const prefsPath = getPreferencesPath(projectRoot);
 
-  try {
-    const content = await readFile(prefsPath, "utf-8");
-    const parsed = parse(content);
-    return projectPreferencesSchema.parse(parsed);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
+    try {
+        const content = await readFile(prefsPath, "utf-8");
+        const parsed = parse(content);
+        return projectPreferencesSchema.parse(parsed);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return null;
+        }
+
+        throw new ManifestValidationError(
+            `Invalid project preferences at ${prefsPath}: ${(error as Error).message}`,
+            { cause: error as Error },
+        );
     }
-
-    throw new ManifestValidationError(
-      `Invalid project preferences at ${prefsPath}: ${(error as Error).message}`,
-      { cause: error as Error },
-    );
-  }
 }
 
 /**
@@ -53,15 +53,15 @@ export async function readProjectPreferences(
  * @throws {ManifestValidationError} If preferences validation fails
  */
 export async function writeProjectPreferences(
-  projectRoot: string,
-  prefs: ProjectPreferences,
+    projectRoot: string,
+    prefs: ProjectPreferences,
 ): Promise<void> {
-  const validated = projectPreferencesSchema.parse(prefs);
-  const prefsPath = getPreferencesPath(projectRoot);
+    const validated = projectPreferencesSchema.parse(prefs);
+    const prefsPath = getPreferencesPath(projectRoot);
 
-  await mkdir(dirname(prefsPath), { recursive: true });
-  await writeFile(prefsPath, stringify(validated), "utf-8");
-  await ensureBatonDirGitignored(projectRoot);
+    await mkdir(dirname(prefsPath), { recursive: true });
+    await writeFile(prefsPath, stringify(validated), "utf-8");
+    await ensureBatonDirGitignored(projectRoot);
 }
 
 /**
@@ -72,6 +72,6 @@ export async function writeProjectPreferences(
  * @param projectRoot - Absolute path to the project root
  */
 export async function deleteProjectPreferences(projectRoot: string): Promise<void> {
-  const prefsPath = getPreferencesPath(projectRoot);
-  await rm(prefsPath, { force: true });
+    const prefsPath = getPreferencesPath(projectRoot);
+    await rm(prefsPath, { force: true });
 }

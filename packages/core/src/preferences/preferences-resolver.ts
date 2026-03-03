@@ -2,8 +2,8 @@ import { getGlobalAiTools, getGlobalIdePlatforms } from "../config/global-config
 import { readProjectPreferences } from "./preferences-io.js";
 
 export interface ResolvedPreferences {
-  ai: { source: "global" | "project"; tools: string[] };
-  ide: { source: "global" | "project"; platforms: string[] };
+    ai: { source: "global" | "project"; tools: string[] };
+    ide: { source: "global" | "project"; platforms: string[] };
 }
 
 /**
@@ -21,26 +21,26 @@ export interface ResolvedPreferences {
  * @returns Resolved preferences with source attribution
  */
 export async function resolvePreferences(projectRoot: string): Promise<ResolvedPreferences> {
-  const prefs = await readProjectPreferences(projectRoot);
+    const prefs = await readProjectPreferences(projectRoot);
 
-  // No preferences file → everything comes from global
-  if (!prefs) {
-    const [tools, platforms] = await Promise.all([getGlobalAiTools(), getGlobalIdePlatforms()]);
-    return {
-      ai: { source: "global", tools },
-      ide: { source: "global", platforms },
-    };
-  }
+    // No preferences file → everything comes from global
+    if (!prefs) {
+        const [tools, platforms] = await Promise.all([getGlobalAiTools(), getGlobalIdePlatforms()]);
+        return {
+            ai: { source: "global", tools },
+            ide: { source: "global", platforms },
+        };
+    }
 
-  // Resolve AI dimension
-  const ai = prefs.ai.useGlobal
-    ? { source: "global" as const, tools: await getGlobalAiTools() }
-    : { source: "project" as const, tools: prefs.ai.tools };
+    // Resolve AI dimension
+    const ai = prefs.ai.useGlobal
+        ? { source: "global" as const, tools: await getGlobalAiTools() }
+        : { source: "project" as const, tools: prefs.ai.tools };
 
-  // Resolve IDE dimension
-  const ide = prefs.ide.useGlobal
-    ? { source: "global" as const, platforms: await getGlobalIdePlatforms() }
-    : { source: "project" as const, platforms: prefs.ide.platforms };
+    // Resolve IDE dimension
+    const ide = prefs.ide.useGlobal
+        ? { source: "global" as const, platforms: await getGlobalIdePlatforms() }
+        : { source: "project" as const, platforms: prefs.ide.platforms };
 
-  return { ai, ide };
+    return { ai, ide };
 }

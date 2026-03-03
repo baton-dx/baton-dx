@@ -4,19 +4,19 @@ import { z } from "zod";
 const NPM_REGISTRY_URL = "https://registry.npmjs.org/@baton-dx/cli/latest";
 
 const npmRegistryResponseSchema = z.object({
-  version: z.string(),
-  description: z.string().optional(),
+    version: z.string(),
+    description: z.string().optional(),
 });
 
 export interface LatestVersionResult {
-  version: string;
-  description?: string;
+    version: string;
+    description?: string;
 }
 
 export interface UpdateCheckResult {
-  currentVersion: string;
-  latestVersion: string;
-  updateAvailable: boolean;
+    currentVersion: string;
+    latestVersion: string;
+    updateAvailable: boolean;
 }
 
 /**
@@ -24,14 +24,14 @@ export interface UpdateCheckResult {
  * Uses semver for accurate comparison.
  */
 export function isUpdateAvailable(
-  currentVersion: string,
-  latestVersion: string,
+    currentVersion: string,
+    latestVersion: string,
 ): UpdateCheckResult {
-  return {
-    currentVersion,
-    latestVersion,
-    updateAvailable: gt(latestVersion, currentVersion),
-  };
+    return {
+        currentVersion,
+        latestVersion,
+        updateAvailable: gt(latestVersion, currentVersion),
+    };
 }
 
 /**
@@ -39,21 +39,21 @@ export function isUpdateAvailable(
  * Uses Node.js native fetch (available since Node 18).
  */
 export async function checkLatestVersion(): Promise<LatestVersionResult> {
-  const response = await fetch(NPM_REGISTRY_URL, {
-    headers: { Accept: "application/json" },
-  });
+    const response = await fetch(NPM_REGISTRY_URL, {
+        headers: { Accept: "application/json" },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to check for updates: npm registry returned ${response.status}`);
-  }
+    if (!response.ok) {
+        throw new Error(`Failed to check for updates: npm registry returned ${response.status}`);
+    }
 
-  const parsed = npmRegistryResponseSchema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new Error("Failed to parse version from npm registry response");
-  }
+    const parsed = npmRegistryResponseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+        throw new Error("Failed to parse version from npm registry response");
+    }
 
-  return {
-    version: parsed.data.version,
-    description: parsed.data.description,
-  };
+    return {
+        version: parsed.data.version,
+        description: parsed.data.description,
+    };
 }

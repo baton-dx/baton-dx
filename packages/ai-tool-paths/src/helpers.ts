@@ -1,10 +1,10 @@
 import { homedir } from "node:os";
 import { AI_TOOL_PATHS } from "./registry.js";
 import {
-  AIToolNotFoundError,
-  type AIToolPathConfig,
-  type ConfigType,
-  type Scope,
+    AIToolNotFoundError,
+    type AIToolPathConfig,
+    type ConfigType,
+    type Scope,
 } from "./types.js";
 
 /**
@@ -15,11 +15,11 @@ import {
  * @throws AIToolNotFoundError if the agent key is not found in the registry
  */
 export function getAIToolConfig(agentKey: string): AIToolPathConfig {
-  const config = AI_TOOL_PATHS.find((agent) => agent.key === agentKey);
-  if (!config) {
-    throw new AIToolNotFoundError(`Agent with key '${agentKey}' not found in registry`);
-  }
-  return config;
+    const config = AI_TOOL_PATHS.find((agent) => agent.key === agentKey);
+    if (!config) {
+        throw new AIToolNotFoundError(`Agent with key '${agentKey}' not found in registry`);
+    }
+    return config;
 }
 
 /**
@@ -28,7 +28,7 @@ export function getAIToolConfig(agentKey: string): AIToolPathConfig {
  * @returns Array of all agent keys
  */
 export function getAllAIToolKeys(): string[] {
-  return AI_TOOL_PATHS.map((agent) => agent.key);
+    return AI_TOOL_PATHS.map((agent) => agent.key);
 }
 
 /**
@@ -39,19 +39,19 @@ export function getAllAIToolKeys(): string[] {
  * @returns Resolved path string
  */
 function resolvePath(template: string, name?: string): string {
-  let resolved = template;
+    let resolved = template;
 
-  // Replace {name} placeholder
-  if (name) {
-    resolved = resolved.replace(/\{name\}/g, name);
-  }
+    // Replace {name} placeholder
+    if (name) {
+        resolved = resolved.replace(/\{name\}/g, name);
+    }
 
-  // Expand tilde to home directory
-  if (resolved.startsWith("~/")) {
-    resolved = resolved.replace(/^~/, homedir());
-  }
+    // Expand tilde to home directory
+    if (resolved.startsWith("~/")) {
+        resolved = resolved.replace(/^~/, homedir());
+    }
 
-  return resolved;
+    return resolved;
 }
 
 /**
@@ -65,15 +65,15 @@ function resolvePath(template: string, name?: string): string {
  * @throws AIToolNotFoundError if the agent key is not found
  */
 export function getAIToolPath(
-  agentKey: string,
-  configType: ConfigType,
-  scope: Scope,
-  name?: string,
+    agentKey: string,
+    configType: ConfigType,
+    scope: Scope,
+    name?: string,
 ): string {
-  const config = getAIToolConfig(agentKey);
-  const pathConfig: { project: string; global: string } = config[configType];
-  const pathTemplate = pathConfig[scope];
-  return resolvePath(pathTemplate, name);
+    const config = getAIToolConfig(agentKey);
+    const pathConfig: { project: string; global: string } = config[configType];
+    const pathTemplate = pathConfig[scope];
+    return resolvePath(pathTemplate, name);
 }
 
 /**
@@ -85,12 +85,12 @@ export function getAIToolPath(
  * @throws AIToolNotFoundError if the agent key is not found
  */
 export function getLegacyPaths(agentKey: string, configType: ConfigType): string[] {
-  const config = getAIToolConfig(agentKey);
-  if (configType in config.legacy) {
-    const legacyPaths = config.legacy[configType as keyof typeof config.legacy];
-    return legacyPaths ?? [];
-  }
-  return [];
+    const config = getAIToolConfig(agentKey);
+    if (configType in config.legacy) {
+        const legacyPaths = config.legacy[configType as keyof typeof config.legacy];
+        return legacyPaths ?? [];
+    }
+    return [];
 }
 
 /**
@@ -103,13 +103,13 @@ export function getLegacyPaths(agentKey: string, configType: ConfigType): string
  * @throws AIToolNotFoundError if the agent key is not found
  */
 export function getAIToolMcpPath(agentKey: string, scope: Scope): string | null {
-  const config = getAIToolConfig(agentKey);
-  if (!config.mcp) {
-    return null;
-  }
-  const template = config.mcp[scope];
-  if (template === null) {
-    return null;
-  }
-  return resolvePath(template);
+    const config = getAIToolConfig(agentKey);
+    if (!config.mcp) {
+        return null;
+    }
+    const template = config.mcp[scope];
+    if (template === null) {
+        return null;
+    }
+    return resolvePath(template);
 }

@@ -7,15 +7,15 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .opencode/mcp.jsonc / ~/.config/opencode/mcp.jsonc — "mcp" key, {env:VAR} syntax
  */
 export class OpenCodeAdapter extends BaseAIToolAdapter {
-  readonly key = "opencode";
-  readonly name = "OpenCode";
+    readonly key = "opencode";
+    readonly name = "OpenCode";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcp",
-    envVarSyntax: "env-colon",
-    format: "jsonc",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcp",
+        envVarSyntax: "env-colon",
+        format: "jsonc",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

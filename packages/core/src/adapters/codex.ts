@@ -9,29 +9,29 @@ import type { McpCapabilities, ValidationResult } from "./types.js";
  * Settings use TOML format (config.toml), not JSON.
  */
 export class CodexAdapter extends BaseAIToolAdapter {
-  readonly key = "codex";
-  readonly name = "Codex CLI";
+    readonly key = "codex";
+    readonly name = "Codex CLI";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcp_servers",
-    envVarSyntax: "expand",
-    format: "toml",
-    sharedSettingsFile: true,
-    supportedScopes: ["global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcp_servers",
+        envVarSyntax: "expand",
+        format: "toml",
+        sharedSettingsFile: true,
+        supportedScopes: ["global"],
+    };
 
-  override validate(type: ConfigType, file: unknown): ValidationResult {
-    const result = this.validateCommon(type, file);
+    override validate(type: ConfigType, file: unknown): ValidationResult {
+        const result = this.validateCommon(type, file);
 
-    if (type === "memory") {
-      const memory = file as { filename?: string };
-      if (memory.filename && memory.filename !== "AGENTS.md") {
-        result.errors.push("Memory file must be named AGENTS.md for Codex");
-        result.valid = false;
-      }
+        if (type === "memory") {
+            const memory = file as { filename?: string };
+            if (memory.filename && memory.filename !== "AGENTS.md") {
+                result.errors.push("Memory file must be named AGENTS.md for Codex");
+                result.valid = false;
+            }
+        }
+
+        return result;
     }
-
-    return result;
-  }
 }

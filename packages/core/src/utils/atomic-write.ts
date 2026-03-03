@@ -9,17 +9,17 @@ import { rename, unlink, writeFile } from "node:fs/promises";
  * If writing or renaming fails, the temporary file is cleaned up.
  */
 export async function atomicWriteFile(filePath: string, content: string): Promise<void> {
-  const tmpPath = `${filePath}.baton-tmp`;
-  try {
-    await writeFile(tmpPath, content, "utf-8");
-    await rename(tmpPath, filePath);
-  } catch (error) {
-    // Clean up temp file on failure (best-effort)
+    const tmpPath = `${filePath}.baton-tmp`;
     try {
-      await unlink(tmpPath);
-    } catch {
-      // Ignore cleanup errors (tmp may not exist)
+        await writeFile(tmpPath, content, "utf-8");
+        await rename(tmpPath, filePath);
+    } catch (error) {
+        // Clean up temp file on failure (best-effort)
+        try {
+            await unlink(tmpPath);
+        } catch {
+            // Ignore cleanup errors (tmp may not exist)
+        }
+        throw error;
     }
-    throw error;
-  }
 }

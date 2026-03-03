@@ -8,18 +8,18 @@ import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
  * Represents an agent entry that can be tool-specific or universal
  */
 export interface AgentEntry {
-  name: string; // Agent filename (e.g., "code-reviewer", "test-writer")
-  agents: string[]; // Target agent keys (empty array = universal)
-  scope: Scope; // Resolved scope for placement
-  profileName: string; // Source profile name for file resolution
+    name: string; // Agent filename (e.g., "code-reviewer", "test-writer")
+    agents: string[]; // Target agent keys (empty array = universal)
+    scope: Scope; // Resolved scope for placement
+    profileName: string; // Source profile name for file resolution
 }
 
 /**
  * Result of merging agents with optional conflict warnings
  */
 export interface MergeAgentsResult {
-  agents: AgentEntry[];
-  warnings: WeightConflictWarning[];
+    agents: AgentEntry[];
+    warnings: WeightConflictWarning[];
 }
 
 /**
@@ -35,7 +35,7 @@ export interface MergeAgentsResult {
  * @returns Array of unique agent entries with their target tools
  */
 export function mergeAgents(profiles: ResolvedProfile[]): AgentEntry[] {
-  return mergeAgentsWithWarnings(profiles).agents;
+    return mergeAgentsWithWarnings(profiles).agents;
 }
 
 /**
@@ -45,98 +45,106 @@ export function mergeAgents(profiles: ResolvedProfile[]): AgentEntry[] {
  * @returns Agents and any same-weight conflict warnings
  */
 export function mergeAgentsWithWarnings(profiles: ResolvedProfile[]): MergeAgentsResult {
-  const agentMap = new Map<string, AgentEntry>();
-  const lockedKeys = new Set<string>();
-  const warnings: WeightConflictWarning[] = [];
+    const agentMap = new Map<string, AgentEntry>();
+    const lockedKeys = new Set<string>();
+    const warnings: WeightConflictWarning[] = [];
 
-  // Track which profile set each key for same-weight conflict detection
-  const keyOwner = new Map<string, { profileName: string; weight: number }>();
+    // Track which profile set each key for same-weight conflict detection
+    const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
-  for (const profile of profiles) {
-    const agents = profile.manifest.ai?.agents;
+    for (const profile of profiles) {
+        const agents = profile.manifest.ai?.agents;
 
-    if (!agents) {
-      continue;
-    }
-
-    const weight = getProfileWeight(profile);
-    const locked = isLockedProfile(profile);
-
-    if (Array.isArray(agents)) {
-      for (const agentName of agents) {
-        const key = `universal:${agentName}`;
-
-        if (lockedKeys.has(key)) {
-          continue;
-        }
-
-        const existing = keyOwner.get(key);
-        if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-          warnings.push({
-            key: agentName,
-            category: "agent",
-            profileA: existing.profileName,
-            profileB: profile.name,
-            weight,
-          });
-        }
-
-        agentMap.set(key, {
-          name: agentName,
-          agents: [],
-          scope: resolveScope(undefined, profile.manifest.scope),
-          profileName: profile.name,
-        });
-        keyOwner.set(key, { profileName: profile.name, weight });
-
-        if (locked) {
-          lockedKeys.add(key);
-        }
-      }
-    } else {
-      for (const [agentKey, agentNames] of Object.entries(agents)) {
-        if (!agentNames) continue;
-
-        for (const agentName of agentNames) {
-          const isUniversal = agentKey === "universal";
-          const key = `${agentKey}:${agentName}`;
-
-          if (lockedKeys.has(key)) {
+        if (!agents) {
             continue;
-          }
-
-          const existing = keyOwner.get(key);
-          if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-            warnings.push({
-              key: `${agentKey}:${agentName}`,
-              category: "agent",
-              profileA: existing.profileName,
-              profileB: profile.name,
-              weight,
-            });
-          }
-
-          agentMap.set(key, {
-            name: agentName,
-            agents: isUniversal ? [] : [agentKey],
-            scope: resolveScope(undefined, profile.manifest.scope),
-            profileName: profile.name,
-          });
-          keyOwner.set(key, {
-            profileName: profile.name,
-            weight,
-          });
-
-          if (locked) {
-            lockedKeys.add(key);
-          }
         }
-      }
-    }
-  }
 
-  return {
-    agents: Array.from(agentMap.values()),
-    warnings,
-  };
+        const weight = getProfileWeight(profile);
+        const locked = isLockedProfile(profile);
+
+        if (Array.isArray(agents)) {
+            for (const agentName of agents) {
+                const key = `universal:${agentName}`;
+
+                if (lockedKeys.has(key)) {
+                    continue;
+                }
+
+                const existing = keyOwner.get(key);
+                if (
+                    existing &&
+                    existing.weight === weight &&
+                    existing.profileName !== profile.name
+                ) {
+                    warnings.push({
+                        key: agentName,
+                        category: "agent",
+                        profileA: existing.profileName,
+                        profileB: profile.name,
+                        weight,
+                    });
+                }
+
+                agentMap.set(key, {
+                    name: agentName,
+                    agents: [],
+                    scope: resolveScope(undefined, profile.manifest.scope),
+                    profileName: profile.name,
+                });
+                keyOwner.set(key, { profileName: profile.name, weight });
+
+                if (locked) {
+                    lockedKeys.add(key);
+                }
+            }
+        } else {
+            for (const [agentKey, agentNames] of Object.entries(agents)) {
+                if (!agentNames) continue;
+
+                for (const agentName of agentNames) {
+                    const isUniversal = agentKey === "universal";
+                    const key = `${agentKey}:${agentName}`;
+
+                    if (lockedKeys.has(key)) {
+                        continue;
+                    }
+
+                    const existing = keyOwner.get(key);
+                    if (
+                        existing &&
+                        existing.weight === weight &&
+                        existing.profileName !== profile.name
+                    ) {
+                        warnings.push({
+                            key: `${agentKey}:${agentName}`,
+                            category: "agent",
+                            profileA: existing.profileName,
+                            profileB: profile.name,
+                            weight,
+                        });
+                    }
+
+                    agentMap.set(key, {
+                        name: agentName,
+                        agents: isUniversal ? [] : [agentKey],
+                        scope: resolveScope(undefined, profile.manifest.scope),
+                        profileName: profile.name,
+                    });
+                    keyOwner.set(key, {
+                        profileName: profile.name,
+                        weight,
+                    });
+
+                    if (locked) {
+                        lockedKeys.add(key);
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        agents: Array.from(agentMap.values()),
+        warnings,
+    };
 }

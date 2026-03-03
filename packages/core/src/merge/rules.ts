@@ -8,18 +8,18 @@ import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
  * Represents a rule entry that can be agent-specific or universal
  */
 export interface RuleEntry {
-  name: string; // Rule filename (e.g., "coding-standards", "frontend/react")
-  agents: string[]; // Target agent keys (empty array = universal)
-  scope: Scope; // Resolved scope for placement
-  profileName: string; // Source profile name for file resolution
+    name: string; // Rule filename (e.g., "coding-standards", "frontend/react")
+    agents: string[]; // Target agent keys (empty array = universal)
+    scope: Scope; // Resolved scope for placement
+    profileName: string; // Source profile name for file resolution
 }
 
 /**
  * Result of merging rules with optional conflict warnings
  */
 export interface MergeRulesResult {
-  rules: RuleEntry[];
-  warnings: WeightConflictWarning[];
+    rules: RuleEntry[];
+    warnings: WeightConflictWarning[];
 }
 
 /**
@@ -35,7 +35,7 @@ export interface MergeRulesResult {
  * @returns Array of unique rule entries with their target agents
  */
 export function mergeRules(profiles: ResolvedProfile[]): RuleEntry[] {
-  return mergeRulesWithWarnings(profiles).rules;
+    return mergeRulesWithWarnings(profiles).rules;
 }
 
 /**
@@ -45,95 +45,103 @@ export function mergeRules(profiles: ResolvedProfile[]): RuleEntry[] {
  * @returns Rules and any same-weight conflict warnings
  */
 export function mergeRulesWithWarnings(profiles: ResolvedProfile[]): MergeRulesResult {
-  const ruleMap = new Map<string, RuleEntry>();
-  const lockedKeys = new Set<string>();
-  const warnings: WeightConflictWarning[] = [];
+    const ruleMap = new Map<string, RuleEntry>();
+    const lockedKeys = new Set<string>();
+    const warnings: WeightConflictWarning[] = [];
 
-  // Track which profile set each key for same-weight conflict detection
-  const keyOwner = new Map<string, { profileName: string; weight: number }>();
+    // Track which profile set each key for same-weight conflict detection
+    const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
-  for (const profile of profiles) {
-    const rules = profile.manifest.ai?.rules;
+    for (const profile of profiles) {
+        const rules = profile.manifest.ai?.rules;
 
-    if (!rules) {
-      continue;
-    }
-
-    const weight = getProfileWeight(profile);
-    const locked = isLockedProfile(profile);
-
-    if (Array.isArray(rules)) {
-      for (const ruleName of rules) {
-        const key = `universal:${ruleName}`;
-
-        if (lockedKeys.has(key)) {
-          continue;
-        }
-
-        const existing = keyOwner.get(key);
-        if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-          warnings.push({
-            key: ruleName,
-            category: "rule",
-            profileA: existing.profileName,
-            profileB: profile.name,
-            weight,
-          });
-        }
-
-        ruleMap.set(key, {
-          name: ruleName,
-          agents: [],
-          scope: resolveScope(undefined, profile.manifest.scope),
-          profileName: profile.name,
-        });
-        keyOwner.set(key, { profileName: profile.name, weight });
-
-        if (locked) {
-          lockedKeys.add(key);
-        }
-      }
-    } else {
-      for (const [agentKey, ruleNames] of Object.entries(rules)) {
-        if (!ruleNames) continue;
-
-        for (const ruleName of ruleNames) {
-          const isUniversal = agentKey === "universal";
-          const key = `${agentKey}:${ruleName}`;
-
-          if (lockedKeys.has(key)) {
+        if (!rules) {
             continue;
-          }
-
-          const existing = keyOwner.get(key);
-          if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-            warnings.push({
-              key: `${agentKey}:${ruleName}`,
-              category: "rule",
-              profileA: existing.profileName,
-              profileB: profile.name,
-              weight,
-            });
-          }
-
-          ruleMap.set(key, {
-            name: ruleName,
-            agents: isUniversal ? [] : [agentKey],
-            scope: resolveScope(undefined, profile.manifest.scope),
-            profileName: profile.name,
-          });
-          keyOwner.set(key, { profileName: profile.name, weight });
-
-          if (locked) {
-            lockedKeys.add(key);
-          }
         }
-      }
-    }
-  }
 
-  return {
-    rules: Array.from(ruleMap.values()),
-    warnings,
-  };
+        const weight = getProfileWeight(profile);
+        const locked = isLockedProfile(profile);
+
+        if (Array.isArray(rules)) {
+            for (const ruleName of rules) {
+                const key = `universal:${ruleName}`;
+
+                if (lockedKeys.has(key)) {
+                    continue;
+                }
+
+                const existing = keyOwner.get(key);
+                if (
+                    existing &&
+                    existing.weight === weight &&
+                    existing.profileName !== profile.name
+                ) {
+                    warnings.push({
+                        key: ruleName,
+                        category: "rule",
+                        profileA: existing.profileName,
+                        profileB: profile.name,
+                        weight,
+                    });
+                }
+
+                ruleMap.set(key, {
+                    name: ruleName,
+                    agents: [],
+                    scope: resolveScope(undefined, profile.manifest.scope),
+                    profileName: profile.name,
+                });
+                keyOwner.set(key, { profileName: profile.name, weight });
+
+                if (locked) {
+                    lockedKeys.add(key);
+                }
+            }
+        } else {
+            for (const [agentKey, ruleNames] of Object.entries(rules)) {
+                if (!ruleNames) continue;
+
+                for (const ruleName of ruleNames) {
+                    const isUniversal = agentKey === "universal";
+                    const key = `${agentKey}:${ruleName}`;
+
+                    if (lockedKeys.has(key)) {
+                        continue;
+                    }
+
+                    const existing = keyOwner.get(key);
+                    if (
+                        existing &&
+                        existing.weight === weight &&
+                        existing.profileName !== profile.name
+                    ) {
+                        warnings.push({
+                            key: `${agentKey}:${ruleName}`,
+                            category: "rule",
+                            profileA: existing.profileName,
+                            profileB: profile.name,
+                            weight,
+                        });
+                    }
+
+                    ruleMap.set(key, {
+                        name: ruleName,
+                        agents: isUniversal ? [] : [agentKey],
+                        scope: resolveScope(undefined, profile.manifest.scope),
+                        profileName: profile.name,
+                    });
+                    keyOwner.set(key, { profileName: profile.name, weight });
+
+                    if (locked) {
+                        lockedKeys.add(key);
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        rules: Array.from(ruleMap.values()),
+        warnings,
+    };
 }

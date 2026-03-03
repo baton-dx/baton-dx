@@ -12,15 +12,15 @@ import { atomicWriteFile } from "./atomic-write.js";
  * E.g. ".github/copilot-instructions.md" -> ".github/copilot-instructions.md"  (static)
  */
 function addDirPattern(patterns: Set<string>, path: string): void {
-  const lastSlash = path.lastIndexOf("/");
-  if (lastSlash > 0) {
-    if (path.includes("_probe")) {
-      patterns.add(path.substring(0, lastSlash + 1));
-    } else {
-      // Static path (no {name} placeholder) — add the file itself, not the parent dir
-      patterns.add(path);
+    const lastSlash = path.lastIndexOf("/");
+    if (lastSlash > 0) {
+        if (path.includes("_probe")) {
+            patterns.add(path.substring(0, lastSlash + 1));
+        } else {
+            // Static path (no {name} placeholder) — add the file itself, not the parent dir
+            patterns.add(path);
+        }
     }
-  }
 }
 
 /**
@@ -32,17 +32,17 @@ function addDirPattern(patterns: Set<string>, path: string): void {
  * E.g. "CLAUDE.md" -> "CLAUDE.md"  (root file)
  */
 function addPathPattern(patterns: Set<string>, path: string): void {
-  const lastSlash = path.lastIndexOf("/");
-  if (lastSlash > 0) {
-    if (path.includes("_probe")) {
-      patterns.add(path.substring(0, lastSlash + 1));
-    } else {
-      // Static path (e.g. .github/copilot-instructions.md) — add the file itself
-      patterns.add(path);
+    const lastSlash = path.lastIndexOf("/");
+    if (lastSlash > 0) {
+        if (path.includes("_probe")) {
+            patterns.add(path.substring(0, lastSlash + 1));
+        } else {
+            // Static path (e.g. .github/copilot-instructions.md) — add the file itself
+            patterns.add(path);
+        }
+    } else if (path) {
+        patterns.add(path);
     }
-  } else if (path) {
-    patterns.add(path);
-  }
 }
 
 /**
@@ -52,23 +52,23 @@ function addPathPattern(patterns: Set<string>, path: string): void {
  * Idempotent: no-op if `.baton/` is already present (by any mechanism).
  */
 export async function ensureBatonDirGitignored(projectRoot: string): Promise<void> {
-  const gitignorePath = join(projectRoot, ".gitignore");
+    const gitignorePath = join(projectRoot, ".gitignore");
 
-  let content = "";
-  try {
-    content = await readFile(gitignorePath, "utf-8");
-  } catch {
-    // .gitignore doesn't exist yet
-  }
+    let content = "";
+    try {
+        content = await readFile(gitignorePath, "utf-8");
+    } catch {
+        // .gitignore doesn't exist yet
+    }
 
-  if (content.includes(".baton/")) {
-    return;
-  }
+    if (content.includes(".baton/")) {
+        return;
+    }
 
-  const newContent = content
-    ? `${content.trimEnd()}\n\n# Baton local\n.baton/\n`
-    : "# Baton local\n.baton/\n";
-  await atomicWriteFile(gitignorePath, newContent);
+    const newContent = content
+        ? `${content.trimEnd()}\n\n# Baton local\n.baton/\n`
+        : "# Baton local\n.baton/\n";
+    await atomicWriteFile(gitignorePath, newContent);
 }
 
 const BATON_SECTION_START = "# Baton managed";
@@ -79,8 +79,8 @@ const BATON_SECTION_END = "# End Baton managed";
  * inside the Baton managed section.
  */
 export interface GitignoreSection {
-  label: string;
-  patterns: string[];
+    label: string;
+    patterns: string[];
 }
 
 /**
@@ -90,8 +90,8 @@ export interface GitignoreSection {
  * Idempotent: re-running with the same patterns produces no changes.
  */
 export async function updateGitignore(projectRoot: string, patterns: string[]): Promise<boolean> {
-  if (patterns.length === 0) return false;
-  return updateGitignoreContent(projectRoot, patterns.join("\n"));
+    if (patterns.length === 0) return false;
+    return updateGitignoreContent(projectRoot, patterns.join("\n"));
 }
 
 /**
@@ -115,54 +115,54 @@ export async function updateGitignore(projectRoot: string, patterns: string[]): 
  * ```
  */
 export async function updateGitignoreWithSections(
-  projectRoot: string,
-  sections: GitignoreSection[],
+    projectRoot: string,
+    sections: GitignoreSection[],
 ): Promise<boolean> {
-  const nonEmpty = sections.filter((s) => s.patterns.length > 0);
-  if (nonEmpty.length === 0) return false;
+    const nonEmpty = sections.filter((s) => s.patterns.length > 0);
+    if (nonEmpty.length === 0) return false;
 
-  const sectionContent = nonEmpty
-    .map((s) => `## ${s.label}\n${s.patterns.join("\n")}`)
-    .join("\n\n");
+    const sectionContent = nonEmpty
+        .map((s) => `## ${s.label}\n${s.patterns.join("\n")}`)
+        .join("\n\n");
 
-  return updateGitignoreContent(projectRoot, `\n${sectionContent}\n`);
+    return updateGitignoreContent(projectRoot, `\n${sectionContent}\n`);
 }
 
 /**
  * Shared implementation: write/replace the Baton managed block.
  */
 async function updateGitignoreContent(projectRoot: string, inner: string): Promise<boolean> {
-  const gitignorePath = join(projectRoot, ".gitignore");
+    const gitignorePath = join(projectRoot, ".gitignore");
 
-  let content = "";
-  try {
-    content = await readFile(gitignorePath, "utf-8");
-  } catch {
-    // .gitignore doesn't exist yet
-  }
-
-  const newSection = `${BATON_SECTION_START}\n${inner}\n${BATON_SECTION_END}`;
-
-  const startIdx = content.indexOf(BATON_SECTION_START);
-  const endIdx = content.indexOf(BATON_SECTION_END);
-
-  let newContent: string;
-
-  if (startIdx !== -1 && endIdx !== -1) {
-    const existingSection = content.substring(startIdx, endIdx + BATON_SECTION_END.length);
-    if (existingSection === newSection) {
-      return false;
+    let content = "";
+    try {
+        content = await readFile(gitignorePath, "utf-8");
+    } catch {
+        // .gitignore doesn't exist yet
     }
-    newContent =
-      content.substring(0, startIdx) +
-      newSection +
-      content.substring(endIdx + BATON_SECTION_END.length);
-  } else {
-    newContent = content ? `${content.trimEnd()}\n\n${newSection}\n` : `${newSection}\n`;
-  }
 
-  await atomicWriteFile(gitignorePath, newContent);
-  return true;
+    const newSection = `${BATON_SECTION_START}\n${inner}\n${BATON_SECTION_END}`;
+
+    const startIdx = content.indexOf(BATON_SECTION_START);
+    const endIdx = content.indexOf(BATON_SECTION_END);
+
+    let newContent: string;
+
+    if (startIdx !== -1 && endIdx !== -1) {
+        const existingSection = content.substring(startIdx, endIdx + BATON_SECTION_END.length);
+        if (existingSection === newSection) {
+            return false;
+        }
+        newContent =
+            content.substring(0, startIdx) +
+            newSection +
+            content.substring(endIdx + BATON_SECTION_END.length);
+    } else {
+        newContent = content ? `${content.trimEnd()}\n\n${newSection}\n` : `${newSection}\n`;
+    }
+
+    await atomicWriteFile(gitignorePath, newContent);
+    return true;
 }
 
 /**
@@ -174,28 +174,28 @@ async function updateGitignoreContent(projectRoot: string, inner: string): Promi
  * @returns true if a section was removed, false if none existed
  */
 export async function removeGitignoreManagedSection(projectRoot: string): Promise<boolean> {
-  const gitignorePath = join(projectRoot, ".gitignore");
+    const gitignorePath = join(projectRoot, ".gitignore");
 
-  let content = "";
-  try {
-    content = await readFile(gitignorePath, "utf-8");
-  } catch {
-    return false;
-  }
+    let content = "";
+    try {
+        content = await readFile(gitignorePath, "utf-8");
+    } catch {
+        return false;
+    }
 
-  const startIdx = content.indexOf(BATON_SECTION_START);
-  const endIdx = content.indexOf(BATON_SECTION_END);
+    const startIdx = content.indexOf(BATON_SECTION_START);
+    const endIdx = content.indexOf(BATON_SECTION_END);
 
-  if (startIdx === -1 || endIdx === -1) {
-    return false;
-  }
+    if (startIdx === -1 || endIdx === -1) {
+        return false;
+    }
 
-  const before = content.substring(0, startIdx).replace(/\n+$/, "\n");
-  const after = content.substring(endIdx + BATON_SECTION_END.length).replace(/^\n+/, "\n");
-  const newContent = (before + after).trim();
+    const before = content.substring(0, startIdx).replace(/\n+$/, "\n");
+    const after = content.substring(endIdx + BATON_SECTION_END.length).replace(/^\n+/, "\n");
+    const newContent = (before + after).trim();
 
-  await atomicWriteFile(gitignorePath, newContent ? `${newContent}\n` : "");
-  return true;
+    await atomicWriteFile(gitignorePath, newContent ? `${newContent}\n` : "");
+    return true;
 }
 
 /**
@@ -204,9 +204,9 @@ export async function removeGitignoreManagedSection(projectRoot: string): Promis
  * Produced by `parseGitignoreConfig` from the raw baton.yaml `gitignore` field.
  */
 export interface GitignoreConfig {
-  aiTools: boolean;
-  ides: boolean;
-  files: boolean;
+    aiTools: boolean;
+    ides: boolean;
+    files: boolean;
 }
 
 /**
@@ -219,20 +219,20 @@ export interface GitignoreConfig {
  *     (aiTools/ides default to true, files defaults to false)
  */
 export function parseGitignoreConfig(
-  raw: boolean | { "ai-tools"?: boolean; ides?: boolean; files?: boolean } | undefined,
+    raw: boolean | { "ai-tools"?: boolean; ides?: boolean; files?: boolean } | undefined,
 ): GitignoreConfig {
-  if (raw === false) {
-    return { aiTools: false, ides: false, files: false };
-  }
-  if (raw === true || raw === undefined) {
-    return { aiTools: true, ides: true, files: false };
-  }
-  // Object form — apply per-category defaults
-  return {
-    aiTools: raw["ai-tools"] ?? true,
-    ides: raw.ides ?? true,
-    files: raw.files ?? false,
-  };
+    if (raw === false) {
+        return { aiTools: false, ides: false, files: false };
+    }
+    if (raw === true || raw === undefined) {
+        return { aiTools: true, ides: true, files: false };
+    }
+    // Object form — apply per-category defaults
+    return {
+        aiTools: raw["ai-tools"] ?? true,
+        ides: raw.ides ?? true,
+        files: raw.files ?? false,
+    };
 }
 
 /**
@@ -242,49 +242,49 @@ export function parseGitignoreConfig(
  * predictable .gitignore content regardless of which tools a developer has installed.
  */
 export function collectAiToolPatterns(): string[] {
-  const patterns = new Set<string>();
+    const patterns = new Set<string>();
 
-  const allAdapters = getAllAIToolAdapters();
-  for (const adapter of allAdapters) {
-    const commandPath = adapter.getPath("commands", "project", "_probe");
-    addDirPattern(patterns, commandPath);
+    const allAdapters = getAllAIToolAdapters();
+    for (const adapter of allAdapters) {
+        const commandPath = adapter.getPath("commands", "project", "_probe");
+        addDirPattern(patterns, commandPath);
 
-    const skillPath = adapter.getPath("skills", "project", "_probe");
-    addDirPattern(patterns, skillPath);
+        const skillPath = adapter.getPath("skills", "project", "_probe");
+        addDirPattern(patterns, skillPath);
 
-    const rulePath = adapter.getPath("rules", "project", "_probe");
-    addPathPattern(patterns, rulePath);
+        const rulePath = adapter.getPath("rules", "project", "_probe");
+        addPathPattern(patterns, rulePath);
 
-    const memoryPath = adapter.getPath("memory", "project", "_probe");
-    addPathPattern(patterns, memoryPath);
+        const memoryPath = adapter.getPath("memory", "project", "_probe");
+        addPathPattern(patterns, memoryPath);
 
-    const agentPath = adapter.getPath("agents", "project", "_probe");
-    addDirPattern(patterns, agentPath);
+        const agentPath = adapter.getPath("agents", "project", "_probe");
+        addDirPattern(patterns, agentPath);
 
-    for (const legacyPath of adapter.getLegacyPaths("rules")) {
-      patterns.add(legacyPath);
+        for (const legacyPath of adapter.getLegacyPaths("rules")) {
+            patterns.add(legacyPath);
+        }
     }
-  }
 
-  return [...patterns].sort();
+    return [...patterns].sort();
 }
 
 /**
  * Collect gitignore patterns for ALL known IDE platforms.
  */
 export function collectIdePatterns(): string[] {
-  const patterns = new Set<string>();
+    const patterns = new Set<string>();
 
-  const allIdePlatforms = getRegisteredIdePlatforms();
-  for (const ideKey of allIdePlatforms) {
-    const targetDir = getIdePlatformTargetDir(ideKey);
-    if (targetDir) {
-      const dir = targetDir.endsWith("/") ? targetDir : `${targetDir}/`;
-      patterns.add(dir);
+    const allIdePlatforms = getRegisteredIdePlatforms();
+    for (const ideKey of allIdePlatforms) {
+        const targetDir = getIdePlatformTargetDir(ideKey);
+        if (targetDir) {
+            const dir = targetDir.endsWith("/") ? targetDir : `${targetDir}/`;
+            patterns.add(dir);
+        }
     }
-  }
 
-  return [...patterns].sort();
+    return [...patterns].sort();
 }
 
 /**
@@ -294,11 +294,11 @@ export function collectIdePatterns(): string[] {
  * (e.g. biome.json, tsconfig.json placed by a profile's `files` section).
  */
 export function collectFilePatterns(filePaths: string[]): string[] {
-  const patterns = new Set<string>();
-  for (const filePath of filePaths) {
-    addPathPattern(patterns, filePath);
-  }
-  return [...patterns].sort();
+    const patterns = new Set<string>();
+    for (const filePath of filePaths) {
+        addPathPattern(patterns, filePath);
+    }
+    return [...patterns].sort();
 }
 
 /**
@@ -317,5 +317,5 @@ export function collectFilePatterns(filePaths: string[]): string[] {
  * for granular control. This function remains for backward compatibility.
  */
 export function collectComprehensivePatterns(): string[] {
-  return [...new Set([...collectAiToolPatterns(), ...collectIdePatterns()])].sort();
+    return [...new Set([...collectAiToolPatterns(), ...collectIdePatterns()])].sort();
 }

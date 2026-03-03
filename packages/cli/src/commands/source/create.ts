@@ -10,151 +10,153 @@ import simpleGit from "simple-git";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface WizardOptions {
-  name: string;
-  git: boolean;
-  withInitialProfile: boolean;
+    name: string;
+    git: boolean;
+    withInitialProfile: boolean;
 }
 
 interface WizardOverrides {
-  name?: string;
-  git?: boolean;
-  withInitialProfile?: boolean;
+    name?: string;
+    git?: boolean;
+    withInitialProfile?: boolean;
 }
 
 async function runInteractiveWizard(overrides: WizardOverrides = {}): Promise<WizardOptions> {
-  p.intro("Create a new Baton source repository");
+    p.intro("Create a new Baton source repository");
 
-  // 1. Name (with validation)
-  let name: string;
-  if (overrides.name) {
-    name = overrides.name;
-  } else {
-    const result = await p.text({
-      message: "What is the name of your source repository?",
-      placeholder: "my-team-profile",
-      validate: (value) => {
-        if (!value) return "Name is required";
-        if (!KEBAB_CASE_REGEX.test(value))
-          return "Name must be in kebab-case (lowercase, hyphens only)";
-      },
-    });
-    if (p.isCancel(result)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+    // 1. Name (with validation)
+    let name: string;
+    if (overrides.name) {
+        name = overrides.name;
+    } else {
+        const result = await p.text({
+            message: "What is the name of your source repository?",
+            placeholder: "my-team-profile",
+            validate: (value) => {
+                if (!value) return "Name is required";
+                if (!KEBAB_CASE_REGEX.test(value))
+                    return "Name must be in kebab-case (lowercase, hyphens only)";
+            },
+        });
+        if (p.isCancel(result)) {
+            p.cancel("Operation cancelled.");
+            process.exit(0);
+        }
+        name = String(result);
     }
-    name = String(result);
-  }
 
-  // 2. Git Initialization
-  let git: boolean;
-  if (overrides.git !== undefined) {
-    git = overrides.git;
-  } else {
-    const result = (await p.confirm({
-      message: "Initialize Git repository?",
-      initialValue: true,
-    })) as boolean;
-    if (p.isCancel(result)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+    // 2. Git Initialization
+    let git: boolean;
+    if (overrides.git !== undefined) {
+        git = overrides.git;
+    } else {
+        const result = (await p.confirm({
+            message: "Initialize Git repository?",
+            initialValue: true,
+        })) as boolean;
+        if (p.isCancel(result)) {
+            p.cancel("Operation cancelled.");
+            process.exit(0);
+        }
+        git = result;
     }
-    git = result;
-  }
 
-  // 3. Initial Profile
-  let withInitialProfile: boolean;
-  if (overrides.withInitialProfile !== undefined) {
-    withInitialProfile = overrides.withInitialProfile;
-  } else {
-    const result = (await p.confirm({
-      message: "Create initial profile in profiles/default/?",
-      initialValue: true,
-    })) as boolean;
-    if (p.isCancel(result)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+    // 3. Initial Profile
+    let withInitialProfile: boolean;
+    if (overrides.withInitialProfile !== undefined) {
+        withInitialProfile = overrides.withInitialProfile;
+    } else {
+        const result = (await p.confirm({
+            message: "Create initial profile in profiles/default/?",
+            initialValue: true,
+        })) as boolean;
+        if (p.isCancel(result)) {
+            p.cancel("Operation cancelled.");
+            process.exit(0);
+        }
+        withInitialProfile = result;
     }
-    withInitialProfile = result;
-  }
 
-  return {
-    name,
-    git,
-    withInitialProfile,
-  };
+    return {
+        name,
+        git,
+        withInitialProfile,
+    };
 }
 
 /**
  * Recursively copy a directory and apply Handlebars variable substitution to text files
  */
 async function copyDirectory(
-  src: string,
-  dest: string,
-  variables: Record<string, unknown>,
+    src: string,
+    dest: string,
+    variables: Record<string, unknown>,
 ): Promise<void> {
-  await mkdir(dest, { recursive: true });
+    await mkdir(dest, { recursive: true });
 
-  const entries = await readdir(src, { withFileTypes: true });
+    const entries = await readdir(src, { withFileTypes: true });
 
-  for (const entry of entries) {
-    const srcPath = join(src, entry.name);
-    const destPath = join(dest, entry.name);
+    for (const entry of entries) {
+        const srcPath = join(src, entry.name);
+        const destPath = join(dest, entry.name);
 
-    if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, variables);
-    } else if (entry.isFile()) {
-      const content = await readFile(srcPath, "utf-8");
+        if (entry.isDirectory()) {
+            await copyDirectory(srcPath, destPath, variables);
+        } else if (entry.isFile()) {
+            const content = await readFile(srcPath, "utf-8");
 
-      // Binary file detection (skip substitution for binary files)
-      const binaryExtensions = new Set([
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".gif",
-        ".ico",
-        ".woff",
-        ".woff2",
-        ".ttf",
-        ".eot",
-      ]);
-      const isBinary = binaryExtensions.has(entry.name.substring(entry.name.lastIndexOf(".")));
+            // Binary file detection (skip substitution for binary files)
+            const binaryExtensions = new Set([
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".ico",
+                ".woff",
+                ".woff2",
+                ".ttf",
+                ".eot",
+            ]);
+            const isBinary = binaryExtensions.has(
+                entry.name.substring(entry.name.lastIndexOf(".")),
+            );
 
-      if (isBinary) {
-        await writeFile(destPath, content);
-      } else {
-        // Substitute variables with Handlebars
-        const template = Handlebars.compile(content, { noEscape: true });
-        const substituted = template(variables);
-        await writeFile(destPath, substituted);
-      }
+            if (isBinary) {
+                await writeFile(destPath, content);
+            } else {
+                // Substitute variables with Handlebars
+                const template = Handlebars.compile(content, { noEscape: true });
+                const substituted = template(variables);
+                await writeFile(destPath, substituted);
+            }
+        }
     }
-  }
 }
 
 /**
  * Initialize Git repository and create initial commit
  */
 async function initializeGit(targetDir: string): Promise<void> {
-  const git = simpleGit(targetDir);
+    const git = simpleGit(targetDir);
 
-  // Initialize repository
-  await git.init();
+    // Initialize repository
+    await git.init();
 
-  // Add all files
-  await git.add(".");
+    // Add all files
+    await git.add(".");
 
-  // Create initial commit
-  await git.commit("Initial baton source setup");
+    // Create initial commit
+    await git.commit("Initial baton source setup");
 }
 
 /**
  * Generate README.md with next steps
  */
 async function generateReadme(targetDir: string, options: WizardOptions): Promise<void> {
-  const { name, withInitialProfile } = options;
-  const org = name.includes("-") ? name.split("-")[0] : name;
+    const { name, withInitialProfile } = options;
+    const org = name.includes("-") ? name.split("-")[0] : name;
 
-  const readmeContent = `# ${name}
+    const readmeContent = `# ${name}
 
 Baton source repository.
 
@@ -211,142 +213,144 @@ ${withInitialProfile ? "  - `profiles/default/` - Default profile\n    - `baton.
 Generated with \`baton source create\`
 `;
 
-  await writeFile(join(targetDir, "README.md"), readmeContent);
+    await writeFile(join(targetDir, "README.md"), readmeContent);
 }
 
 /**
  * Scaffold a source repository
  */
 export async function scaffoldSourceRepo(options: WizardOptions): Promise<string> {
-  const { name, git, withInitialProfile } = options;
+    const { name, git, withInitialProfile } = options;
 
-  // Target directory is always ./<name>
-  const targetDir = join(process.cwd(), name);
+    // Target directory is always ./<name>
+    const targetDir = join(process.cwd(), name);
 
-  // Create base directory and profiles/ folder
-  await mkdir(join(targetDir, "profiles"), { recursive: true });
+    // Create base directory and profiles/ folder
+    await mkdir(join(targetDir, "profiles"), { recursive: true });
 
-  // Create baton.source.yaml
-  const sourceManifest = `name: "${name}"
+    // Create baton.source.yaml
+    const sourceManifest = `name: "${name}"
 version: "0.1.0"
 description: "Baton source repository"
 
 ${
-  withInitialProfile
-    ? `profiles:
+    withInitialProfile
+        ? `profiles:
   - name: "default"
     path: "profiles/default"
     description: "Default profile configuration"
 `
-    : ""
+        : ""
 }
 metadata:
   created: "${new Date().getFullYear()}"
 `;
-  await writeFile(join(targetDir, "baton.source.yaml"), sourceManifest);
+    await writeFile(join(targetDir, "baton.source.yaml"), sourceManifest);
 
-  // Create initial profile if requested
-  if (withInitialProfile) {
-    const profileDir = join(targetDir, "profiles", "default");
-    await mkdir(profileDir, { recursive: true });
+    // Create initial profile if requested
+    if (withInitialProfile) {
+        const profileDir = join(targetDir, "profiles", "default");
+        await mkdir(profileDir, { recursive: true });
 
-    // Copy minimal profile template
-    const profileTemplateDir = join(__dirname, "templates", "profile", "minimal");
-    await copyDirectory(profileTemplateDir, profileDir, { name: "default" });
-  }
+        // Copy minimal profile template
+        const profileTemplateDir = join(__dirname, "templates", "profile", "minimal");
+        await copyDirectory(profileTemplateDir, profileDir, { name: "default" });
+    }
 
-  // Generate README.md
-  await generateReadme(targetDir, options);
+    // Generate README.md
+    await generateReadme(targetDir, options);
 
-  // Initialize Git if requested
-  if (git) {
-    await initializeGit(targetDir);
-  }
+    // Initialize Git if requested
+    if (git) {
+        await initializeGit(targetDir);
+    }
 
-  return targetDir;
+    return targetDir;
 }
 
 export const sourceCreateCommand = defineCommand({
-  meta: {
-    name: "source create",
-    description: "Create a new source repository with an interactive wizard",
-  },
-  args: {
-    name: {
-      type: "positional",
-      description: "Name of the source repository (kebab-case)",
-      required: false,
+    meta: {
+        name: "source create",
+        description: "Create a new source repository with an interactive wizard",
     },
-    yes: {
-      type: "boolean",
-      description: "Skip interactive wizard and use defaults",
-      default: false,
+    args: {
+        name: {
+            type: "positional",
+            description: "Name of the source repository (kebab-case)",
+            required: false,
+        },
+        yes: {
+            type: "boolean",
+            description: "Skip interactive wizard and use defaults",
+            default: false,
+        },
     },
-  },
-  async run({ args }) {
-    const providedName = args.name as string | undefined;
-    const yesArg = args.yes as boolean | undefined;
+    async run({ args }) {
+        const providedName = args.name as string | undefined;
+        const yesArg = args.yes as boolean | undefined;
 
-    // Validate name if provided
-    if (providedName && !KEBAB_CASE_REGEX.test(providedName)) {
-      console.error("Error: Name must be in kebab-case (lowercase, hyphens only)");
-      process.exit(1);
-    }
+        // Validate name if provided
+        if (providedName && !KEBAB_CASE_REGEX.test(providedName)) {
+            console.error("Error: Name must be in kebab-case (lowercase, hyphens only)");
+            process.exit(1);
+        }
 
-    // Build overrides from CLI args
-    const overrides: WizardOverrides = {
-      name: providedName || undefined,
-    };
+        // Build overrides from CLI args
+        const overrides: WizardOverrides = {
+            name: providedName || undefined,
+        };
 
-    // If --yes flag: fill in defaults for anything not provided
-    if (yesArg) {
-      overrides.name = overrides.name || "my-source";
-      overrides.git = true;
-      overrides.withInitialProfile = false;
-    }
+        // If --yes flag: fill in defaults for anything not provided
+        if (yesArg) {
+            overrides.name = overrides.name || "my-source";
+            overrides.git = true;
+            overrides.withInitialProfile = false;
+        }
 
-    // Run wizard (skips steps where overrides are provided)
-    const options = await runInteractiveWizard(overrides);
+        // Run wizard (skips steps where overrides are provided)
+        const options = await runInteractiveWizard(overrides);
 
-    // Scaffold the source repository
-    const spinner = p.spinner();
-    spinner.start("Creating source repository...");
+        // Scaffold the source repository
+        const spinner = p.spinner();
+        spinner.start("Creating source repository...");
 
-    try {
-      const targetDir = await scaffoldSourceRepo(options);
-      spinner.stop(`Source repository created at ${targetDir}`);
+        try {
+            const targetDir = await scaffoldSourceRepo(options);
+            spinner.stop(`Source repository created at ${targetDir}`);
 
-      // Build summary message
-      const features: string[] = [];
-      if (options.withInitialProfile) {
-        features.push("Initial Profile: profiles/default/");
-      }
-      if (options.git) {
-        features.push("Git: Initialized with initial commit");
-      }
+            // Build summary message
+            const features: string[] = [];
+            if (options.withInitialProfile) {
+                features.push("Initial Profile: profiles/default/");
+            }
+            if (options.git) {
+                features.push("Git: Initialized with initial commit");
+            }
 
-      if (features.length > 0) {
-        p.note(features.join("\n"), "Features");
-      }
+            if (features.length > 0) {
+                p.note(features.join("\n"), "Features");
+            }
 
-      const org = options.name.includes("-") ? options.name.split("-")[0] : options.name;
-      const nextSteps: string[] = [];
-      nextSteps.push(`  cd ${options.name}`);
-      nextSteps.push("  # Customize your profile (see README.md)");
-      if (options.git) {
-        nextSteps.push(`  git remote add origin https://github.com/${org}/${options.name}.git`);
-        nextSteps.push("  git push -u origin main");
-      }
-      nextSteps.push("");
-      nextSteps.push("  # Share with your team:");
-      nextSteps.push(`  baton source connect https://github.com/${org}/${options.name}.git`);
+            const org = options.name.includes("-") ? options.name.split("-")[0] : options.name;
+            const nextSteps: string[] = [];
+            nextSteps.push(`  cd ${options.name}`);
+            nextSteps.push("  # Customize your profile (see README.md)");
+            if (options.git) {
+                nextSteps.push(
+                    `  git remote add origin https://github.com/${org}/${options.name}.git`,
+                );
+                nextSteps.push("  git push -u origin main");
+            }
+            nextSteps.push("");
+            nextSteps.push("  # Share with your team:");
+            nextSteps.push(`  baton source connect https://github.com/${org}/${options.name}.git`);
 
-      p.outro(
-        `Source repository "${options.name}" created successfully!\n\nNext steps:\n${nextSteps.join("\n")}`,
-      );
-    } catch (error) {
-      spinner.stop("Failed to create source repository");
-      throw error;
-    }
-  },
+            p.outro(
+                `Source repository "${options.name}" created successfully!\n\nNext steps:\n${nextSteps.join("\n")}`,
+            );
+        } catch (error) {
+            spinner.stop("Failed to create source repository");
+            throw error;
+        }
+    },
 });
