@@ -3,4 +3,4 @@ profiles:
 gitignore:
   ai-tools: true
   ides: true
-  files: true
+  files: false

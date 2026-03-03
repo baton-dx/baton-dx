@@ -25,28 +25,28 @@ const aiToolAdapterInstances = new Map<string, AIToolAdapter>();
  * Initialize all adapters
  */
 function initializeAIToolAdapters(): void {
-  if (aiToolAdapterInstances.size > 0) return; // Already initialized
+    if (aiToolAdapterInstances.size > 0) return; // Already initialized
 
-  const adapters: AIToolAdapter[] = [
-    new ClaudeCodeAdapter(),
-    new CursorAdapter(),
-    new WindsurfAdapter(),
-    new CodexAdapter(),
-    new AntigravityAdapter(),
-    new GitHubCopilotAdapter(),
-    new OpenCodeAdapter(),
-    new AmpAdapter(),
-    new KiroAdapter(),
-    new ZedAdapter(),
-    new ClineAdapter(),
-    new RooAdapter(),
-    new JunieAdapter(),
-    new TraeAdapter(),
-  ];
+    const adapters: AIToolAdapter[] = [
+        new ClaudeCodeAdapter(),
+        new CursorAdapter(),
+        new WindsurfAdapter(),
+        new CodexAdapter(),
+        new AntigravityAdapter(),
+        new GitHubCopilotAdapter(),
+        new OpenCodeAdapter(),
+        new AmpAdapter(),
+        new KiroAdapter(),
+        new ZedAdapter(),
+        new ClineAdapter(),
+        new RooAdapter(),
+        new JunieAdapter(),
+        new TraeAdapter(),
+    ];
 
-  for (const adapter of adapters) {
-    aiToolAdapterInstances.set(adapter.key, adapter);
-  }
+    for (const adapter of adapters) {
+        aiToolAdapterInstances.set(adapter.key, adapter);
+    }
 }
 
 /**
@@ -56,16 +56,16 @@ function initializeAIToolAdapters(): void {
  * @throws AIToolAdapterNotFoundError if adapter is not registered
  */
 export function getAIToolAdapter(toolKey: string): AIToolAdapter {
-  initializeAIToolAdapters();
+    initializeAIToolAdapters();
 
-  const adapter = aiToolAdapterInstances.get(toolKey);
-  if (!adapter) {
-    throw new AIToolAdapterNotFoundError(
-      `Adapter not found for tool: ${toolKey}. Available adapters: ${Array.from(aiToolAdapterInstances.keys()).join(", ")}`,
-    );
-  }
+    const adapter = aiToolAdapterInstances.get(toolKey);
+    if (!adapter) {
+        throw new AIToolAdapterNotFoundError(
+            `Adapter not found for tool: ${toolKey}. Available adapters: ${Array.from(aiToolAdapterInstances.keys()).join(", ")}`,
+        );
+    }
 
-  return adapter;
+    return adapter;
 }
 
 /**
@@ -73,8 +73,8 @@ export function getAIToolAdapter(toolKey: string): AIToolAdapter {
  * @returns Array of all adapter instances
  */
 export function getAllAIToolAdapters(): AIToolAdapter[] {
-  initializeAIToolAdapters();
-  return Array.from(aiToolAdapterInstances.values());
+    initializeAIToolAdapters();
+    return Array.from(aiToolAdapterInstances.values());
 }
 
 /**
@@ -83,5 +83,5 @@ export function getAllAIToolAdapters(): AIToolAdapter[] {
  * @returns Array of adapter instances
  */
 export function getAIToolAdaptersForKeys(keys: string[]): AIToolAdapter[] {
-  return keys.map((key) => getAIToolAdapter(key));
+    return keys.map((key) => getAIToolAdapter(key));
 }

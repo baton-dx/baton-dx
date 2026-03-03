@@ -9,8 +9,8 @@ import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
  * A single profile's contribution to a memory file
  */
 export interface MemoryContribution {
-  profileName: string;
-  mergeStrategy: MergeStrategy;
+    profileName: string;
+    mergeStrategy: MergeStrategy;
 }
 
 /**
@@ -18,18 +18,18 @@ export interface MemoryContribution {
  * The most-specific profile (last in chain) determines the final merge strategy.
  */
 export interface MemoryEntry {
-  filename: string; // e.g., "CLAUDE.md", "AGENTS.md", "GEMINI.md"
-  mergeStrategy: MergeStrategy; // from the most-specific (last) profile
-  scope: Scope; // Resolved scope for placement
-  contributions: MemoryContribution[]; // all profiles, in merge order (base first)
+    filename: string; // e.g., "CLAUDE.md", "AGENTS.md", "GEMINI.md"
+    mergeStrategy: MergeStrategy; // from the most-specific (last) profile
+    scope: Scope; // Resolved scope for placement
+    contributions: MemoryContribution[]; // all profiles, in merge order (base first)
 }
 
 /**
  * Result of merging memory files with optional conflict warnings
  */
 export interface MergeMemoryResult {
-  entries: MemoryEntry[];
-  warnings: WeightConflictWarning[];
+    entries: MemoryEntry[];
+    warnings: WeightConflictWarning[];
 }
 
 /**
@@ -44,7 +44,7 @@ export interface MergeMemoryResult {
  * @returns Array of memory file entries with all contributions
  */
 export function mergeMemory(profiles: ResolvedProfile[]): MemoryEntry[] {
-  return mergeMemoryWithWarnings(profiles).entries;
+    return mergeMemoryWithWarnings(profiles).entries;
 }
 
 /**
@@ -54,83 +54,93 @@ export function mergeMemory(profiles: ResolvedProfile[]): MemoryEntry[] {
  * @returns Memory entries and any same-weight conflict warnings
  */
 export function mergeMemoryWithWarnings(profiles: ResolvedProfile[]): MergeMemoryResult {
-  const memoryMap = new Map<string, MemoryEntry>();
-  const lockedKeys = new Set<string>();
-  const warnings: WeightConflictWarning[] = [];
+    const memoryMap = new Map<string, MemoryEntry>();
+    const lockedKeys = new Set<string>();
+    const warnings: WeightConflictWarning[] = [];
 
-  // Track which profile set each key's strategy for same-weight conflict detection
-  const strategyOwner = new Map<
-    string,
-    { profileName: string; weight: number; merge: MergeStrategy }
-  >();
+    // Track which profile set each key's strategy for same-weight conflict detection
+    const strategyOwner = new Map<
+        string,
+        { profileName: string; weight: number; merge: MergeStrategy }
+    >();
 
-  for (const profile of profiles) {
-    const memory = profile.manifest.ai?.memory;
+    for (const profile of profiles) {
+        const memory = profile.manifest.ai?.memory;
 
-    if (!memory || !Array.isArray(memory)) {
-      continue;
-    }
-
-    const weight = getProfileWeight(profile);
-    const locked = isLockedProfile(profile);
-
-    for (const item of memory) {
-      const existing = memoryMap.get(item.source);
-      const contribution: MemoryContribution = {
-        profileName: profile.name,
-        mergeStrategy: item.merge,
-      };
-
-      if (existing) {
-        // Skip duplicate contributions from diamond inheritance
-        // (same base profile can appear multiple times in allProfiles)
-        if (!existing.contributions.some((c) => c.profileName === contribution.profileName)) {
-          existing.contributions.push(contribution);
+        if (!memory || !Array.isArray(memory)) {
+            continue;
         }
 
-        // Only update governing strategy if not locked
-        if (!lockedKeys.has(item.source)) {
-          // Check for same-weight conflict on strategy
-          const owner = strategyOwner.get(item.source);
-          if (owner && owner.weight === weight && owner.profileName !== profile.name) {
-            // Only warn when merge strategies differ — same strategy means no real conflict
-            if (owner.merge !== item.merge) {
-              warnings.push({
-                key: item.source,
-                category: "memory",
-                profileA: owner.profileName,
-                profileB: profile.name,
-                weight,
-              });
+        const weight = getProfileWeight(profile);
+        const locked = isLockedProfile(profile);
+
+        for (const item of memory) {
+            const existing = memoryMap.get(item.source);
+            const contribution: MemoryContribution = {
+                profileName: profile.name,
+                mergeStrategy: item.merge,
+            };
+
+            if (existing) {
+                // Skip duplicate contributions from diamond inheritance
+                // (same base profile can appear multiple times in allProfiles)
+                if (
+                    !existing.contributions.some((c) => c.profileName === contribution.profileName)
+                ) {
+                    existing.contributions.push(contribution);
+                }
+
+                // Only update governing strategy if not locked
+                if (!lockedKeys.has(item.source)) {
+                    // Check for same-weight conflict on strategy
+                    const owner = strategyOwner.get(item.source);
+                    if (owner && owner.weight === weight && owner.profileName !== profile.name) {
+                        // Only warn when merge strategies differ — same strategy means no real conflict
+                        if (owner.merge !== item.merge) {
+                            warnings.push({
+                                key: item.source,
+                                category: "memory",
+                                profileA: owner.profileName,
+                                profileB: profile.name,
+                                weight,
+                            });
+                        }
+                    }
+
+                    existing.mergeStrategy = item.merge;
+                    existing.scope = resolveScope(item.scope, profile.manifest.scope);
+                    strategyOwner.set(item.source, {
+                        profileName: profile.name,
+                        weight,
+                        merge: item.merge,
+                    });
+
+                    if (locked) {
+                        lockedKeys.add(item.source);
+                    }
+                }
+            } else {
+                memoryMap.set(item.source, {
+                    filename: item.source,
+                    mergeStrategy: item.merge,
+                    scope: resolveScope(item.scope, profile.manifest.scope),
+                    contributions: [contribution],
+                });
+                strategyOwner.set(item.source, {
+                    profileName: profile.name,
+                    weight,
+                    merge: item.merge,
+                });
+
+                if (locked) {
+                    lockedKeys.add(item.source);
+                }
             }
-          }
-
-          existing.mergeStrategy = item.merge;
-          existing.scope = resolveScope(item.scope, profile.manifest.scope);
-          strategyOwner.set(item.source, { profileName: profile.name, weight, merge: item.merge });
-
-          if (locked) {
-            lockedKeys.add(item.source);
-          }
         }
-      } else {
-        memoryMap.set(item.source, {
-          filename: item.source,
-          mergeStrategy: item.merge,
-          scope: resolveScope(item.scope, profile.manifest.scope),
-          contributions: [contribution],
-        });
-        strategyOwner.set(item.source, { profileName: profile.name, weight, merge: item.merge });
-
-        if (locked) {
-          lockedKeys.add(item.source);
-        }
-      }
     }
-  }
 
-  return {
-    entries: Array.from(memoryMap.values()),
-    warnings,
-  };
+    return {
+        entries: Array.from(memoryMap.values()),
+        warnings,
+    };
 }

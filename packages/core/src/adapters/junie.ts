@@ -5,6 +5,6 @@ import { BaseAIToolAdapter } from "./base-adapter.js";
  * Project paths: .junie/ | Global paths: ~/.junie/
  */
 export class JunieAdapter extends BaseAIToolAdapter {
-  readonly key = "junie";
-  readonly name = "Junie";
+    readonly key = "junie";
+    readonly name = "Junie";
 }

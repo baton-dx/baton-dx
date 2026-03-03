@@ -7,17 +7,17 @@ import { z } from "zod";
  * Sources can be marked as default for auto-selection in `baton init`.
  */
 export const globalSourceEntrySchema = z.object({
-  /** Friendly name for the source (e.g., "acme", "personal") */
-  name: z.string(),
+    /** Friendly name for the source (e.g., "acme", "personal") */
+    name: z.string(),
 
-  /** Source URL (e.g., "github:org/repo", "../local/path") */
-  url: z.string(),
+    /** Source URL (e.g., "github:org/repo", "../local/path") */
+    url: z.string(),
 
-  /** Whether this source should be used by default in `baton init` */
-  default: z.boolean().default(false),
+    /** Whether this source should be used by default in `baton init` */
+    default: z.boolean().default(false),
 
-  /** Optional description of the source purpose */
-  description: z.string().optional(),
+    /** Optional description of the source purpose */
+    description: z.string().optional(),
 });
 
 /**
@@ -26,48 +26,57 @@ export const globalSourceEntrySchema = z.object({
  * Stores user-level settings like registered sources, cache config, and defaults.
  */
 export const globalConfigSchema = z.object({
-  /** Config file format version (for future migrations) */
-  version: z.string().default("1.0"),
+    /** Config file format version (for future migrations) */
+    version: z.string().default("1.0"),
 
-  /** Registered source repositories available globally */
-  sources: z.array(globalSourceEntrySchema).optional().default([]),
+    /** Registered source repositories available globally */
+    sources: z.array(globalSourceEntrySchema).optional().default([]),
 
-  /** Default settings for profile installation */
-  defaults: z
-    .object({
-      /** Default scope for profile installation */
-      scope: z.enum(["project", "global"]).default("project"),
+    /** Default settings for profile installation */
+    defaults: z
+        .object({
+            /** Default scope for profile installation */
+            scope: z.enum(["project", "global"]).default("project"),
 
-      /** Default merge strategy when conflicts occur */
-      merge_strategy: z
-        .enum(["replace", "deep", "append", "prepend", "skip", "prompt", "directory", "import"])
-        .default("deep"),
-    })
-    .optional(),
+            /** Default merge strategy when conflicts occur */
+            merge_strategy: z
+                .enum([
+                    "replace",
+                    "deep",
+                    "append",
+                    "prepend",
+                    "skip",
+                    "prompt",
+                    "directory",
+                    "import",
+                ])
+                .default("deep"),
+        })
+        .optional(),
 
-  /** AI tool configuration — persisted tool selection */
-  ai: z
-    .object({
-      /** List of AI tool keys the developer uses (e.g., ["claude-code", "cursor"]) */
-      tools: z.array(z.string()).optional().default([]),
-    })
-    .optional(),
+    /** AI tool configuration — persisted tool selection */
+    ai: z
+        .object({
+            /** List of AI tool keys the developer uses (e.g., ["claude-code", "cursor"]) */
+            tools: z.array(z.string()).optional().default([]),
+        })
+        .optional(),
 
-  /** IDE platform configuration — persisted platform selection */
-  ide: z
-    .object({
-      /** List of IDE platform keys the developer uses (e.g., ["vscode", "cursor"]) */
-      platforms: z.array(z.string()).optional().default([]),
-    })
-    .optional(),
+    /** IDE platform configuration — persisted platform selection */
+    ide: z
+        .object({
+            /** List of IDE platform keys the developer uses (e.g., ["vscode", "cursor"]) */
+            platforms: z.array(z.string()).optional().default([]),
+        })
+        .optional(),
 
-  /** Sync behavior configuration */
-  sync: z
-    .object({
-      /** Maximum cache age in hours before a source is considered stale (default: 24) */
-      cacheTtlHours: z.number().default(24),
-    })
-    .optional(),
+    /** Sync behavior configuration */
+    sync: z
+        .object({
+            /** Maximum cache age in hours before a source is considered stale (default: 24) */
+            cacheTtlHours: z.number().default(24),
+        })
+        .optional(),
 });
 
 export type GlobalConfig = z.infer<typeof globalConfigSchema>;

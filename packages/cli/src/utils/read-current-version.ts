@@ -9,12 +9,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Returns "0.0.0" when the file cannot be read (e.g. during tests).
  */
 export async function readCurrentVersion(): Promise<string> {
-  try {
-    // After bundling via tsdown to dist/index.mjs, __dirname resolves to the dist/
-    // directory, so one level up reaches packages/cli/package.json.
-    const pkg = JSON.parse(await readFile(join(__dirname, "../package.json"), "utf-8"));
-    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
+    try {
+        // After bundling via tsdown to dist/index.mjs, __dirname resolves to the dist/
+        // directory, so one level up reaches packages/cli/package.json.
+        const pkg = JSON.parse(await readFile(join(__dirname, "../package.json"), "utf-8"));
+        return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+    } catch {
+        return "0.0.0";
+    }
 }

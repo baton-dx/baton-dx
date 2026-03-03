@@ -7,16 +7,16 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .github/mcp.json / ~/.github/mcp.json — "servers" key, env vars expanded
  */
 export class GitHubCopilotAdapter extends BaseAIToolAdapter {
-  readonly key = "github-copilot";
-  readonly name = "GitHub Copilot";
-  protected override memoryFilename = "copilot-instructions.md";
+    readonly key = "github-copilot";
+    readonly name = "GitHub Copilot";
+    protected override memoryFilename = "copilot-instructions.md";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "servers",
-    envVarSyntax: "expand",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "servers",
+        envVarSyntax: "expand",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

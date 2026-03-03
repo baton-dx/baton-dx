@@ -9,16 +9,16 @@ import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
  * MCP server with resolved scope and profile attribution
  */
 export interface MergedMcpServer extends McpServer {
-  scope: Scope; // Override to non-optional — always resolved by merge
-  profileName: string;
+    scope: Scope; // Override to non-optional — always resolved by merge
+    profileName: string;
 }
 
 /**
  * Result of merging MCP servers with optional conflict warnings
  */
 export interface MergeMcpResult {
-  servers: MergedMcpServer[];
-  warnings: WeightConflictWarning[];
+    servers: MergedMcpServer[];
+    warnings: WeightConflictWarning[];
 }
 
 /**
@@ -33,7 +33,7 @@ export interface MergeMcpResult {
  * @returns Deduplicated map of MCP servers with most specific versions and profile attribution
  */
 export function mergeMcp(profiles: ResolvedProfile[]): MergedMcpServer[] {
-  return mergeMcpWithWarnings(profiles).servers;
+    return mergeMcpWithWarnings(profiles).servers;
 }
 
 /**
@@ -43,51 +43,51 @@ export function mergeMcp(profiles: ResolvedProfile[]): MergedMcpServer[] {
  * @returns Servers and any same-weight conflict warnings
  */
 export function mergeMcpWithWarnings(profiles: ResolvedProfile[]): MergeMcpResult {
-  const serverMap = new Map<string, MergedMcpServer>();
-  const lockedKeys = new Set<string>();
-  const warnings: WeightConflictWarning[] = [];
+    const serverMap = new Map<string, MergedMcpServer>();
+    const lockedKeys = new Set<string>();
+    const warnings: WeightConflictWarning[] = [];
 
-  // Track which profile set each key for same-weight conflict detection
-  const keyOwner = new Map<string, { profileName: string; weight: number }>();
+    // Track which profile set each key for same-weight conflict detection
+    const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
-  for (const profile of profiles) {
-    const servers = profile.manifest.ai?.mcp || [];
-    const weight = getProfileWeight(profile);
-    const locked = isLockedProfile(profile);
+    for (const profile of profiles) {
+        const servers = profile.manifest.ai?.mcp || [];
+        const weight = getProfileWeight(profile);
+        const locked = isLockedProfile(profile);
 
-    for (const server of servers) {
-      // Skip if this key is locked by a previous profile
-      if (lockedKeys.has(server.name)) {
-        continue;
-      }
+        for (const server of servers) {
+            // Skip if this key is locked by a previous profile
+            if (lockedKeys.has(server.name)) {
+                continue;
+            }
 
-      // Check for same-weight conflict
-      const existing = keyOwner.get(server.name);
-      if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-        warnings.push({
-          key: server.name,
-          category: "mcp",
-          profileA: existing.profileName,
-          profileB: profile.name,
-          weight,
-        });
-      }
+            // Check for same-weight conflict
+            const existing = keyOwner.get(server.name);
+            if (existing && existing.weight === weight && existing.profileName !== profile.name) {
+                warnings.push({
+                    key: server.name,
+                    category: "mcp",
+                    profileA: existing.profileName,
+                    profileB: profile.name,
+                    weight,
+                });
+            }
 
-      serverMap.set(server.name, {
-        ...server,
-        scope: resolveScope(server.scope, profile.manifest.scope),
-        profileName: profile.name,
-      });
-      keyOwner.set(server.name, { profileName: profile.name, weight });
+            serverMap.set(server.name, {
+                ...server,
+                scope: resolveScope(server.scope, profile.manifest.scope),
+                profileName: profile.name,
+            });
+            keyOwner.set(server.name, { profileName: profile.name, weight });
 
-      if (locked) {
-        lockedKeys.add(server.name);
-      }
+            if (locked) {
+                lockedKeys.add(server.name);
+            }
+        }
     }
-  }
 
-  return {
-    servers: Array.from(serverMap.values()),
-    warnings,
-  };
+    return {
+        servers: Array.from(serverMap.values()),
+        warnings,
+    };
 }

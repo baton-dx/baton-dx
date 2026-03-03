@@ -1,4 +1,4 @@
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { sourceManifestSchema } from "../schemas/source-manifest.js";
@@ -8,36 +8,36 @@ import { loadProfileManifestSafe as loadProfileManifest } from "./load-profile-s
  * Information about a discovered profile within a source repository
  */
 export interface SourceProfileInfo {
-  /**
-   * Profile name (from manifest)
-   */
-  name: string;
+    /**
+     * Profile name (from manifest)
+     */
+    name: string;
 
-  /**
-   * Relative path to the profile from the source root
-   * e.g., "profiles/frontend"
-   */
-  path: string;
+    /**
+     * Relative path to the profile from the source root
+     * e.g., "profiles/frontend"
+     */
+    path: string;
 
-  /**
-   * Profile version from manifest
-   */
-  version: string;
+    /**
+     * Profile version from manifest
+     */
+    version: string;
 
-  /**
-   * Profile description from manifest (optional)
-   */
-  description?: string;
+    /**
+     * Profile description from manifest (optional)
+     */
+    description?: string;
 
-  /**
-   * Parent profile name this profile extends (optional)
-   */
-  extends?: string;
+    /**
+     * Parent profile name this profile extends (optional)
+     */
+    extends?: string;
 
-  /**
-   * Merge weight for this profile (optional, defaults to 0)
-   */
-  weight?: number;
+    /**
+     * Merge weight for this profile (optional, defaults to 0)
+     */
+    weight?: number;
 }
 
 /**
@@ -48,24 +48,24 @@ export interface SourceProfileInfo {
  * @throws Error if manifest doesn't exist or is invalid
  */
 export async function findSourceManifest(sourceRoot: string) {
-  const manifestPath = join(sourceRoot, "baton.source.yaml");
+    const manifestPath = join(sourceRoot, "baton.source.yaml");
 
-  try {
-    const content = await readFile(manifestPath, "utf-8");
-    const parsed = parseYaml(content);
+    try {
+        const content = await readFile(manifestPath, "utf-8");
+        const parsed = parseYaml(content);
 
-    // Validate with Zod schema
-    const manifest = sourceManifestSchema.parse(parsed);
+        // Validate with Zod schema
+        const manifest = sourceManifestSchema.parse(parsed);
 
-    return manifest;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(
-        `Source manifest not found at ${manifestPath}. This directory is not a Baton source repository.`,
-      );
+        return manifest;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            throw new Error(
+                `Source manifest not found at ${manifestPath}. This directory is not a Baton source repository.`,
+            );
+        }
+        throw new Error(`Invalid source manifest at ${manifestPath}: ${error}`);
     }
-    throw new Error(`Invalid source manifest at ${manifestPath}: ${error}`);
-  }
 }
 
 /**
@@ -75,13 +75,13 @@ export async function findSourceManifest(sourceRoot: string) {
  * @returns true if baton.source.yaml exists, false otherwise
  */
 export async function isSourceRepository(sourceRoot: string): Promise<boolean> {
-  const manifestPath = join(sourceRoot, "baton.source.yaml");
-  try {
-    await access(manifestPath);
-    return true;
-  } catch {
-    return false;
-  }
+    const manifestPath = join(sourceRoot, "baton.source.yaml");
+    try {
+        await access(manifestPath);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -97,47 +97,47 @@ export async function isSourceRepository(sourceRoot: string): Promise<boolean> {
  * @throws Error if manifest files are invalid or cannot be read
  */
 export async function discoverProfilesInSourceRepo(
-  sourceRoot: string,
+    sourceRoot: string,
 ): Promise<SourceProfileInfo[]> {
-  const profiles: SourceProfileInfo[] = [];
-  const profilesDir = join(sourceRoot, "profiles");
+    const profiles: SourceProfileInfo[] = [];
+    const profilesDir = join(sourceRoot, "profiles");
 
-  try {
-    const entries = await readdir(profilesDir, { withFileTypes: true });
+    try {
+        const entries = await readdir(profilesDir, { withFileTypes: true });
 
-    for (const entry of entries) {
-      // Only check directories (skip files)
-      if (!entry.isDirectory()) {
-        continue;
-      }
+        for (const entry of entries) {
+            // Only check directories (skip files)
+            if (!entry.isDirectory()) {
+                continue;
+            }
 
-      // Skip hidden directories and common non-profile directories
-      if (entry.name.startsWith(".") || entry.name === "node_modules") {
-        continue;
-      }
+            // Skip hidden directories and common non-profile directories
+            if (entry.name.startsWith(".") || entry.name === "node_modules") {
+                continue;
+            }
 
-      const profilePath = join("profiles", entry.name);
-      const manifest = await loadProfileManifest(sourceRoot, profilePath);
+            const profilePath = join("profiles", entry.name);
+            const manifest = await loadProfileManifest(sourceRoot, profilePath);
 
-      if (manifest) {
-        profiles.push({
-          name: manifest.name,
-          path: profilePath,
-          version: manifest.version,
-          description: manifest.description,
-          extends: manifest.extends,
-          weight: manifest.weight,
-        });
-      }
+            if (manifest) {
+                profiles.push({
+                    name: manifest.name,
+                    path: profilePath,
+                    version: manifest.version,
+                    description: manifest.description,
+                    extends: manifest.extends,
+                    weight: manifest.weight,
+                });
+            }
+        }
+    } catch (error) {
+        // If profiles/ directory doesn't exist or cannot be read, return empty array
+        // This allows source repos without profiles (e.g., documentation-only repos)
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return [];
+        }
+        throw error;
     }
-  } catch (error) {
-    // If profiles/ directory doesn't exist or cannot be read, return empty array
-    // This allows source repos without profiles (e.g., documentation-only repos)
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return [];
-    }
-    throw error;
-  }
 
-  return profiles;
+    return profiles;
 }

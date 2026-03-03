@@ -12,21 +12,21 @@ import type { LockFile } from "../schemas/lockfile.js";
  * installed version > lockfile → silent (newer tool reading older lockfile is fine).
  */
 export function checkLockfileVersion(lockfile: LockFile, currentVersion: string): string | null {
-  const lockfileVersion = lockfile.baton_version;
+    const lockfileVersion = lockfile.baton_version;
 
-  // No version in lockfile — old lockfile from before this feature, ignore.
-  if (!lockfileVersion) return null;
+    // No version in lockfile — old lockfile from before this feature, ignore.
+    if (!lockfileVersion) return null;
 
-  // Guard against non-semver values that could crash semver.gt
-  if (!valid(lockfileVersion) || !valid(currentVersion)) return null;
+    // Guard against non-semver values that could crash semver.gt
+    if (!valid(lockfileVersion) || !valid(currentVersion)) return null;
 
-  if (gt(lockfileVersion, currentVersion)) {
-    return (
-      `This lockfile was generated with Baton v${lockfileVersion}, ` +
-      `but you are running v${currentVersion}. ` +
-      `Update Baton to avoid potential compatibility issues.`
-    );
-  }
+    if (gt(lockfileVersion, currentVersion)) {
+        return (
+            `This lockfile was generated with Baton v${lockfileVersion}, ` +
+            `but you are running v${currentVersion}. ` +
+            `Update Baton to avoid potential compatibility issues.`
+        );
+    }
 
-  return null;
+    return null;
 }

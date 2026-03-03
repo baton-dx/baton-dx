@@ -7,15 +7,15 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .roo/mcp.json / ~/.roo/mcp.json — "mcpServers" key, ${env:VAR} syntax
  */
 export class RooAdapter extends BaseAIToolAdapter {
-  readonly key = "roo";
-  readonly name = "Roo";
+    readonly key = "roo";
+    readonly name = "Roo";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcpServers",
-    envVarSyntax: "dollar-env-colon",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcpServers",
+        envVarSyntax: "dollar-env-colon",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

@@ -7,15 +7,15 @@ import type { McpCapabilities } from "./types.js";
  * MCP: .trae/mcp.json / ~/.trae/mcp.json — "mcpServers" key, env vars expanded
  */
 export class TraeAdapter extends BaseAIToolAdapter {
-  readonly key = "trae";
-  readonly name = "Trae";
+    readonly key = "trae";
+    readonly name = "Trae";
 
-  override readonly mcpCapabilities: McpCapabilities = {
-    supported: true,
-    configKey: "mcpServers",
-    envVarSyntax: "expand",
-    format: "json",
-    sharedSettingsFile: false,
-    supportedScopes: ["project", "global"],
-  };
+    override readonly mcpCapabilities: McpCapabilities = {
+        supported: true,
+        configKey: "mcpServers",
+        envVarSyntax: "expand",
+        format: "json",
+        sharedSettingsFile: false,
+        supportedScopes: ["project", "global"],
+    };
 }

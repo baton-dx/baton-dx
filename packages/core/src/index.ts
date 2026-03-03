@@ -18,112 +18,112 @@ export { KiroAdapter } from "./adapters/kiro.js";
 export { OpenCodeAdapter } from "./adapters/opencode.js";
 // Export adapter registry
 export {
-  getAIToolAdapter,
-  getAIToolAdaptersForKeys,
-  getAllAIToolAdapters,
+    getAIToolAdapter,
+    getAIToolAdaptersForKeys,
+    getAllAIToolAdapters,
 } from "./adapters/registry.js";
 export { RooAdapter } from "./adapters/roo.js";
 export { TraeAdapter } from "./adapters/trae.js";
 // Export adapter types and type guards
 export type {
-  AgentFile,
-  AIToolAdapter,
-  CommandFile,
-  McpCapabilities,
-  McpConfigFormat,
-  McpEnvVarSyntax,
-  MemoryFile,
-  MergedMcpServer,
-  RuleFile,
-  SkillDir,
-  ToolMcpServer,
-  ValidationResult,
+    AgentFile,
+    AIToolAdapter,
+    CommandFile,
+    McpCapabilities,
+    McpConfigFormat,
+    McpEnvVarSyntax,
+    MemoryFile,
+    MergedMcpServer,
+    RuleFile,
+    SkillDir,
+    ToolMcpServer,
+    ValidationResult,
 } from "./adapters/types.js";
 export {
-  isAgentFile,
-  isCommandFile,
-  isMemoryFile,
-  isRuleFile,
-  isSkillDir,
+    isAgentFile,
+    isCommandFile,
+    isMemoryFile,
+    isRuleFile,
+    isSkillDir,
 } from "./adapters/types.js";
 export { WindsurfAdapter } from "./adapters/windsurf.js";
 export { ZedAdapter } from "./adapters/zed.js";
 // Export global config management
 export {
-  addGlobalSource,
-  getBatonHome,
-  getDefaultGlobalSource,
-  getGlobalAiTools,
-  getGlobalConfigPath,
-  getGlobalIdePlatforms,
-  getGlobalSources,
-  loadGlobalConfig,
-  removeGlobalSource,
-  saveGlobalConfig,
-  setGlobalAiTools,
-  setGlobalIdePlatforms,
+    addGlobalSource,
+    getBatonHome,
+    getDefaultGlobalSource,
+    getGlobalAiTools,
+    getGlobalConfigPath,
+    getGlobalIdePlatforms,
+    getGlobalSources,
+    loadGlobalConfig,
+    removeGlobalSource,
+    saveGlobalConfig,
+    setGlobalAiTools,
+    setGlobalIdePlatforms,
 } from "./config/global-config.js";
 // Export AI tool detection
 export {
-  clearAIToolCache,
-  detectInstalledAITools,
-  setDetectedAITools,
+    clearAIToolCache,
+    detectInstalledAITools,
+    setDetectedAITools,
 } from "./detection/ai-tool-detection.js";
 // Export all error classes
 export {
-  AIToolAdapterNotFoundError,
-  BatonError,
-  CircularInheritanceError,
-  FileNotFoundError,
-  GitNotInstalledError,
-  GitSourceError,
-  ManifestValidationError,
-  SourceNotFoundError,
-  SourceParseError,
-  VersionNotFoundError,
+    AIToolAdapterNotFoundError,
+    BatonError,
+    CircularInheritanceError,
+    FileNotFoundError,
+    GitNotInstalledError,
+    GitSourceError,
+    ManifestValidationError,
+    SourceNotFoundError,
+    SourceParseError,
+    VersionNotFoundError,
 } from "./errors.js";
 // Export IDE detection
 export {
-  clearIdeCache,
-  detectInstalledIdes,
-  setDetectedIdes,
+    clearIdeCache,
+    detectInstalledIdes,
+    setDetectedIdes,
 } from "./ide/detection.js";
 // Export IDE platform registry
 export {
-  getIdePlatformTargetDir,
-  getRegisteredIdePlatforms,
-  type IdePlatformEntry,
-  idePlatformRegistry,
-  isKnownIdePlatform,
+    getIdePlatformTargetDir,
+    getRegisteredIdePlatforms,
+    type IdePlatformEntry,
+    idePlatformRegistry,
+    isKnownIdePlatform,
 } from "./ide/platform-registry.js";
 // Export profile inheritance
 export {
-  type CloneContext,
-  type ResolvedProfile,
-  resolveProfileChain,
+    type CloneContext,
+    type ResolvedProfile,
+    resolveProfileChain,
 } from "./inheritance/profile-chain.js";
 // Export profile support resolution (source → profile inheritance)
 export {
-  type ResolvedProfileSupport,
-  resolveProfileSupport,
-  type SourceManifest,
+    type ResolvedProfileSupport,
+    resolveProfileSupport,
+    type SourceManifest,
 } from "./inheritance/profile-support.js";
 // Export intersection computation
 export {
-  computeIntersection,
-  type DeveloperTools,
-  type DimensionIntersection,
-  type IntersectionResult,
+    computeIntersection,
+    type DeveloperTools,
+    type DimensionIntersection,
+    type IntersectionResult,
 } from "./intersection/compute.js";
 // Export lockfile cleanup
 export { removePlacedFiles } from "./lockfile/cleanup.js";
 // Export lockfile management
 export {
-  compareLock,
-  generateLock,
-  type LockFileEntry,
-  readLock,
-  writeLock,
+    compareLock,
+    generateLock,
+    type LockFileEntry,
+    readLock,
+    writeLock,
 } from "./lockfile/manager.js";
 export { checkLockfileVersion } from "./lockfile/version-check.js";
 // Export MCP env-transform utility
@@ -135,160 +135,171 @@ export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
 export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
 // Export agent merge logic
 export {
-  type AgentEntry,
-  type MergeAgentsResult,
-  mergeAgents,
-  mergeAgentsWithWarnings,
+    type AgentEntry,
+    type MergeAgentsResult,
+    mergeAgents,
+    mergeAgentsWithWarnings,
 } from "./merge/agents.js";
 // Export content parts merge
-export { mergeContentParts } from "./merge/content-parts.js";
+export { mergeContentParts, normalizeMarkdown } from "./merge/content-parts.js";
 // Export MCP merge logic
 export {
-  type MergeMcpResult,
-  mergeMcp,
-  mergeMcpWithWarnings,
+    type MergeMcpResult,
+    mergeMcp,
+    mergeMcpWithWarnings,
 } from "./merge/mcp.js";
 // Export memory merge logic
 export {
-  type MemoryContribution,
-  type MemoryEntry,
-  type MergeMemoryResult,
-  mergeMemory,
-  mergeMemoryWithWarnings,
+    type MemoryContribution,
+    type MemoryEntry,
+    type MergeMemoryResult,
+    mergeMemory,
+    mergeMemoryWithWarnings,
 } from "./merge/memory.js";
 // Export rule merge logic
 export {
-  type MergeRulesResult,
-  mergeRules,
-  mergeRulesWithWarnings,
-  type RuleEntry,
+    type MergeRulesResult,
+    mergeRules,
+    mergeRulesWithWarnings,
+    type RuleEntry,
 } from "./merge/rules.js";
 // Export scope resolution
 export { resolveScope } from "./merge/scope-resolution.js";
 // Export skill merge logic
 export {
-  type MergedSkillItem,
-  type MergeSkillsResult,
-  mergeSkills,
-  mergeSkillsWithWarnings,
+    type MergedSkillItem,
+    type MergeSkillsResult,
+    mergeSkills,
+    mergeSkillsWithWarnings,
 } from "./merge/skills.js";
 // Export merge strategies
 export {
-  mergeAppend,
-  mergeDeep,
-  mergeDirectory,
-  mergeImport,
-  mergePrepend,
-  mergePrompt,
-  mergeReplace,
-  mergeSkip,
+    mergeAppend,
+    mergeDeep,
+    mergeDirectory,
+    mergeImport,
+    mergePrepend,
+    mergePrompt,
+    mergeReplace,
+    mergeSkip,
 } from "./merge/strategies.js";
 // Export weight-based profile sorting
 export {
-  getProfileWeight,
-  isLockedProfile,
-  sortProfilesByWeight,
-  WEIGHT_LOCK,
-  type WeightConflictWarning,
+    getProfileWeight,
+    isLockedProfile,
+    sortProfilesByWeight,
+    WEIGHT_LOCK,
+    type WeightConflictWarning,
 } from "./merge/weight-sort.js";
 // Export legacy path migration
 export {
-  detectLegacyPaths,
-  getConservativeAction,
-  type LegacyFile,
-  type MigrationAction,
-  type MigrationResult,
-  migrateCommonLegacyPaths,
-  migrateLegacyFile,
+    detectLegacyPaths,
+    getConservativeAction,
+    type LegacyFile,
+    type MigrationAction,
+    type MigrationResult,
+    migrateCommonLegacyPaths,
+    migrateLegacyFile,
 } from "./migration/legacy-paths.js";
 // Export placement engine
 export {
-  clearCanonicalCache,
-  type PlacementConfig,
-  type PlacementMode,
-  type PlacementResult,
-  placeFile,
+    clearCanonicalCache,
+    type PlacementConfig,
+    type PlacementMode,
+    type PlacementResult,
+    placeFile,
 } from "./placement/engine.js";
 // Export project preferences
 export {
-  deleteProjectPreferences,
-  getPreferencesPath,
-  type ProjectPreferences,
-  projectPreferencesSchema,
-  type ResolvedPreferences,
-  readProjectPreferences,
-  resolvePreferences,
-  writeProjectPreferences,
+    deleteProjectPreferences,
+    getPreferencesPath,
+    type ProjectPreferences,
+    projectPreferencesSchema,
+    type ResolvedPreferences,
+    readProjectPreferences,
+    resolvePreferences,
+    writeProjectPreferences,
 } from "./preferences/index.js";
 export type { GlobalSourceEntry } from "./schemas/global-config.js";
 // Export types used by CLI
-export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
+export type {
+    FileMetadata,
+    LockFile,
+    LockfileConfigType,
+} from "./schemas/lockfile.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
-export type { McpServer, McpTransport, MemoryItem } from "./schemas/profile-manifest.js";
+export type {
+    McpServer,
+    McpTransport,
+    MemoryItem,
+} from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
 export {
-  KEBAB_CASE_REGEX,
-  mcpServerSchema,
-  profileManifestSchema,
+    KEBAB_CASE_REGEX,
+    mcpServerSchema,
+    profileManifestSchema,
 } from "./schemas/profile-manifest.js";
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
-export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";
+export {
+    sourceManifestSchema,
+    weightSchema,
+} from "./schemas/source-manifest.js";
 // Export self-update utilities
 export {
-  checkLatestVersion,
-  detectInstallMethod,
-  formatInstallCommand,
-  type InstallMethod,
-  isUpdateAvailable,
-  type LatestVersionResult,
-  type UpdateCheckResult,
+    checkLatestVersion,
+    detectInstallMethod,
+    formatInstallCommand,
+    type InstallMethod,
+    isUpdateAvailable,
+    type LatestVersionResult,
+    type UpdateCheckResult,
 } from "./self-update/index.js";
 // Export File resolver
 export {
-  type FileResolverOptions,
-  type ResolvedFilePath,
-  resolveFileSource,
+    type FileResolverOptions,
+    type ResolvedFilePath,
+    resolveFileSource,
 } from "./sources/file-resolver.js";
 // Export Git source provider
 export {
-  type ClonedSource,
-  type CloneOptions,
-  cloneGitSource,
-  expandSparseCheckout,
+    type ClonedSource,
+    type CloneOptions,
+    cloneGitSource,
+    expandSparseCheckout,
 } from "./sources/git-clone.js";
 // Export GitHub resolver
 export {
-  type GitHubResolverOptions,
-  type ResolvedGitHubSource,
-  resolveGitHubSource,
+    type GitHubResolverOptions,
+    type ResolvedGitHubSource,
+    resolveGitHubSource,
 } from "./sources/github-resolver.js";
 // Export local source loader
 export {
-  type LoadLocalSourceOptions,
-  type LocalSource,
-  loadLocalSource,
-  resolveLocalPath,
+    type LoadLocalSourceOptions,
+    type LocalSource,
+    loadLocalSource,
+    resolveLocalPath,
 } from "./sources/local-source.js";
 // Export NPM resolver
 export {
-  type NpmCacheMeta,
-  type NpmResolverOptions,
-  type PackageManager,
-  type ResolvedNpmSource,
-  resolveNpmSource,
+    type NpmCacheMeta,
+    type NpmResolverOptions,
+    type PackageManager,
+    type ResolvedNpmSource,
+    resolveNpmSource,
 } from "./sources/npm-resolver.js";
 // Export profile discovery
 export {
-  discoverProfiles,
-  type ProfileInfo,
+    discoverProfiles,
+    type ProfileInfo,
 } from "./sources/profile-discovery.js";
 // Export source repository discovery
 export {
-  discoverProfilesInSourceRepo,
-  findSourceManifest,
-  isSourceRepository,
-  type SourceProfileInfo,
+    discoverProfilesInSourceRepo,
+    findSourceManifest,
+    isSourceRepository,
+    type SourceProfileInfo,
 } from "./sources/source-discovery.js";
 // Export version resolver
 export { resolveVersion } from "./sources/version-resolver.js";
@@ -296,48 +307,48 @@ export { resolveVersion } from "./sources/version-resolver.js";
 export { checkStale, type StaleCheckResult } from "./stale/index.js";
 // Export local placement state
 export {
-  flattenPlacedFiles,
-  getStatePath,
-  type PlacementState,
-  placementStateSchema,
-  readState,
-  writeState,
+    flattenPlacedFiles,
+    getStatePath,
+    type PlacementState,
+    placementStateSchema,
+    readState,
+    writeState,
 } from "./state/index.js";
 // Export variable substitution
 export {
-  isBinaryFile,
-  processFileContent,
-  type SubstitutionOptions,
-  substituteVariables,
-  type VariableSources,
+    isBinaryFile,
+    processFileContent,
+    type SubstitutionOptions,
+    substituteVariables,
+    type VariableSources,
 } from "./substitution/variables.js";
 // Export utility functions
 export {
-  atomicWriteFile,
-  collectAiToolPatterns,
-  collectComprehensivePatterns,
-  collectFilePatterns,
-  collectIdePatterns,
-  ensureBatonDirGitignored,
-  type GitignoreConfig,
-  type GitignoreSection,
-  loadLockfile,
-  loadProfileManifest,
-  loadProjectManifest,
-  type ParsedFrontmatter,
-  type ParsedSource,
-  parseFrontmatter,
-  parseGitignoreConfig,
-  parseSource,
-  removeGitignoreManagedSection,
-  updateGitignore,
-  updateGitignoreWithSections,
+    atomicWriteFile,
+    collectAiToolPatterns,
+    collectComprehensivePatterns,
+    collectFilePatterns,
+    collectIdePatterns,
+    ensureBatonDirGitignored,
+    type GitignoreConfig,
+    type GitignoreSection,
+    loadLockfile,
+    loadProfileManifest,
+    loadProjectManifest,
+    type ParsedFrontmatter,
+    type ParsedSource,
+    parseFrontmatter,
+    parseGitignoreConfig,
+    parseSource,
+    removeGitignoreManagedSection,
+    updateGitignore,
+    updateGitignoreWithSections,
 } from "./utils/index.js";
 export type {
-  ValidationIssue,
-  ValidationReport,
-  ValidationSeverity,
-  ValidationSummary,
+    ValidationIssue,
+    ValidationReport,
+    ValidationSeverity,
+    ValidationSummary,
 } from "./validation/index.js";
 // Export source validation
 export { validateSource } from "./validation/index.js";

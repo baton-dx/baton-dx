@@ -1,5 +1,5 @@
 baton_version: 0.14.1
-locked_at: 2026-02-27T14:10:52.052Z
+locked_at: 2026-03-03T10:31:53.379Z
 packages:
   base:
     source: github:baton-dx/baton-dx-source/profiles/base
@@ -23,7 +23,7 @@ packages:
     source: github:baton-dx/baton-dx-source/profiles/maintainer
     resolved: github:baton-dx/baton-dx-source/profiles/maintainer
     version: 0.1.0
-    sha: 4181521786de4c1635c67f33a612fd843f64d29e
+    sha: 8d278d2a3a39d1a583405064cff021772d5419d4
     integrity:
       skills/add-adapter:
         hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
@@ -68,5 +68,5 @@ packages:
         hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
         type: memory
       files/biome.json:
-        hash: 391830b541850afeb37f93552da6c90b5417560c5ac53f7b7d7d42d4f8e6299d
+        hash: 1e4f7a3494fcfdc4c8bb66bd27e9461102fc798ae2d99736d952b710776951c4
         type: files

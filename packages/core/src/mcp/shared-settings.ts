@@ -3,8 +3,8 @@ import { dirname } from "node:path";
 import { atomicWriteFile } from "../utils/atomic-write.js";
 
 export interface SharedSettingsResult {
-  written: boolean;
-  warnings: string[];
+    written: boolean;
+    warnings: string[];
 }
 
 /**
@@ -25,93 +25,93 @@ export interface SharedSettingsResult {
  * @param previousServerNames - Server names Baton managed in the previous sync (to remove)
  */
 export async function readModifyWriteSharedSettings(
-  filePath: string,
-  mcpKey: string,
-  batchedServers: Record<string, object>,
-  previousServerNames: string[],
+    filePath: string,
+    mcpKey: string,
+    batchedServers: Record<string, object>,
+    previousServerNames: string[],
 ): Promise<SharedSettingsResult> {
-  const warnings: string[] = [];
+    const warnings: string[] = [];
 
-  // Read existing file or start with empty object
-  let existing: Record<string, unknown> = {};
-  try {
-    const raw = await readFile(filePath, "utf-8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      warnings.push(
-        `MCP: ${filePath} does not contain a JSON object — skipping to avoid data loss`,
-      );
-      return { written: false, warnings };
+    // Read existing file or start with empty object
+    let existing: Record<string, unknown> = {};
+    try {
+        const raw = await readFile(filePath, "utf-8");
+        const parsed = JSON.parse(raw) as unknown;
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+            warnings.push(
+                `MCP: ${filePath} does not contain a JSON object — skipping to avoid data loss`,
+            );
+            return { written: false, warnings };
+        }
+        existing = parsed as Record<string, unknown>;
+    } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+            // File doesn't exist — start fresh only if we have servers to write
+            if (Object.keys(batchedServers).length === 0) {
+                return { written: false, warnings };
+            }
+        } else if (err instanceof SyntaxError) {
+            warnings.push(`MCP: ${filePath} contains invalid JSON — skipping to avoid data loss`);
+            return { written: false, warnings };
+        } else {
+            throw err;
+        }
     }
-    existing = parsed as Record<string, unknown>;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      // File doesn't exist — start fresh only if we have servers to write
-      if (Object.keys(batchedServers).length === 0) {
+
+    // Navigate to the MCP servers key (supports dot-separated paths like "amp.mcpServers")
+    const keyParts = mcpKey.split(".");
+    const parentKeys = keyParts.slice(0, -1);
+    const leafKey = keyParts[keyParts.length - 1];
+
+    // Ensure parent path exists
+    let parent = existing;
+    for (const part of parentKeys) {
+        if (typeof parent[part] !== "object" || parent[part] === null) {
+            parent[part] = {};
+        }
+        parent = parent[part] as Record<string, unknown>;
+    }
+
+    // Get existing MCP servers object
+    const existingServers = (parent[leafKey] as Record<string, unknown> | undefined) ?? {};
+
+    // Build new servers: start with existing, remove baton-managed ones, add new ones
+    const newServers: Record<string, unknown> = {};
+
+    // Keep non-baton-managed entries
+    for (const [name, config] of Object.entries(existingServers)) {
+        if (!previousServerNames.includes(name)) {
+            newServers[name] = config;
+        }
+    }
+
+    // Add new baton-managed entries
+    for (const [name, config] of Object.entries(batchedServers)) {
+        newServers[name] = config;
+    }
+
+    // Idempotency check: skip write if content unchanged
+    const updatedSettings = { ...existing };
+    let cursor = updatedSettings as Record<string, unknown>;
+    for (const part of parentKeys) {
+        cursor = cursor[part] as Record<string, unknown>;
+    }
+    cursor[leafKey] = newServers;
+
+    const newJson = `${JSON.stringify(updatedSettings, null, 2)}\n`;
+    const existingJson = `${JSON.stringify(existing, null, 2)}\n`;
+
+    if (Object.keys(newServers).length === 0 && !existingServers) {
         return { written: false, warnings };
-      }
-    } else if (err instanceof SyntaxError) {
-      warnings.push(`MCP: ${filePath} contains invalid JSON — skipping to avoid data loss`);
-      return { written: false, warnings };
-    } else {
-      throw err;
     }
-  }
 
-  // Navigate to the MCP servers key (supports dot-separated paths like "amp.mcpServers")
-  const keyParts = mcpKey.split(".");
-  const parentKeys = keyParts.slice(0, -1);
-  const leafKey = keyParts[keyParts.length - 1];
-
-  // Ensure parent path exists
-  let parent = existing;
-  for (const part of parentKeys) {
-    if (typeof parent[part] !== "object" || parent[part] === null) {
-      parent[part] = {};
+    if (newJson === existingJson) {
+        return { written: false, warnings };
     }
-    parent = parent[part] as Record<string, unknown>;
-  }
 
-  // Get existing MCP servers object
-  const existingServers = (parent[leafKey] as Record<string, unknown> | undefined) ?? {};
+    // Write atomically
+    await mkdir(dirname(filePath), { recursive: true });
+    await atomicWriteFile(filePath, newJson);
 
-  // Build new servers: start with existing, remove baton-managed ones, add new ones
-  const newServers: Record<string, unknown> = {};
-
-  // Keep non-baton-managed entries
-  for (const [name, config] of Object.entries(existingServers)) {
-    if (!previousServerNames.includes(name)) {
-      newServers[name] = config;
-    }
-  }
-
-  // Add new baton-managed entries
-  for (const [name, config] of Object.entries(batchedServers)) {
-    newServers[name] = config;
-  }
-
-  // Idempotency check: skip write if content unchanged
-  const updatedSettings = { ...existing };
-  let cursor = updatedSettings as Record<string, unknown>;
-  for (const part of parentKeys) {
-    cursor = cursor[part] as Record<string, unknown>;
-  }
-  cursor[leafKey] = newServers;
-
-  const newJson = `${JSON.stringify(updatedSettings, null, 2)}\n`;
-  const existingJson = `${JSON.stringify(existing, null, 2)}\n`;
-
-  if (Object.keys(newServers).length === 0 && !existingServers) {
-    return { written: false, warnings };
-  }
-
-  if (newJson === existingJson) {
-    return { written: false, warnings };
-  }
-
-  // Write atomically
-  await mkdir(dirname(filePath), { recursive: true });
-  await atomicWriteFile(filePath, newJson);
-
-  return { written: true, warnings };
+    return { written: true, warnings };
 }

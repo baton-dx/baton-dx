@@ -9,16 +9,16 @@ import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
  * Merged skill item with profile attribution
  */
 export interface MergedSkillItem extends SkillItem {
-  scope: Scope; // Override to non-optional — always resolved by merge
-  profileName: string;
+    scope: Scope; // Override to non-optional — always resolved by merge
+    profileName: string;
 }
 
 /**
  * Result of merging skills with optional conflict warnings
  */
 export interface MergeSkillsResult {
-  skills: MergedSkillItem[];
-  warnings: WeightConflictWarning[];
+    skills: MergedSkillItem[];
+    warnings: WeightConflictWarning[];
 }
 
 /**
@@ -33,7 +33,7 @@ export interface MergeSkillsResult {
  * @returns Deduplicated array of skills with most specific versions and profile attribution
  */
 export function mergeSkills(profiles: ResolvedProfile[]): MergedSkillItem[] {
-  return mergeSkillsWithWarnings(profiles).skills;
+    return mergeSkillsWithWarnings(profiles).skills;
 }
 
 /**
@@ -43,51 +43,51 @@ export function mergeSkills(profiles: ResolvedProfile[]): MergedSkillItem[] {
  * @returns Skills and any same-weight conflict warnings
  */
 export function mergeSkillsWithWarnings(profiles: ResolvedProfile[]): MergeSkillsResult {
-  const skillMap = new Map<string, MergedSkillItem>();
-  const lockedKeys = new Set<string>();
-  const warnings: WeightConflictWarning[] = [];
+    const skillMap = new Map<string, MergedSkillItem>();
+    const lockedKeys = new Set<string>();
+    const warnings: WeightConflictWarning[] = [];
 
-  // Track which profile set each key for same-weight conflict detection
-  const keyOwner = new Map<string, { profileName: string; weight: number }>();
+    // Track which profile set each key for same-weight conflict detection
+    const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
-  for (const profile of profiles) {
-    const skills = profile.manifest.ai?.skills || [];
-    const weight = getProfileWeight(profile);
-    const locked = isLockedProfile(profile);
+    for (const profile of profiles) {
+        const skills = profile.manifest.ai?.skills || [];
+        const weight = getProfileWeight(profile);
+        const locked = isLockedProfile(profile);
 
-    for (const skill of skills) {
-      // Skip if this key is locked by a previous profile
-      if (lockedKeys.has(skill.name)) {
-        continue;
-      }
+        for (const skill of skills) {
+            // Skip if this key is locked by a previous profile
+            if (lockedKeys.has(skill.name)) {
+                continue;
+            }
 
-      // Check for same-weight conflict
-      const existing = keyOwner.get(skill.name);
-      if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-        warnings.push({
-          key: skill.name,
-          category: "skill",
-          profileA: existing.profileName,
-          profileB: profile.name,
-          weight,
-        });
-      }
+            // Check for same-weight conflict
+            const existing = keyOwner.get(skill.name);
+            if (existing && existing.weight === weight && existing.profileName !== profile.name) {
+                warnings.push({
+                    key: skill.name,
+                    category: "skill",
+                    profileA: existing.profileName,
+                    profileB: profile.name,
+                    weight,
+                });
+            }
 
-      skillMap.set(skill.name, {
-        ...skill,
-        scope: resolveScope(skill.scope, profile.manifest.scope),
-        profileName: profile.name,
-      });
-      keyOwner.set(skill.name, { profileName: profile.name, weight });
+            skillMap.set(skill.name, {
+                ...skill,
+                scope: resolveScope(skill.scope, profile.manifest.scope),
+                profileName: profile.name,
+            });
+            keyOwner.set(skill.name, { profileName: profile.name, weight });
 
-      if (locked) {
-        lockedKeys.add(skill.name);
-      }
+            if (locked) {
+                lockedKeys.add(skill.name);
+            }
+        }
     }
-  }
 
-  return {
-    skills: Array.from(skillMap.values()),
-    warnings,
-  };
+    return {
+        skills: Array.from(skillMap.values()),
+        warnings,
+    };
 }

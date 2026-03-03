@@ -14,50 +14,52 @@ import { profileManifestSchema } from "../schemas/profile-manifest.js";
  * @returns Parsed manifest summary or null
  */
 export async function loadProfileManifestSafe(
-  sourceRoot: string,
-  profilePath: string,
+    sourceRoot: string,
+    profilePath: string,
 ): Promise<{
-  name: string;
-  version: string;
-  description?: string;
-  extends?: string;
-  weight?: number;
+    name: string;
+    version: string;
+    description?: string;
+    extends?: string;
+    weight?: number;
 } | null> {
-  const manifestPath = join(sourceRoot, profilePath, "baton.profile.yaml");
+    const manifestPath = join(sourceRoot, profilePath, "baton.profile.yaml");
 
-  try {
-    const content = await readFile(manifestPath, "utf-8");
-    const parsed = parseYaml(content);
+    try {
+        const content = await readFile(manifestPath, "utf-8");
+        const parsed = parseYaml(content);
 
-    const manifest = profileManifestSchema.parse(parsed);
+        const manifest = profileManifestSchema.parse(parsed);
 
-    return {
-      name: manifest.name,
-      version: manifest.version,
-      description: manifest.description,
-      extends: manifest.extends,
-      weight: manifest.weight,
-    };
-  } catch (error) {
-    // File not found — silently return null (profile directory exists but has no manifest)
-    if (
-      (error as NodeJS.ErrnoException).code === "ENOENT" ||
-      (error instanceof Error && error.message.includes("ENOENT"))
-    ) {
-      return null;
+        return {
+            name: manifest.name,
+            version: manifest.version,
+            description: manifest.description,
+            extends: manifest.extends,
+            weight: manifest.weight,
+        };
+    } catch (error) {
+        // File not found — silently return null (profile directory exists but has no manifest)
+        if (
+            (error as NodeJS.ErrnoException).code === "ENOENT" ||
+            (error instanceof Error && error.message.includes("ENOENT"))
+        ) {
+            return null;
+        }
+
+        // Schema validation error — warn with details so the user can fix the manifest
+        if (error instanceof z.ZodError) {
+            const issues = error.issues
+                .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
+                .join("\n");
+            console.warn(`Warning: Invalid profile manifest at ${manifestPath}:\n${issues}`);
+            return null;
+        }
+
+        // Other errors (YAML parse failure, permission issues, etc.)
+        console.warn(
+            `Warning: Could not load profile manifest at ${manifestPath}: ${error instanceof Error ? error.message : error}`,
+        );
+        return null;
     }
-
-    // Schema validation error — warn with details so the user can fix the manifest
-    if (error instanceof z.ZodError) {
-      const issues = error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
-      console.warn(`Warning: Invalid profile manifest at ${manifestPath}:\n${issues}`);
-      return null;
-    }
-
-    // Other errors (YAML parse failure, permission issues, etc.)
-    console.warn(
-      `Warning: Could not load profile manifest at ${manifestPath}: ${error instanceof Error ? error.message : error}`,
-    );
-    return null;
-  }
 }

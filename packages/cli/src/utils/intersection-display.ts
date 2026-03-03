@@ -8,57 +8,57 @@ import * as p from "@clack/prompts";
  * Used by `baton init` (after profile selection) and `baton manage` (overview).
  */
 export function displayIntersection(intersection: IntersectionResult): void {
-  const hasAiData =
-    intersection.aiTools.synced.length > 0 ||
-    intersection.aiTools.unsupported.length > 0 ||
-    intersection.aiTools.unavailable.length > 0;
+    const hasAiData =
+        intersection.aiTools.synced.length > 0 ||
+        intersection.aiTools.unsupported.length > 0 ||
+        intersection.aiTools.unavailable.length > 0;
 
-  const hasIdeData =
-    intersection.idePlatforms.synced.length > 0 ||
-    intersection.idePlatforms.unsupported.length > 0 ||
-    intersection.idePlatforms.unavailable.length > 0;
+    const hasIdeData =
+        intersection.idePlatforms.synced.length > 0 ||
+        intersection.idePlatforms.unsupported.length > 0 ||
+        intersection.idePlatforms.unavailable.length > 0;
 
-  if (!hasAiData && !hasIdeData) {
-    p.log.info("No tool or IDE intersection data available.");
-    return;
-  }
+    if (!hasAiData && !hasIdeData) {
+        p.log.info("No tool or IDE intersection data available.");
+        return;
+    }
 
-  if (hasAiData) {
-    displayDimension("AI Tools", intersection.aiTools);
-  }
+    if (hasAiData) {
+        displayDimension("AI Tools", intersection.aiTools);
+    }
 
-  if (hasIdeData) {
-    displayDimension("IDE Platforms", intersection.idePlatforms);
-  }
+    if (hasIdeData) {
+        displayDimension("IDE Platforms", intersection.idePlatforms);
+    }
 }
 
 /**
  * Display a single dimension (AI tools or IDE platforms) of the intersection.
  */
 function displayDimension(label: string, dimension: DimensionIntersection): void {
-  const lines: string[] = [];
+    const lines: string[] = [];
 
-  if (dimension.synced.length > 0) {
-    for (const item of dimension.synced) {
-      lines.push(`  \u2713 ${item}`);
+    if (dimension.synced.length > 0) {
+        for (const item of dimension.synced) {
+            lines.push(`  \u2713 ${item}`);
+        }
     }
-  }
 
-  if (dimension.unavailable.length > 0) {
-    for (const item of dimension.unavailable) {
-      lines.push(`  - ${item} (not installed)`);
+    if (dimension.unavailable.length > 0) {
+        for (const item of dimension.unavailable) {
+            lines.push(`  - ${item} (not installed)`);
+        }
     }
-  }
 
-  if (dimension.unsupported.length > 0) {
-    for (const item of dimension.unsupported) {
-      lines.push(`  ~ ${item} (not supported by profile)`);
+    if (dimension.unsupported.length > 0) {
+        for (const item of dimension.unsupported) {
+            lines.push(`  ~ ${item} (not supported by profile)`);
+        }
     }
-  }
 
-  if (lines.length > 0) {
-    p.note(lines.join("\n"), label);
-  }
+    if (lines.length > 0) {
+        p.note(lines.join("\n"), label);
+    }
 }
 
 /**
@@ -66,19 +66,19 @@ function displayDimension(label: string, dimension: DimensionIntersection): void
  * Example: "claude-code, cursor (AI) + vscode (IDE)"
  */
 export function formatIntersectionSummary(intersection: IntersectionResult): string {
-  const parts: string[] = [];
+    const parts: string[] = [];
 
-  if (intersection.aiTools.synced.length > 0) {
-    parts.push(`${intersection.aiTools.synced.join(", ")} (AI)`);
-  }
+    if (intersection.aiTools.synced.length > 0) {
+        parts.push(`${intersection.aiTools.synced.join(", ")} (AI)`);
+    }
 
-  if (intersection.idePlatforms.synced.length > 0) {
-    parts.push(`${intersection.idePlatforms.synced.join(", ")} (IDE)`);
-  }
+    if (intersection.idePlatforms.synced.length > 0) {
+        parts.push(`${intersection.idePlatforms.synced.join(", ")} (IDE)`);
+    }
 
-  if (parts.length === 0) {
-    return "No matching tools";
-  }
+    if (parts.length === 0) {
+        return "No matching tools";
+    }
 
-  return parts.join(" + ");
+    return parts.join(" + ");
 }
