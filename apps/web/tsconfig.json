@@ -9,6 +9,7 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
+      "@/.velite": ["./.velite"],
       "@/*": ["./src/*"]
     },
     "noEmit": true

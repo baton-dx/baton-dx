@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig, defineCollection, s } from "velite";
 
 const docs = defineCollection({
@@ -13,9 +14,7 @@ const docs = defineCollection({
       toc: s.toc(),
     })
     .transform((data, ctx) => {
-      const slug = ctx.meta.path
-        .replace(/^docs\//, "")
-        .replace(/\.mdx$/, "");
+      const slug = path.basename(ctx.meta.path, path.extname(ctx.meta.path));
       return {
         ...data,
         slug,

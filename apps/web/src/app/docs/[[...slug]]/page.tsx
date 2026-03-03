@@ -40,12 +40,15 @@ export default async function DocsPage({ params }: PageProps) {
   const prev = idx > 0 ? sortedDocs[idx - 1] : undefined;
   const next = idx < sortedDocs.length - 1 ? sortedDocs[idx + 1] : undefined;
 
-  // Velite generates toc as { id, text, depth }[]
-  const tocEntries = (doc.toc ?? []).map((entry) => ({
-    id: entry.id,
-    text: entry.text,
-    level: entry.depth,
-  }));
+  // Velite toc: { title, url, items[] } — flatten h2 + nested h3
+  const tocEntries = (doc.toc ?? []).flatMap((entry) => [
+    { id: entry.url.slice(1), text: entry.title, level: 2 },
+    ...entry.items.map((sub: { title: string; url: string }) => ({
+      id: sub.url.slice(1),
+      text: sub.title,
+      level: 3,
+    })),
+  ]);
 
   return (
     <div className="flex gap-12">
