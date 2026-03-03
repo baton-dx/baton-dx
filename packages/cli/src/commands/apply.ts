@@ -33,6 +33,7 @@ import {
   mergeMemoryWithWarnings,
   mergeRulesWithWarnings,
   mergeSkillsWithWarnings,
+  normalizeMarkdown,
   parseFrontmatter,
   parseSource,
   placeFile,
@@ -943,7 +944,7 @@ export const applyCommand = defineCommand({
       if (!dryRun && syncAi) {
         for (const [absolutePath, entry] of contentAccumulator) {
           try {
-            const combinedContent = entry.parts.join("\n\n");
+            const combinedContent = normalizeMarkdown(entry.parts.join("\n\n"));
             const result = await placeFile(
               combinedContent,
               entry.adapter,

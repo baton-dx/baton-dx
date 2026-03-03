@@ -4,6 +4,7 @@
  */
 
 import { parse, stringify } from "yaml";
+import { normalizeMarkdown } from "./content-parts.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -74,7 +75,7 @@ export function mergeAppend(source: string, target: string, profileName?: string
   const attribution = profileName ? `# From profile: ${profileName}` : "# From profile";
   const separator = "---";
 
-  return `${target}\n\n${separator}\n${attribution}\n\n${source}`;
+  return normalizeMarkdown(`${target}\n\n${separator}\n${attribution}\n\n${source}`);
 }
 
 /**
@@ -85,7 +86,7 @@ export function mergePrepend(source: string, target: string, profileName?: strin
   const attribution = profileName ? `# From profile: ${profileName}` : "# From profile";
   const separator = "---";
 
-  return `${attribution}\n\n${source}\n\n${separator}\n\n${target}`;
+  return normalizeMarkdown(`${attribution}\n\n${source}\n\n${separator}\n\n${target}`);
 }
 
 /**
@@ -142,5 +143,5 @@ export function mergeImport(
   }
 
   // Add import at the top of the file
-  return target ? `${importLine}\n\n${target}` : importLine;
+  return normalizeMarkdown(target ? `${importLine}\n\n${target}` : importLine);
 }

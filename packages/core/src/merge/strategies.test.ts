@@ -126,6 +126,15 @@ describe("mergeAppend", () => {
     expect(result).toContain("new content");
     expect(result).toContain("# From profile: test-profile");
   });
+
+  it("should normalize whitespace (no 3+ consecutive newlines)", () => {
+    const source = "new content\n";
+    const target = "existing content\n";
+    const result = mergeAppend(source, target, "test-profile");
+
+    expect(result).not.toMatch(/\n{3,}/);
+    expect(result.endsWith("\n")).toBe(true);
+  });
 });
 
 describe("mergePrepend", () => {
@@ -159,6 +168,15 @@ describe("mergePrepend", () => {
 
     expect(result).toContain("new content");
     expect(result).toContain("# From profile: test-profile");
+  });
+
+  it("should normalize whitespace (no 3+ consecutive newlines)", () => {
+    const source = "new content\n";
+    const target = "existing content\n";
+    const result = mergePrepend(source, target, "test-profile");
+
+    expect(result).not.toMatch(/\n{3,}/);
+    expect(result.endsWith("\n")).toBe(true);
   });
 });
 
@@ -216,6 +234,7 @@ describe("mergeImport", () => {
     const target = "@.baton/profiles/team-profile/memory/CLAUDE.md\n\nexisting content";
     const result = mergeImport(source, target, "team-profile", "CLAUDE.md");
 
+    // Returns target unchanged (no normalization applied to passthrough)
     expect(result).toBe(target);
     const matches = result.match(/@\.baton\/profiles\/team-profile/g);
     expect(matches).toHaveLength(1);
@@ -226,7 +245,7 @@ describe("mergeImport", () => {
     const target = "";
     const result = mergeImport(source, target, "team-profile", "CLAUDE.md");
 
-    expect(result).toBe("@.baton/profiles/team-profile/memory/CLAUDE.md");
+    expect(result).toBe("@.baton/profiles/team-profile/memory/CLAUDE.md\n");
   });
 
   it("should handle different filenames", () => {

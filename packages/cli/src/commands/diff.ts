@@ -16,6 +16,7 @@ import {
   loadProjectManifest,
   mergeContentParts,
   mergeMemory,
+  normalizeMarkdown,
   mergeRules,
   mergeSkills,
   parseFrontmatter,
@@ -361,7 +362,7 @@ export const diffCommand = defineCommand({
 
       // --- Flush accumulated content (memory + rules combined per target path) ---
       for (const [relativePath, entry] of contentAccumulator) {
-        const combinedContent = entry.parts.join("\n\n");
+        const combinedContent = normalizeMarkdown(entry.parts.join("\n\n"));
         addDiffEntry(diffs, relativePath, combinedContent, await readSafe(entry.absolutePath));
       }
 

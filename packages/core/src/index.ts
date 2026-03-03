@@ -141,7 +141,7 @@ export {
   mergeAgentsWithWarnings,
 } from "./merge/agents.js";
 // Export content parts merge
-export { mergeContentParts } from "./merge/content-parts.js";
+export { mergeContentParts, normalizeMarkdown } from "./merge/content-parts.js";
 // Export MCP merge logic
 export {
   type MergeMcpResult,
