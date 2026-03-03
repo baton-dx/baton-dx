@@ -235,10 +235,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         };
     } catch (error) {
         if (isAuthError(error)) {
-            throw new GitAuthenticationError(
-                `Authentication required for ${url}`,
-                error,
-            );
+            throw new GitAuthenticationError(`Authentication required for ${url}`, error);
         }
         throw new GitSourceError(
             `Failed to clone Git repository from ${url}: ${error instanceof Error ? error.message : String(error)}`,

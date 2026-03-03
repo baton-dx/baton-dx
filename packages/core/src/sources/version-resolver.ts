@@ -120,10 +120,7 @@ export async function resolveVersion(
             throw error;
         }
         if (isAuthError(error)) {
-            throw new GitAuthenticationError(
-                `Authentication required for ${repoUrl}`,
-                error,
-            );
+            throw new GitAuthenticationError(`Authentication required for ${repoUrl}`, error);
         }
         throw new VersionNotFoundError(
             `Failed to resolve version "${versionSpec}" for ${repoUrl}: ${error instanceof Error ? error.message : String(error)}`,
