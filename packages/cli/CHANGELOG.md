@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.14.3
+
+### Patch Changes
+
+- [#137](https://github.com/baton-dx/baton-dx/pull/137) [`1665fb1`](https://github.com/baton-dx/baton-dx/commit/1665fb1a2fb4032dceeb3e1bf4a77fb5fa3f401b) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix CLI hanging when git operations require authentication. Git commands now try non-interactive mode first and automatically retry with interactive prompts (browser OAuth, credential manager) when auth is needed.
+
 ## 0.14.2
 
 ### Patch Changes
