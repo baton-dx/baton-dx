@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import simpleGit from "simple-git";
-import { GitSourceError } from "../errors.js";
+import { GitAuthenticationError, GitSourceError } from "../errors.js";
+import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
 
 export interface CloneOptions {
     url: string;
@@ -11,6 +11,8 @@ export interface CloneOptions {
     subpath?: string;
     useCache?: boolean;
     maxCacheAgeMs?: number;
+    /** When true, allows interactive credential prompts (browser OAuth, terminal input). */
+    interactive?: boolean;
 }
 
 export interface ClonedSource {
@@ -44,7 +46,7 @@ function getCachePath(url: string, ref?: string): string {
  */
 async function isCacheValid(cachePath: string): Promise<boolean> {
     try {
-        const git = simpleGit(cachePath);
+        const git = createGit(cachePath);
         // Check if the directory is a valid git repository
         await git.checkIsRepo();
         return true;
@@ -79,12 +81,13 @@ async function isCacheStale(cachePath: string, maxAgeMs: number): Promise<boolea
  * Clones a Git repository with shallow clone and optional sparse checkout
  */
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
-    const { url, ref, subpath, useCache = true, maxCacheAgeMs } = options;
+    const { url, ref, subpath, useCache = true, maxCacheAgeMs, interactive } = options;
+    const makeGit = interactive ? createInteractiveGit : createGit;
 
     // Check cache first
     const cachePath = getCachePath(url, ref);
     if (useCache && (await isCacheValid(cachePath))) {
-        const git = simpleGit(cachePath);
+        const git = makeGit(cachePath);
         try {
             const stale =
                 maxCacheAgeMs !== undefined && (await isCacheStale(cachePath, maxCacheAgeMs));
@@ -139,7 +142,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
 
     // Reuse existing cache if valid: fetch + reset preserves sparse-checkout for other subpaths
     if (await isCacheValid(cachePath)) {
-        const cachedGit = simpleGit(cachePath);
+        const cachedGit = makeGit(cachePath);
         try {
             await cachedGit.fetch(["--depth=1", "origin"]);
             await cachedGit.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
@@ -182,7 +185,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         );
     }
 
-    const git = simpleGit();
+    const git = makeGit();
 
     try {
         // Clone with shallow depth
@@ -200,7 +203,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         }
 
         await git.clone(url, cachePath, cloneOptions);
-        const repoGit = simpleGit(cachePath);
+        const repoGit = makeGit(cachePath);
 
         // For SHA refs: fetch the specific commit then checkout
         if (isSha) {
@@ -231,6 +234,12 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
             sparseCheckout: !!subpath,
         };
     } catch (error) {
+        if (isAuthError(error)) {
+            throw new GitAuthenticationError(
+                `Authentication required for ${url}`,
+                error,
+            );
+        }
         throw new GitSourceError(
             `Failed to clone Git repository from ${url}: ${error instanceof Error ? error.message : String(error)}`,
             error,
@@ -246,6 +255,6 @@ export async function expandSparseCheckout(
     cachePath: string,
     additionalPaths: string[],
 ): Promise<void> {
-    const git = simpleGit(cachePath);
+    const git = createGit(cachePath);
     await git.raw(["sparse-checkout", "add", ...additionalPaths]);
 }

@@ -1,8 +1,10 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
+    type ClonedSource,
     cloneGitSource,
     detectInstalledAITools,
+    GitAuthenticationError,
     getAIToolAdaptersForKeys,
     getGlobalAiTools,
     getGlobalIdePlatforms,
@@ -96,12 +98,32 @@ export const diffCommand = defineCommand({
                             parsed.provider === "github" || parsed.provider === "gitlab"
                                 ? parsed.subpath
                                 : undefined;
-                        const cloned = await cloneGitSource({
-                            url,
-                            ref: profileSource.version || undefined,
-                            subpath,
-                            useCache: false, // Always fetch fresh for diff
-                        });
+                        let cloned: ClonedSource;
+                        try {
+                            cloned = await cloneGitSource({
+                                url,
+                                ref: profileSource.version || undefined,
+                                subpath,
+                                useCache: false, // Always fetch fresh for diff
+                            });
+                        } catch (cloneError) {
+                            if (cloneError instanceof GitAuthenticationError) {
+                                spinner.stop("Authentication required");
+                                p.log.info(
+                                    "Git credentials needed. Please complete authentication...",
+                                );
+                                cloned = await cloneGitSource({
+                                    url,
+                                    ref: profileSource.version || undefined,
+                                    subpath,
+                                    useCache: false,
+                                    interactive: true,
+                                });
+                                spinner.start("Resolving profile chain...");
+                            } else {
+                                throw cloneError;
+                            }
+                        }
                         localPath = cloned.localPath;
                         profileManifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                     }

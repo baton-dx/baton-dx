@@ -1,7 +1,7 @@
 import { maxSatisfying, valid } from "semver";
 import type { SimpleGit } from "simple-git";
-import { simpleGit } from "simple-git";
-import { VersionNotFoundError } from "../errors.js";
+import { GitAuthenticationError, VersionNotFoundError } from "../errors.js";
+import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
 
 /**
  * Resolves a version specification to a specific Git ref (commit SHA, tag, or branch).
@@ -17,8 +17,12 @@ import { VersionNotFoundError } from "../errors.js";
  * @param versionSpec - The version specification to resolve (default: "latest")
  * @returns The resolved Git ref (commit SHA)
  */
-export async function resolveVersion(repoUrl: string, versionSpec = "latest"): Promise<string> {
-    const git: SimpleGit = simpleGit();
+export async function resolveVersion(
+    repoUrl: string,
+    versionSpec = "latest",
+    options?: { interactive?: boolean },
+): Promise<string> {
+    const git: SimpleGit = options?.interactive ? createInteractiveGit() : createGit();
 
     try {
         // Fetch all refs from remote without cloning
@@ -114,6 +118,12 @@ export async function resolveVersion(repoUrl: string, versionSpec = "latest"): P
     } catch (error) {
         if (error instanceof VersionNotFoundError) {
             throw error;
+        }
+        if (isAuthError(error)) {
+            throw new GitAuthenticationError(
+                `Authentication required for ${repoUrl}`,
+                error,
+            );
         }
         throw new VersionNotFoundError(
             `Failed to resolve version "${versionSpec}" for ${repoUrl}: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,19 +1,23 @@
-import * as simpleGitModule from "simple-git";
+import type { SimpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VersionNotFoundError } from "../errors.js";
+import { GitAuthenticationError, VersionNotFoundError } from "../errors.js";
+import * as gitUtils from "./git-utils.js";
 import { resolveVersion } from "./version-resolver.js";
 
-// Mock simple-git
-vi.mock("simple-git");
+// Mock git-utils
+vi.mock("./git-utils.js");
 
 describe("resolveVersion", () => {
     let mockListRemote: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         mockListRemote = vi.fn();
-        vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+        const mockGit = {
             listRemote: mockListRemote,
-        } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
     });
 
     afterEach(() => {
@@ -252,6 +256,28 @@ def1234567890abc1234567890def12345678abcd refs/tags/v2.0.0
             await expect(
                 resolveVersion("https://github.com/org/invalid.git", "latest"),
             ).rejects.toThrow(VersionNotFoundError);
+        });
+
+        it("should throw GitAuthenticationError on auth failure", async () => {
+            mockListRemote.mockRejectedValueOnce(new Error("terminal prompts disabled"));
+            vi.mocked(gitUtils.isAuthError).mockReturnValue(true);
+
+            await expect(
+                resolveVersion("https://github.com/org/private-repo.git", "latest"),
+            ).rejects.toThrow(GitAuthenticationError);
+        });
+
+        it("should use interactive git when options.interactive is true", async () => {
+            mockListRemote.mockResolvedValueOnce(
+                "abc1234567890def1234567890abcdef12345678 refs/heads/main",
+            );
+
+            await resolveVersion("https://github.com/org/repo.git", "latest", {
+                interactive: true,
+            });
+
+            expect(gitUtils.createInteractiveGit).toHaveBeenCalled();
+            expect(gitUtils.createGit).not.toHaveBeenCalled();
         });
     });
 });

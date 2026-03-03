@@ -1,5 +1,11 @@
 import { resolve } from "node:path";
-import { cloneGitSource, discoverProfilesInSourceRepo, parseSource } from "@baton-dx/core";
+import {
+    type ClonedSource,
+    cloneGitSource,
+    discoverProfilesInSourceRepo,
+    GitAuthenticationError,
+    parseSource,
+} from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { cascadingMultiselect } from "./cascading-multiselect.js";
 import { buildHierarchicalSelectOptions, buildProfileTree } from "./profile-tree.js";
@@ -31,12 +37,29 @@ export async function selectMultipleProfilesFromSource(
         spinner.start("Cloning repository to discover profiles...");
 
         try {
-            const cloned = await cloneGitSource({
-                url: parsedSource.url,
-                ref: parsedSource.ref,
-                useCache: true,
-                maxCacheAgeMs: 0,
-            });
+            let cloned: ClonedSource;
+            try {
+                cloned = await cloneGitSource({
+                    url: parsedSource.url,
+                    ref: parsedSource.ref,
+                    useCache: true,
+                    maxCacheAgeMs: 0,
+                });
+            } catch (authError) {
+                if (authError instanceof GitAuthenticationError) {
+                    spinner.stop("Authentication required");
+                    p.log.info("Git credentials needed. Please complete authentication...");
+                    cloned = await cloneGitSource({
+                        url: parsedSource.url,
+                        ref: parsedSource.ref,
+                        useCache: true,
+                        maxCacheAgeMs: 0,
+                        interactive: true,
+                    });
+                } else {
+                    throw authError;
+                }
+            }
 
             spinner.stop("✅ Repository cloned");
 

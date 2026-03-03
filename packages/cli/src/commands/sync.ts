@@ -9,9 +9,11 @@ import {
     checkLockfileVersion,
     checkStale,
     cloneGitSource,
+    createGit,
     detectInstalledAITools,
     detectLegacyPaths,
     FileNotFoundError,
+    GitAuthenticationError,
     getAIToolAdaptersForKeys,
     getIdePlatformTargetDir,
     getProfileWeight,
@@ -52,7 +54,6 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
-import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
@@ -249,7 +250,7 @@ export const syncCommand = defineCommand({
                         manifestPath = resolve(absolutePath, "baton.profile.yaml");
                         // Try to get SHA from local git repo, fallback to "local"
                         try {
-                            const git = simpleGit(absolutePath);
+                            const git = createGit(absolutePath);
                             await git.checkIsRepo();
                             const sha = await git.revparse(["HEAD"]);
                             sourceShas.set(profileSource.source, sha.trim());
@@ -280,6 +281,7 @@ export const syncCommand = defineCommand({
 
                         // Always resolve to latest version
                         let resolvedRef: string;
+                        let interactive = false;
                         try {
                             resolvedRef = await resolveVersion(url, "latest");
                             if (verbose) {
@@ -287,22 +289,55 @@ export const syncCommand = defineCommand({
                                     `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
                                 );
                             }
-                        } catch {
-                            // Fallback to profileSource.version if resolution fails
-                            resolvedRef = profileSource.version || "HEAD";
-                            if (verbose) {
-                                p.log.warn(
-                                    `Could not resolve latest for ${url}, using ${resolvedRef}`,
+                        } catch (resolveError) {
+                            if (resolveError instanceof GitAuthenticationError) {
+                                spinner.stop("Authentication required");
+                                p.log.info(
+                                    "Git credentials needed. Please complete authentication...",
                                 );
+                                resolvedRef = await resolveVersion(url, "latest", {
+                                    interactive: true,
+                                });
+                                interactive = true;
+                                spinner.start("Resolving profile chain...");
+                            } else {
+                                // Fallback to profileSource.version if resolution fails
+                                resolvedRef = profileSource.version || "HEAD";
+                                if (verbose) {
+                                    p.log.warn(
+                                        `Could not resolve latest for ${url}, using ${resolvedRef}`,
+                                    );
+                                }
                             }
                         }
 
-                        const cloned = await cloneGitSource({
-                            url,
-                            ref: resolvedRef,
-                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                            useCache: false,
-                        });
+                        let cloned: Awaited<ReturnType<typeof cloneGitSource>>;
+                        try {
+                            cloned = await cloneGitSource({
+                                url,
+                                ref: resolvedRef,
+                                subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                                useCache: false,
+                                interactive,
+                            });
+                        } catch (cloneError) {
+                            if (cloneError instanceof GitAuthenticationError && !interactive) {
+                                spinner.stop("Authentication required");
+                                p.log.info(
+                                    "Git credentials needed. Please complete authentication...",
+                                );
+                                cloned = await cloneGitSource({
+                                    url,
+                                    ref: resolvedRef,
+                                    subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                                    useCache: false,
+                                    interactive: true,
+                                });
+                                spinner.start("Resolving profile chain...");
+                            } else {
+                                throw cloneError;
+                            }
+                        }
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);
                         cloneContext = {

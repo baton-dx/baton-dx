@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 import { rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import * as simpleGitModule from "simple-git";
+import type { SimpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GitSourceError } from "../errors.js";
+import { GitAuthenticationError, GitSourceError } from "../errors.js";
 import { cloneGitSource, expandSparseCheckout } from "./git-clone.js";
+import * as gitUtils from "./git-utils.js";
 
 vi.mock("node:fs/promises", async (importOriginal) => ({
     ...(await importOriginal<typeof import("node:fs/promises")>()),
@@ -147,17 +148,17 @@ describe.skip("cache management", () => {
     }, 30000);
 });
 
-// Unit tests with mocked simpleGit
-vi.mock("simple-git");
+// Unit tests with mocked git-utils
+vi.mock("./git-utils.js");
 
 describe("expandSparseCheckout", () => {
     let mockRaw: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         mockRaw = vi.fn().mockResolvedValue("");
-        vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+        vi.mocked(gitUtils.createGit).mockReturnValue({
             raw: mockRaw,
-        } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+        } as unknown as SimpleGit);
     });
 
     afterEach(() => {
@@ -167,7 +168,7 @@ describe("expandSparseCheckout", () => {
     it("calls git sparse-checkout add with additional paths", async () => {
         await expandSparseCheckout("/cache/abc123", ["profiles/base", "profiles/team"]);
 
-        expect(simpleGitModule.simpleGit).toHaveBeenCalledWith("/cache/abc123");
+        expect(gitUtils.createGit).toHaveBeenCalledWith("/cache/abc123");
         expect(mockRaw).toHaveBeenCalledWith([
             "sparse-checkout",
             "add",
@@ -202,14 +203,17 @@ describe("ClonedSource interface fields", () => {
         mockRaw = vi.fn().mockResolvedValue("");
         mockCheckout = vi.fn().mockResolvedValue(undefined);
 
-        vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+        const mockGit = {
             checkIsRepo: mockCheckIsRepo,
             pull: mockPull,
             revparse: mockRevparse,
             clone: mockClone,
             raw: mockRaw,
             checkout: mockCheckout,
-        } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
     });
 
     afterEach(() => {
@@ -267,6 +271,22 @@ describe("ClonedSource interface fields", () => {
         expect(result.sparseCheckout).toBe(true);
         expect(result.fromCache).toBe(false);
     });
+
+    it("throws GitAuthenticationError when clone fails with auth error", async () => {
+        // First two calls: isCacheValid → checkIsRepo throws (no cache)
+        mockCheckIsRepo.mockRejectedValueOnce(new Error("not a git repo"));
+        mockCheckIsRepo.mockRejectedValueOnce(new Error("not a git repo"));
+
+        mockClone.mockRejectedValueOnce(new Error("terminal prompts disabled"));
+        vi.mocked(gitUtils.isAuthError).mockReturnValue(true);
+
+        await expect(
+            cloneGitSource({
+                url: "https://example.com/private-repo.git",
+                useCache: false,
+            }),
+        ).rejects.toThrow(GitAuthenticationError);
+    });
 });
 
 describe("cache staleness", () => {
@@ -284,13 +304,16 @@ describe("cache staleness", () => {
         mockRaw = vi.fn().mockResolvedValue("");
         mockRevparse = vi.fn().mockResolvedValue("abc123def456abc123def456abc123def456abc123");
 
-        vi.mocked(simpleGitModule.simpleGit).mockReturnValue({
+        const mockGit = {
             checkIsRepo: mockCheckIsRepo,
             pull: mockPull,
             fetch: mockFetch,
             raw: mockRaw,
             revparse: mockRevparse,
-        } as unknown as ReturnType<typeof simpleGitModule.simpleGit>);
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
     });
 
     afterEach(() => {
