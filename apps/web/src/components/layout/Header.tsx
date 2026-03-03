@@ -7,8 +7,8 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 font-semibold text-foreground">
-          <BatonLogo className="h-7 w-7" />
-          <span className="text-[15px] tracking-tight">Baton DX</span>
+          <img src="/baton-dx_Logo.svg" alt="Baton" className="h-7 w-auto" />
+          <span className="text-[15px] tracking-tight">Baton</span>
         </Link>
 
         {/* Nav */}
@@ -38,25 +38,5 @@ export function Header() {
         </Link>
       </div>
     </header>
-  );
-}
-
-function BatonLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <rect width="32" height="32" rx="8" fill="currentColor" className="text-brand-600" />
-      <path
-        d="M8 8h6a5 5 0 0 1 0 10H8V8Zm0 10h7a5 5 0 0 1 0 10H8V18Z"
-        fill="white"
-        fillRule="evenodd"
-        clipRule="evenodd"
-      />
-    </svg>
   );
 }

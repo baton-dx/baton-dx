@@ -2,17 +2,17 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-brand-50: oklch(0.97 0.01 260);
-  --color-brand-100: oklch(0.94 0.03 260);
-  --color-brand-200: oklch(0.88 0.06 260);
-  --color-brand-300: oklch(0.79 0.1 260);
-  --color-brand-400: oklch(0.68 0.15 260);
-  --color-brand-500: oklch(0.58 0.19 260);
-  --color-brand-600: oklch(0.49 0.2 260);
-  --color-brand-700: oklch(0.41 0.18 260);
-  --color-brand-800: oklch(0.34 0.14 260);
-  --color-brand-900: oklch(0.28 0.1 260);
-  --color-brand-950: oklch(0.18 0.07 260);
+  --color-brand-50:  oklch(0.97 0.01 18);
+  --color-brand-100: oklch(0.93 0.04 18);
+  --color-brand-200: oklch(0.86 0.08 18);
+  --color-brand-300: oklch(0.77 0.15 18);
+  --color-brand-400: oklch(0.69 0.22 18);
+  --color-brand-500: oklch(0.63 0.29 18);
+  --color-brand-600: oklch(0.55 0.25 18);
+  --color-brand-700: oklch(0.47 0.21 18);
+  --color-brand-800: oklch(0.38 0.16 18);
+  --color-brand-900: oklch(0.30 0.11 18);
+  --color-brand-950: oklch(0.21 0.07 18);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -22,10 +22,10 @@
 
 :root {
   --background: oklch(1 0 0);
-  --foreground: oklch(0.14 0.02 260);
-  --muted: oklch(0.96 0.005 260);
-  --muted-foreground: oklch(0.55 0.02 260);
-  --border: oklch(0.91 0.01 260);
+  --foreground: oklch(0.14 0.02 18);
+  --muted: oklch(0.96 0.005 18);
+  --muted-foreground: oklch(0.55 0.02 18);
+  --border: oklch(0.91 0.01 18);
   --ring: var(--color-brand-500);
 }
 
@@ -40,4 +40,19 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Tailwind Typography defaults for code blocks — our CodeBlock component
+   provides its own container styling (bg, padding, border, rounded corners). */
+.prose pre {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.prose pre code {
+  background: transparent !important;
+  padding: 0 !important;
 }
