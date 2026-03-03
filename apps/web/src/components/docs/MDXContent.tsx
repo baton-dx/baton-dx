@@ -115,9 +115,10 @@ export async function MDXContent({ content }: MDXContentProps) {
               // Code blocks
               // biome-ignore lint/suspicious/noExplicitAny: react-markdown passes children as any
               code({ node: _node, className, children, ...props }: any) {
-                const lang = className?.replace("language-", "") ?? "text";
                 const codeStr = String(children).replace(/\n$/, "");
-                if (!className) {
+
+                // Inline code: no language class AND single-line
+                if (!className && !codeStr.includes("\n")) {
                   return (
                     <code
                       className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground"
@@ -127,6 +128,8 @@ export async function MDXContent({ content }: MDXContentProps) {
                     </code>
                   );
                 }
+
+                const lang = className?.replace("language-", "") ?? "text";
                 return <CodeBlock code={codeStr} lang={lang} />;
               },
 

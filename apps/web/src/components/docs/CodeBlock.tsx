@@ -31,11 +31,14 @@ interface CodeBlockProps {
   filename?: string;
 }
 
+const PLAIN_LANGS = new Set(["text", "plaintext", "txt", "plain"]);
+
 export async function CodeBlock({ code, lang = "bash", filename }: CodeBlockProps) {
-  const { tokens } = await codeToTokens(code, {
-    lang: lang as BundledLanguage,
-    theme: "github-light",
-  });
+  const isPlain = PLAIN_LANGS.has(lang);
+
+  const tokens = isPlain
+    ? null
+    : (await codeToTokens(code, { lang: lang as BundledLanguage, theme: "github-light" })).tokens;
 
   const label = filename ?? LANG_LABELS[lang] ?? lang;
 
@@ -48,21 +51,24 @@ export async function CodeBlock({ code, lang = "bash", filename }: CodeBlockProp
       <div className="bg-muted/30 p-5">
         <pre className="overflow-x-auto text-sm leading-6">
           <code>
-            {tokens.map((line, lineIdx) => (
-              <span key={lineIdx} className="block">
-                {line.map((token, tokenIdx) => (
-                  <span
-                    key={tokenIdx}
-                    style={{
-                      color: token.color,
-                      fontStyle: token.fontStyle ? "italic" : undefined,
-                    }}
-                  >
-                    {token.content}
+            {tokens
+              ? tokens.map((line, lineIdx) => (
+                  <span key={lineIdx} className="block">
+                    {line.map((token, tokenIdx) => (
+                      <span
+                        key={tokenIdx}
+                        style={{
+                          color: token.color,
+                          fontStyle: token.fontStyle ? "italic" : undefined,
+                        }}
+                      >
+                        {token.content}
+                      </span>
+                    ))}
                   </span>
-                ))}
-              </span>
-            ))}
+                ))
+              : <span style={{ color: 'var(--foreground)' }}>{code}</span>
+            }
           </code>
         </pre>
       </div>
