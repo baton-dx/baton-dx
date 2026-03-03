@@ -37,6 +37,19 @@ export class GitSourceError extends BatonError {
 }
 
 /**
+ * Thrown when a Git operation fails due to missing or invalid credentials.
+ * Indicates that the user needs to authenticate (e.g., browser OAuth, credential manager).
+ */
+export class GitAuthenticationError extends GitSourceError {
+    override readonly code = "GIT_AUTHENTICATION_ERROR";
+
+    constructor(message: string, cause?: unknown) {
+        super(message, cause);
+        this.name = "GitAuthenticationError";
+    }
+}
+
+/**
  * Thrown when a requested version is not found
  */
 export class VersionNotFoundError extends BatonError {

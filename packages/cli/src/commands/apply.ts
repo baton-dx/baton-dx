@@ -8,9 +8,11 @@ import {
     type CloneContext,
     checkLockfileVersion,
     cloneGitSource,
+    createGit,
     detectInstalledAITools,
     detectLegacyPaths,
     FileNotFoundError,
+    GitAuthenticationError,
     getAIToolAdaptersForKeys,
     getIdePlatformTargetDir,
     getProfileWeight,
@@ -45,7 +47,6 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
-import simpleGit from "simple-git";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
@@ -238,7 +239,7 @@ export const applyCommand = defineCommand({
                         manifestPath = resolve(absolutePath, "baton.profile.yaml");
                         // Try to get SHA from local git repo, fallback to "local"
                         try {
-                            const git = simpleGit(absolutePath);
+                            const git = createGit(absolutePath);
                             await git.checkIsRepo();
                             const sha = await git.revparse(["HEAD"]);
                             sourceShas.set(profileSource.source, sha.trim());
@@ -276,13 +277,34 @@ export const applyCommand = defineCommand({
                             }
                         }
 
-                        const cloned = await cloneGitSource({
-                            url,
-                            ref,
-                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                            useCache: true,
-                            maxCacheAgeMs,
-                        });
+                        let cloned: Awaited<ReturnType<typeof cloneGitSource>>;
+                        try {
+                            cloned = await cloneGitSource({
+                                url,
+                                ref,
+                                subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                                useCache: true,
+                                maxCacheAgeMs,
+                            });
+                        } catch (cloneError) {
+                            if (cloneError instanceof GitAuthenticationError) {
+                                spinner.stop("Authentication required");
+                                p.log.info(
+                                    "Git credentials needed. Please complete authentication...",
+                                );
+                                cloned = await cloneGitSource({
+                                    url,
+                                    ref,
+                                    subpath: "subpath" in parsed ? parsed.subpath : undefined,
+                                    useCache: true,
+                                    maxCacheAgeMs,
+                                    interactive: true,
+                                });
+                                spinner.start("Resolving profile chain...");
+                            } else {
+                                throw cloneError;
+                            }
+                        }
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);
                         cloneContext = {

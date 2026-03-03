@@ -75,6 +75,7 @@ export {
     BatonError,
     CircularInheritanceError,
     FileNotFoundError,
+    GitAuthenticationError,
     GitNotInstalledError,
     GitSourceError,
     ManifestValidationError,
@@ -268,6 +269,8 @@ export {
     cloneGitSource,
     expandSparseCheckout,
 } from "./sources/git-clone.js";
+// Export Git utilities
+export { createGit, createInteractiveGit, isAuthError } from "./sources/git-utils.js";
 // Export GitHub resolver
 export {
     type GitHubResolverOptions,
