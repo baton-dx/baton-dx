@@ -222,9 +222,17 @@ export {
 } from "./preferences/index.js";
 export type { GlobalSourceEntry } from "./schemas/global-config.js";
 // Export types used by CLI
-export type { FileMetadata, LockFile, LockfileConfigType } from "./schemas/lockfile.js";
+export type {
+  FileMetadata,
+  LockFile,
+  LockfileConfigType,
+} from "./schemas/lockfile.js";
 export { lockfileSchema } from "./schemas/lockfile.js";
-export type { McpServer, McpTransport, MemoryItem } from "./schemas/profile-manifest.js";
+export type {
+  McpServer,
+  McpTransport,
+  MemoryItem,
+} from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
 export {
   KEBAB_CASE_REGEX,
@@ -233,7 +241,10 @@ export {
 } from "./schemas/profile-manifest.js";
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
-export { sourceManifestSchema, weightSchema } from "./schemas/source-manifest.js";
+export {
+  sourceManifestSchema,
+  weightSchema,
+} from "./schemas/source-manifest.js";
 // Export self-update utilities
 export {
   checkLatestVersion,

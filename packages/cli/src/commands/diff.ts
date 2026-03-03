@@ -16,9 +16,9 @@ import {
   loadProjectManifest,
   mergeContentParts,
   mergeMemory,
-  normalizeMarkdown,
   mergeRules,
   mergeSkills,
+  normalizeMarkdown,
   parseFrontmatter,
   parseSource,
   resolveNpmSource,
@@ -155,14 +155,23 @@ export const diffCommand = defineCommand({
       for (const profile of allProfiles) {
         for (const fileConfig of profile.manifest.files || []) {
           const target = fileConfig.target || fileConfig.source;
-          fileMap.set(target, { source: fileConfig.source, target, profileName: profile.name });
+          fileMap.set(target, {
+            source: fileConfig.source,
+            target,
+            profileName: profile.name,
+          });
         }
       }
 
       // Collect IDE configs (uses central IDE platform registry)
       const ideMap = new Map<
         string,
-        { ideKey: string; fileName: string; targetDir: string; profileName: string }
+        {
+          ideKey: string;
+          fileName: string;
+          targetDir: string;
+          profileName: string;
+        }
       >();
       for (const profile of allProfiles) {
         if (!profile.manifest.ide) continue;
@@ -172,7 +181,12 @@ export const diffCommand = defineCommand({
           if (!targetDir) continue;
           for (const fileName of files) {
             const targetPath = `${targetDir}/${fileName}`;
-            ideMap.set(targetPath, { ideKey, fileName, targetDir, profileName: profile.name });
+            ideMap.set(targetPath, {
+              ideKey,
+              fileName,
+              targetDir,
+              profileName: profile.name,
+            });
           }
         }
       }

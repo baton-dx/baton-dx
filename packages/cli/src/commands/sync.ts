@@ -32,8 +32,8 @@ import {
   mergeMcpWithWarnings,
   mergeMemoryWithWarnings,
   mergeRulesWithWarnings,
-  normalizeMarkdown,
   mergeSkillsWithWarnings,
+  normalizeMarkdown,
   parseFrontmatter,
   parseSource,
   placeFile,
@@ -404,7 +404,11 @@ export const syncCommand = defineCommand({
             });
           }
 
-          fileMap.set(target, { source: fileConfig.source, target, profileName: profile.name });
+          fileMap.set(target, {
+            source: fileConfig.source,
+            target,
+            profileName: profile.name,
+          });
           fileOwner.set(target, { profileName: profile.name, weight });
           if (locked) lockedFiles.add(target);
         }
@@ -416,7 +420,12 @@ export const syncCommand = defineCommand({
       // Respects weight lock: IDE configs from weight -1 profiles cannot be overridden
       const ideMap = new Map<
         string,
-        { ideKey: string; fileName: string; targetDir: string; profileName: string }
+        {
+          ideKey: string;
+          fileName: string;
+          targetDir: string;
+          profileName: string;
+        }
       >();
       const lockedIdeConfigs = new Set<string>();
       const ideOwner = new Map<string, { profileName: string; weight: number }>();
@@ -450,7 +459,12 @@ export const syncCommand = defineCommand({
               });
             }
 
-            ideMap.set(targetPath, { ideKey, fileName, targetDir, profileName: profile.name });
+            ideMap.set(targetPath, {
+              ideKey,
+              fileName,
+              targetDir,
+              profileName: profile.name,
+            });
             ideOwner.set(targetPath, { profileName: profile.name, weight });
             if (locked) lockedIdeConfigs.add(targetPath);
           }
@@ -499,7 +513,10 @@ export const syncCommand = defineCommand({
       let allIntersections: Map<string, import("@baton-dx/core").IntersectionResult> | null = null;
 
       if (prefs.ai.tools.length > 0) {
-        const developerTools = { aiTools: prefs.ai.tools, idePlatforms: prefs.ide.platforms };
+        const developerTools = {
+          aiTools: prefs.ai.tools,
+          idePlatforms: prefs.ide.platforms,
+        };
         const aggregatedSyncedAi = new Set<string>();
         const aggregatedSyncedIde = new Set<string>();
         allIntersections = new Map();
@@ -815,9 +832,15 @@ export const syncCommand = defineCommand({
               if (!profileFiles[canonicalKey]) {
                 try {
                   const entryContent = await readFile(resolve(skillSourceDir, "index.md"), "utf-8");
-                  profileFiles[canonicalKey] = { content: entryContent, type: "skills" };
+                  profileFiles[canonicalKey] = {
+                    content: entryContent,
+                    type: "skills",
+                  };
                 } catch {
-                  profileFiles[canonicalKey] = { content: skillItem.name, type: "skills" };
+                  profileFiles[canonicalKey] = {
+                    content: skillItem.name,
+                    type: "skills",
+                  };
                 }
               }
 
@@ -1126,7 +1149,10 @@ export const syncCommand = defineCommand({
                 }
 
                 if (verbose) {
-                  stats.details.push({ path: cmdRelPath, action: result.action });
+                  stats.details.push({
+                    path: cmdRelPath,
+                    action: result.action,
+                  });
                   const label = result.action === "skipped" ? "unchanged, skipped" : result.action;
                   p.log.info(`  -> ${result.path} (${label})`);
                 }
@@ -1278,7 +1304,10 @@ export const syncCommand = defineCommand({
             else stats.skipped++;
 
             if (verbose) {
-              stats.details.push({ path: fileEntry.target, action: fileAction });
+              stats.details.push({
+                path: fileEntry.target,
+                action: fileAction,
+              });
               const label = fileAction === "skipped" ? "unchanged, skipped" : fileAction;
               p.log.info(`  -> ${fileEntry.target} (${label})`);
             }
