@@ -48,5 +48,20 @@ export function withTokenAuth(git: SimpleGit, url: string, token: string): Simpl
 
 /** Strips embedded credentials from a URL for safe logging. */
 export function redactUrl(url: string): string {
-    return url.replace(/:\/\/[^@]+@/, "://***@");
+    try {
+        const parsed = new URL(url);
+        if (parsed.username || parsed.password) {
+            parsed.username = "***";
+            parsed.password = "";
+            return parsed.toString();
+        }
+        return url;
+    } catch {
+        // Not a valid URL — strip with a non-backtracking pattern
+        const idx = url.indexOf("://");
+        if (idx === -1) return url;
+        const afterScheme = url.indexOf("@", idx + 3);
+        if (afterScheme === -1) return url;
+        return `${url.slice(0, idx + 3)}***${url.slice(afterScheme)}`;
+    }
 }

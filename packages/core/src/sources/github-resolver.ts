@@ -115,8 +115,12 @@ function extractHostname(url: string): string {
             return new URL(url).hostname;
         }
         // git@github.com:org/repo.git
-        const match = url.match(/@([^:]+):/);
-        return match?.[1] ?? "github.com";
+        const atIdx = url.indexOf("@");
+        const colonIdx = atIdx !== -1 ? url.indexOf(":", atIdx + 1) : -1;
+        if (atIdx !== -1 && colonIdx !== -1) {
+            return url.slice(atIdx + 1, colonIdx);
+        }
+        return "github.com";
     } catch {
         return "github.com";
     }
