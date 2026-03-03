@@ -102,10 +102,7 @@ describe("detectInstallMethod", () => {
     it("detects yarn from /yarn/ path", async () => {
         vi.stubGlobal("process", {
             ...process,
-            argv: [
-                process.argv[0],
-                "/home/user/.config/yarn/global/node_modules/.bin/baton",
-            ],
+            argv: [process.argv[0], "/home/user/.config/yarn/global/node_modules/.bin/baton"],
         });
 
         const result = await detectInstallMethod();
@@ -157,9 +154,7 @@ describe("detectInstallMethod", () => {
             argv: [process.argv[0], "/usr/local/bin/baton"],
         });
 
-        mockRealpath.mockResolvedValue(
-            "/usr/local/lib/node_modules/@baton-dx/cli/dist/index.mjs",
-        );
+        mockRealpath.mockResolvedValue("/usr/local/lib/node_modules/@baton-dx/cli/dist/index.mjs");
 
         const result = await detectInstallMethod();
         expect(result.type).toBe("npm");

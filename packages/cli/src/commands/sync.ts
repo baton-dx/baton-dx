@@ -290,12 +290,12 @@ export const syncCommand = defineCommand({
                             );
                             continue;
                         }
-                        const authedUrl = await getAuthenticatedUrl(url, auth);
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
 
                         // Always resolve to latest version
                         let resolvedRef: string;
                         try {
-                            resolvedRef = await resolveVersion(authedUrl, "latest");
+                            resolvedRef = await resolveVersion(cloneUrl, "latest", auth.token);
                             if (verbose) {
                                 p.log.info(
                                     `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
@@ -312,10 +312,11 @@ export const syncCommand = defineCommand({
                         }
 
                         const cloned = await cloneGitSource({
-                            url: authedUrl,
+                            url: cloneUrl,
                             ref: resolvedRef,
                             subpath: "subpath" in parsed ? parsed.subpath : undefined,
                             useCache: false,
+                            authToken: auth.token,
                         });
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);

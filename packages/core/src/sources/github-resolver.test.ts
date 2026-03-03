@@ -42,6 +42,7 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: undefined,
                 useCache: true,
+                authToken: undefined,
             });
         });
 
@@ -70,12 +71,13 @@ describe("GitHub Resolver", () => {
                 sha: "xyz789abc123",
             });
 
-            // Verify URL was enhanced with token
+            // Verify token is passed via authToken (not embedded in URL)
             expect(cloneSpy).toHaveBeenCalledWith({
-                url: "https://ghp_test_token_123@github.com/baton/private-repo.git",
+                url: "https://github.com/baton/private-repo.git",
                 ref: undefined,
                 subpath: undefined,
                 useCache: true,
+                authToken: "ghp_test_token_123",
             });
         });
 
@@ -104,6 +106,7 @@ describe("GitHub Resolver", () => {
                 ref: "v2.0",
                 subpath: undefined,
                 useCache: true,
+                authToken: undefined,
             });
         });
 
@@ -132,6 +135,7 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: "frontend",
                 useCache: true,
+                authToken: undefined,
             });
         });
 
@@ -154,6 +158,7 @@ describe("GitHub Resolver", () => {
                 ref: undefined,
                 subpath: undefined,
                 useCache: false,
+                authToken: undefined,
             });
         });
 
@@ -247,7 +252,7 @@ describe("GitHub Resolver", () => {
             );
         });
 
-        it("should inject token from gh-cli into URL", async () => {
+        it("should pass gh-cli token via authToken (not in URL)", async () => {
             vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
                 method: "gh-cli",
                 token: "gho_cli_token",
@@ -266,9 +271,11 @@ describe("GitHub Resolver", () => {
 
             await resolveGitHubSource({ source });
 
+            // Token must NOT appear in URL — it's passed via authToken
             expect(cloneSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    url: "https://gho_cli_token@github.com/org/repo.git",
+                    url: "https://github.com/org/repo.git",
+                    authToken: "gho_cli_token",
                 }),
             );
         });
@@ -292,6 +299,7 @@ describe("GitHub Resolver", () => {
             expect(cloneSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: "https://github.com/org/repo.git",
+                    authToken: undefined,
                 }),
             );
         });

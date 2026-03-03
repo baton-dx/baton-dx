@@ -2,4 +2,4 @@
 "@baton-dx/cli": patch
 ---
 
-Fix CLI hanging when git operations require authentication. Git commands now try non-interactive mode first and automatically retry with interactive prompts (browser OAuth, credential manager) when auth is needed.
+Fix CLI hanging when git operations require authentication. Baton now resolves credentials automatically via an auth cascade (environment variables → SSH keys → GitHub CLI → git credential helper) and shows a clear error with setup instructions when no auth is found. Git operations never prompt interactively.

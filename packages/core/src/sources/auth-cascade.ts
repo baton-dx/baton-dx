@@ -39,7 +39,16 @@ export function clearAuthCache(): void {
     sessionCache.clear();
 }
 
+/** Validates hostname to prevent injection via newlines or shell metacharacters. */
+function isValidHostname(hostname: string): boolean {
+    return /^[a-zA-Z0-9.-]+$/.test(hostname) && hostname.length > 0 && hostname.length <= 253;
+}
+
 async function runCascade(hostname: string): Promise<AuthResult> {
+    if (!isValidHostname(hostname)) {
+        return { method: "none" };
+    }
+
     // 1. Environment variables
     const envToken =
         process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.BATON_GIT_TOKEN;
@@ -91,6 +100,7 @@ async function hasSSHKeys(): Promise<boolean> {
 
 /**
  * Verifies SSH connectivity to a host.
+ * Uses ephemeral known_hosts to avoid silently persisting untrusted host keys.
  * GitHub returns exit code 1 on success with "successfully authenticated".
  */
 async function sshConnectivityCheck(hostname: string): Promise<boolean> {
@@ -100,9 +110,13 @@ async function sshConnectivityCheck(hostname: string): Promise<boolean> {
             [
                 "-T",
                 "-o",
-                "StrictHostKeyChecking=accept-new",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
                 "-o",
                 "ConnectTimeout=5",
+                "-o",
+                "LogLevel=ERROR",
                 `git@${hostname}`,
             ],
             10_000,
@@ -171,18 +185,33 @@ function execWithTimeout(
     stdinData?: string,
 ): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
-        const child = execFile(cmd, args, { timeout: timeoutMs }, (error, stdout, stderr) => {
-            if (error && "killed" in error && error.killed) {
-                reject(new Error(`${cmd} timed out after ${timeoutMs}ms`));
-                return;
-            }
+        let settled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+
+        const child = execFile(cmd, args, {}, (error, stdout, stderr) => {
+            if (timer) clearTimeout(timer);
+            if (settled) return;
+            settled = true;
             resolve({
                 stdout: stdout ?? "",
                 stderr: stderr ?? "",
                 exitCode: error?.code ? Number(error.code) : error ? 1 : 0,
             });
         });
+
+        if (!settled) {
+            timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                child.kill("SIGKILL");
+                reject(new Error(`${cmd} timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+        }
+
         if (stdinData && child.stdin) {
+            if (typeof child.stdin.on === "function") {
+                child.stdin.on("error", () => {}); // suppress EPIPE if child exits early
+            }
             child.stdin.write(stdinData);
             child.stdin.end();
         }

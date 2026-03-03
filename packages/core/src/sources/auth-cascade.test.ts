@@ -10,13 +10,13 @@ vi.mock("node:fs/promises", () => ({
 
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
-import {
-    clearAuthCache,
-    getAuthSetupInstructions,
-    resolveAuth,
-} from "./auth-cascade.js";
+import { clearAuthCache, getAuthSetupInstructions, resolveAuth } from "./auth-cascade.js";
 
-type ExecCallback = (error: (Error & { code?: number; killed?: boolean }) | null, stdout: string, stderr: string) => void;
+type ExecCallback = (
+    error: (Error & { code?: number; killed?: boolean }) | null,
+    stdout: string,
+    stderr: string,
+) => void;
 
 const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
 const mockAccess = access as unknown as ReturnType<typeof vi.fn>;
@@ -100,7 +100,11 @@ describe("resolveAuth", () => {
             (cmd: string, args: string[], _opts: unknown, cb?: ExecCallback) => {
                 const callback = typeof _opts === "function" ? (_opts as ExecCallback) : cb;
                 if (cmd === "ssh") {
-                    callback?.(Object.assign(new Error("refused"), { code: 255 }), "", "Connection refused");
+                    callback?.(
+                        Object.assign(new Error("refused"), { code: 255 }),
+                        "",
+                        "Connection refused",
+                    );
                 } else if (cmd === "gh" && args[0] === "auth") {
                     callback?.(null, "ghp_from_gh_cli\n", "");
                 } else {
@@ -136,7 +140,11 @@ describe("resolveAuth", () => {
             (cmd: string, args: string[], _opts: unknown, cb?: ExecCallback) => {
                 const callback = typeof _opts === "function" ? (_opts as ExecCallback) : cb;
                 if (cmd === "git" && args[0] === "credential") {
-                    callback?.(null, "protocol=https\nhost=gitlab.com\nusername=user\npassword=cred_token\n", "");
+                    callback?.(
+                        null,
+                        "protocol=https\nhost=gitlab.com\nusername=user\npassword=cred_token\n",
+                        "",
+                    );
                 } else {
                     callback?.(Object.assign(new Error("not found"), { code: 127 }), "", "");
                 }
@@ -153,7 +161,11 @@ describe("resolveAuth", () => {
             (cmd: string, args: string[], _opts: unknown, cb?: ExecCallback) => {
                 const callback = typeof _opts === "function" ? (_opts as ExecCallback) : cb;
                 if (cmd === "git" && args[0] === "credential") {
-                    callback?.(null, "protocol=https\nhost=github.com\nusername=x\npassword=stored_token\n", "");
+                    callback?.(
+                        null,
+                        "protocol=https\nhost=github.com\nusername=x\npassword=stored_token\n",
+                        "",
+                    );
                 } else {
                     callback?.(Object.assign(new Error("not found"), { code: 127 }), "", "");
                 }

@@ -3,7 +3,13 @@ import { mkdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { GitAuthenticationError, GitSourceError } from "../errors.js";
-import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
+import {
+    createGit,
+    createInteractiveGit,
+    isAuthError,
+    redactUrl,
+    withTokenAuth,
+} from "./git-utils.js";
 
 export interface CloneOptions {
     url: string;
@@ -13,6 +19,8 @@ export interface CloneOptions {
     maxCacheAgeMs?: number;
     /** When true, allows interactive credential prompts (browser OAuth, terminal input). */
     interactive?: boolean;
+    /** Auth token injected via git HTTP header env vars. Never embedded in the URL. */
+    authToken?: string;
 }
 
 export interface ClonedSource {
@@ -81,8 +89,13 @@ async function isCacheStale(cachePath: string, maxAgeMs: number): Promise<boolea
  * Clones a Git repository with shallow clone and optional sparse checkout
  */
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
-    const { url, ref, subpath, useCache = true, maxCacheAgeMs, interactive } = options;
-    const makeGit = interactive ? createInteractiveGit : createGit;
+    const { url, ref, subpath, useCache = true, maxCacheAgeMs, interactive, authToken } = options;
+    const safeUrl = redactUrl(url);
+    const baseFactory = interactive ? createInteractiveGit : createGit;
+    const makeGit = (baseDir?: string) => {
+        const git = baseFactory(baseDir);
+        return authToken ? withTokenAuth(git, url, authToken) : git;
+    };
 
     // Check cache first
     const cachePath = getCachePath(url, ref);
@@ -103,7 +116,9 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
                         await git.pull(["--depth=1"]);
                     } catch {
                         // Pull also failed — use stale cache with warning
-                        console.warn(`[baton] Network unavailable, using stale cache for ${url}`);
+                        console.warn(
+                            `[baton] Network unavailable, using stale cache for ${safeUrl}`,
+                        );
                     }
                 }
             } else {
@@ -235,10 +250,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         };
     } catch (error) {
         if (isAuthError(error)) {
-            throw new GitAuthenticationError(`Authentication required for ${url}`, error);
+            throw new GitAuthenticationError(`Authentication required for ${safeUrl}`, error);
         }
         throw new GitSourceError(
-            `Failed to clone Git repository from ${url}: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to clone Git repository from ${safeUrl}: ${error instanceof Error ? error.message : String(error)}`,
             error,
         );
     }

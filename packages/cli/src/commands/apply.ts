@@ -270,7 +270,7 @@ export const applyCommand = defineCommand({
                             );
                             continue;
                         }
-                        const authedUrl = await getAuthenticatedUrl(url, auth);
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
 
                         // Determine ref: use locked SHA if available, otherwise profileSource.version
                         let ref = profileSource.version;
@@ -291,11 +291,12 @@ export const applyCommand = defineCommand({
                         }
 
                         const cloned = await cloneGitSource({
-                            url: authedUrl,
+                            url: cloneUrl,
                             ref,
                             subpath: "subpath" in parsed ? parsed.subpath : undefined,
                             useCache: true,
                             maxCacheAgeMs,
+                            authToken: auth.token,
                         });
                         manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
                         sourceShas.set(profileSource.source, cloned.sha);

@@ -280,7 +280,13 @@ export {
     expandSparseCheckout,
 } from "./sources/git-clone.js";
 // Export Git utilities
-export { createGit, createInteractiveGit, isAuthError } from "./sources/git-utils.js";
+export {
+    createGit,
+    createInteractiveGit,
+    isAuthError,
+    redactUrl,
+    withTokenAuth,
+} from "./sources/git-utils.js";
 // Export GitHub resolver
 export {
     type GitHubResolverOptions,

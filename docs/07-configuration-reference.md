@@ -270,3 +270,30 @@ settings:
 | `ide_platforms` | string[] | Detected/saved IDE platform keys |
 | `settings.default_scope` | string | Default scope (`project` or `global`) |
 | `settings.symlink_mode` | boolean | Use symlinks instead of file copies |
+
+---
+
+## Environment Variables
+
+Baton reads these environment variables for Git authentication. When accessing a private source repository, Baton checks them in cascade order — the first match wins.
+
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_TOKEN` | GitHub personal access token. Widely supported by GitHub tooling. |
+| `GH_TOKEN` | GitHub CLI token. Equivalent to `GITHUB_TOKEN`. |
+| `BATON_GIT_TOKEN` | Generic Git host token. Use for GitLab, Bitbucket, or self-hosted repos. |
+
+> **Tip:** Avoid setting tokens with `export` in an interactive shell — they're written to shell history. Add the export to `~/.zshenv` (zsh) or `~/.bash_profile` (bash) instead, or use `gh auth login` which stores tokens securely.
+
+### Auth cascade order
+
+When Baton needs credentials for a Git host, it tries the following sources in order:
+
+1. **Environment variables** — `GITHUB_TOKEN`, `GH_TOKEN`, or `BATON_GIT_TOKEN`
+2. **SSH keys** — auto-detected from `~/.ssh/id_*` with a connectivity check
+3. **GitHub CLI** — `gh auth token` (GitHub hosts only)
+4. **Git credential helper** — system credential store (macOS Keychain, Windows Credential Manager, etc.)
+
+If no method succeeds, Baton prints a clear error with setup instructions. It never prompts interactively and never hangs.
+
+Results are cached per hostname for the duration of the command, so the cascade only runs once per host.

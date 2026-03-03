@@ -47,13 +47,14 @@ export async function selectMultipleProfilesFromSource(
                 p.cancel(`❌ ${getAuthSetupInstructions(hostname)}`);
                 process.exit(1);
             }
-            const authedUrl = await getAuthenticatedUrl(parsedSource.url, auth);
+            const cloneUrl = await getAuthenticatedUrl(parsedSource.url, auth);
 
             const cloned: ClonedSource = await cloneGitSource({
-                url: authedUrl,
+                url: cloneUrl,
                 ref: parsedSource.ref,
                 useCache: true,
                 maxCacheAgeMs: 0,
+                authToken: auth.token,
             });
 
             spinner.stop("✅ Repository cloned");

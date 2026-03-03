@@ -110,13 +110,14 @@ export const diffCommand = defineCommand({
                             );
                             continue;
                         }
-                        const authedUrl = await getAuthenticatedUrl(url, auth);
+                        const cloneUrl = await getAuthenticatedUrl(url, auth);
 
                         const cloned: ClonedSource = await cloneGitSource({
-                            url: authedUrl,
+                            url: cloneUrl,
                             ref: profileSource.version || undefined,
                             subpath,
                             useCache: false, // Always fetch fresh for diff
+                            authToken: auth.token,
                         });
                         localPath = cloned.localPath;
                         profileManifestPath = resolve(cloned.localPath, "baton.profile.yaml");

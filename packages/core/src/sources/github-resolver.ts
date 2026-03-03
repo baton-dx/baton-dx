@@ -43,6 +43,7 @@ export async function resolveGitHubSource(
             ref: source.ref,
             subpath: source.subpath,
             useCache,
+            authToken: auth.token,
         });
 
         return {
@@ -92,8 +93,9 @@ export async function resolveGitHubSource(
 }
 
 /**
- * Builds an authenticated URL using the resolved auth result.
- * Converts to SSH URL when useSSH is true, otherwise injects token into HTTPS URL.
+ * Builds a clone URL using the resolved auth result.
+ * Converts to SSH URL when useSSH is true. Tokens are never embedded in the URL —
+ * they are injected via git env vars in cloneGitSource/resolveVersion instead.
  */
 export async function getAuthenticatedUrl(url: string, auth: AuthResult): Promise<string> {
     // SSH: convert HTTPS to git@ URL
@@ -103,12 +105,7 @@ export async function getAuthenticatedUrl(url: string, auth: AuthResult): Promis
         return `git@${parsed.hostname}:${path}`;
     }
 
-    // Token: inject into HTTPS URL
-    if (auth.token && url.startsWith("https://")) {
-        return url.replace("https://", `https://${auth.token}@`);
-    }
-
-    // No auth or git@ URL: return as-is
+    // Return URL as-is — token auth is handled via git HTTP header env vars
     return url;
 }
 
