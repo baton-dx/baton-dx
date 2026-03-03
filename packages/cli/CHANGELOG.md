@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.14.2
+
+### Patch Changes
+
+- [#133](https://github.com/baton-dx/baton-dx/pull/133) [`3d05f8e`](https://github.com/baton-dx/baton-dx/commit/3d05f8ee1427258127cffe2d83d48880411354d4) Thanks [@mantaray0](https://github.com/mantaray0)! - Normalize markdown whitespace in merged content — collapse 3+ consecutive newlines to exactly 2 and ensure trailing newline in append, prepend, import strategies and content accumulator output.
+
 ## 0.14.1
 
 ### Patch Changes
