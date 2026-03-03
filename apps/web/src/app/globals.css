@@ -56,3 +56,14 @@ body {
   background: transparent !important;
   padding: 0 !important;
 }
+
+/* Remove italic + quotation marks from blockquotes — we style them as callouts. */
+.prose blockquote {
+  font-style: normal !important;
+  quotes: none !important;
+}
+
+.prose blockquote p::before,
+.prose blockquote p::after {
+  content: none !important;
+}

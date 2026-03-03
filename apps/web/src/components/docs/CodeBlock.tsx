@@ -1,4 +1,29 @@
+import type { BundledLanguage } from "shiki";
 import { codeToTokens } from "shiki";
+import { CopyButton } from "./CopyButton";
+
+const LANG_LABELS: Record<string, string> = {
+  bash: "Terminal",
+  sh: "Terminal",
+  shell: "Terminal",
+  zsh: "Terminal",
+  yaml: "YAML",
+  yml: "YAML",
+  json: "JSON",
+  jsonc: "JSONC",
+  toml: "TOML",
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  tsx: "TSX",
+  js: "JavaScript",
+  javascript: "JavaScript",
+  jsx: "JSX",
+  css: "CSS",
+  html: "HTML",
+  md: "Markdown",
+  markdown: "Markdown",
+  text: "Plain Text",
+};
 
 interface CodeBlockProps {
   code: string;
@@ -7,40 +32,40 @@ interface CodeBlockProps {
 }
 
 export async function CodeBlock({ code, lang = "bash", filename }: CodeBlockProps) {
-  const { tokens, fg, bg } = await codeToTokens(code, {
-    lang,
-    theme: "github-dark",
+  const { tokens } = await codeToTokens(code, {
+    lang: lang as BundledLanguage,
+    theme: "github-light",
   });
 
+  const label = filename ?? LANG_LABELS[lang] ?? lang;
+
   return (
-    <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
-      {filename && (
-        <div className="border-b border-white/10 bg-zinc-900 px-4 py-2 font-mono text-xs text-zinc-400">
-          {filename}
-        </div>
-      )}
-      <pre
-        className="overflow-x-auto p-4 text-sm leading-6"
-        style={{ backgroundColor: bg, color: fg }}
-      >
-        <code>
-          {tokens.map((line, lineIdx) => (
-            <span key={lineIdx} className="block">
-              {line.map((token, tokenIdx) => (
-                <span
-                  key={tokenIdx}
-                  style={{
-                    color: token.color,
-                    fontStyle: token.fontStyle ? "italic" : undefined,
-                  }}
-                >
-                  {token.content}
-                </span>
-              ))}
-            </span>
-          ))}
-        </code>
-      </pre>
+    <div className="my-4 overflow-hidden rounded-lg border border-border">
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2">
+        <span className="font-mono text-xs text-muted-foreground">{label}</span>
+        <CopyButton code={code} />
+      </div>
+      <div className="bg-muted/30 p-5">
+        <pre className="overflow-x-auto text-sm leading-6">
+          <code>
+            {tokens.map((line, lineIdx) => (
+              <span key={lineIdx} className="block">
+                {line.map((token, tokenIdx) => (
+                  <span
+                    key={tokenIdx}
+                    style={{
+                      color: token.color,
+                      fontStyle: token.fontStyle ? "italic" : undefined,
+                    }}
+                  >
+                    {token.content}
+                  </span>
+                ))}
+              </span>
+            ))}
+          </code>
+        </pre>
+      </div>
     </div>
   );
 }
