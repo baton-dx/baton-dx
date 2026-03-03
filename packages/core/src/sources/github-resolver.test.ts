@@ -1,24 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitSourceError } from "../errors.js";
 import { parseSource } from "../utils/source-parser.js";
+import * as authCascade from "./auth-cascade.js";
 import * as gitClone from "./git-clone.js";
 import { resolveGitHubSource } from "./github-resolver.js";
 
 describe("GitHub Resolver", () => {
-    const originalEnv = process.env.GITHUB_TOKEN;
-
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env.GITHUB_TOKEN = undefined;
+        // Default: no auth (public repo scenario)
+        vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({ method: "none" });
     });
 
     afterEach(() => {
-        // Restore original GITHUB_TOKEN
-        if (originalEnv !== undefined) {
-            process.env.GITHUB_TOKEN = originalEnv;
-        } else {
-            process.env.GITHUB_TOKEN = undefined;
-        }
+        vi.restoreAllMocks();
     });
 
     describe("resolveGitHubSource", () => {
@@ -50,8 +45,11 @@ describe("GitHub Resolver", () => {
             });
         });
 
-        it("should resolve GitHub source with authentication token", async () => {
-            process.env.GITHUB_TOKEN = "ghp_test_token_123";
+        it("should resolve GitHub source with env token", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "env",
+                token: "ghp_test_token_123",
+            });
 
             const source = parseSource("github:baton/private-repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
@@ -168,7 +166,7 @@ describe("GitHub Resolver", () => {
             );
 
             await expect(resolveGitHubSource({ source })).rejects.toThrow(
-                /GitHub authentication failed.*Set GITHUB_TOKEN/,
+                /GitHub authentication failed.*gh auth login/,
             );
         });
 
@@ -222,9 +220,12 @@ describe("GitHub Resolver", () => {
         });
     });
 
-    describe("GitHub Token Authentication", () => {
-        it("should enhance URL with GITHUB_TOKEN when available", async () => {
-            process.env.GITHUB_TOKEN = "ghp_secret_token";
+    describe("Auth Cascade Integration", () => {
+        it("should use SSH URL when auth cascade returns useSSH", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "ssh",
+                useSSH: true,
+            });
 
             const source = parseSource("github:org/repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
@@ -241,12 +242,40 @@ describe("GitHub Resolver", () => {
 
             expect(cloneSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    url: "https://ghp_secret_token@github.com/org/repo.git",
+                    url: "git@github.com:org/repo.git",
                 }),
             );
         });
 
-        it("should not modify URL when GITHUB_TOKEN is not set", async () => {
+        it("should inject token from gh-cli into URL", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({
+                method: "gh-cli",
+                token: "gho_cli_token",
+            });
+
+            const source = parseSource("github:org/repo");
+            if (source.provider !== "github") throw new Error("Expected GitHub source");
+
+            const cloneSpy = vi.spyOn(gitClone, "cloneGitSource").mockResolvedValue({
+                localPath: "/cache/test",
+                fromCache: false,
+                sha: "test123",
+                cachePath: "/cache/test",
+                sparseCheckout: false,
+            });
+
+            await resolveGitHubSource({ source });
+
+            expect(cloneSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: "https://gho_cli_token@github.com/org/repo.git",
+                }),
+            );
+        });
+
+        it("should use plain HTTPS URL when no auth is found", async () => {
+            vi.spyOn(authCascade, "resolveAuth").mockResolvedValue({ method: "none" });
+
             const source = parseSource("github:org/repo");
             if (source.provider !== "github") throw new Error("Expected GitHub source");
 

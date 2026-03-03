@@ -1,10 +1,13 @@
 import { maxSatisfying, valid } from "semver";
 import type { SimpleGit } from "simple-git";
 import { GitAuthenticationError, VersionNotFoundError } from "../errors.js";
-import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
+import { createGit, isAuthError } from "./git-utils.js";
 
 /**
  * Resolves a version specification to a specific Git ref (commit SHA, tag, or branch).
+ *
+ * Callers should pass a pre-authenticated URL (with token embedded or SSH format)
+ * via the auth cascade. This function always uses non-interactive git.
  *
  * Supported version specs:
  * - Semver range: "^1.0.0", "~2.3.0", ">=1.0.0 <2.0.0"
@@ -13,16 +16,15 @@ import { createGit, createInteractiveGit, isAuthError } from "./git-utils.js";
  * - Commit SHA: "abc1234567890def"
  * - "latest": resolves to newest semver tag, or HEAD if no tags
  *
- * @param repoUrl - The Git repository URL
+ * @param repoUrl - The Git repository URL (should be pre-authenticated)
  * @param versionSpec - The version specification to resolve (default: "latest")
  * @returns The resolved Git ref (commit SHA)
  */
 export async function resolveVersion(
     repoUrl: string,
     versionSpec = "latest",
-    options?: { interactive?: boolean },
 ): Promise<string> {
-    const git: SimpleGit = options?.interactive ? createInteractiveGit() : createGit();
+    const git: SimpleGit = createGit();
 
     try {
         // Fetch all refs from remote without cloning

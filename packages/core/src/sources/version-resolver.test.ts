@@ -267,17 +267,14 @@ def1234567890abc1234567890def12345678abcd refs/tags/v2.0.0
             ).rejects.toThrow(GitAuthenticationError);
         });
 
-        it("should use interactive git when options.interactive is true", async () => {
+        it("should always use non-interactive git (callers pre-authenticate URLs)", async () => {
             mockListRemote.mockResolvedValueOnce(
                 "abc1234567890def1234567890abcdef12345678 refs/heads/main",
             );
 
-            await resolveVersion("https://github.com/org/repo.git", "latest", {
-                interactive: true,
-            });
+            await resolveVersion("https://github.com/org/repo.git", "latest");
 
-            expect(gitUtils.createInteractiveGit).toHaveBeenCalled();
-            expect(gitUtils.createGit).not.toHaveBeenCalled();
+            expect(gitUtils.createGit).toHaveBeenCalled();
         });
     });
 });

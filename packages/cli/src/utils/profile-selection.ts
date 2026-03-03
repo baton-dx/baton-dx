@@ -3,8 +3,10 @@ import {
     type ClonedSource,
     cloneGitSource,
     discoverProfilesInSourceRepo,
-    GitAuthenticationError,
+    getAuthenticatedUrl,
+    getAuthSetupInstructions,
     parseSource,
+    resolveAuth,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { cascadingMultiselect } from "./cascading-multiselect.js";
@@ -37,29 +39,22 @@ export async function selectMultipleProfilesFromSource(
         spinner.start("Cloning repository to discover profiles...");
 
         try {
-            let cloned: ClonedSource;
-            try {
-                cloned = await cloneGitSource({
-                    url: parsedSource.url,
-                    ref: parsedSource.ref,
-                    useCache: true,
-                    maxCacheAgeMs: 0,
-                });
-            } catch (authError) {
-                if (authError instanceof GitAuthenticationError) {
-                    spinner.stop("Authentication required");
-                    p.log.info("Git credentials needed. Please complete authentication...");
-                    cloned = await cloneGitSource({
-                        url: parsedSource.url,
-                        ref: parsedSource.ref,
-                        useCache: true,
-                        maxCacheAgeMs: 0,
-                        interactive: true,
-                    });
-                } else {
-                    throw authError;
-                }
+            // Pre-resolve auth via cascade
+            const hostname = new URL(parsedSource.url).hostname;
+            const auth = await resolveAuth(hostname);
+            if (auth.method === "none") {
+                spinner.stop("Authentication failed");
+                p.cancel(`❌ ${getAuthSetupInstructions(hostname)}`);
+                process.exit(1);
             }
+            const authedUrl = await getAuthenticatedUrl(parsedSource.url, auth);
+
+            const cloned: ClonedSource = await cloneGitSource({
+                url: authedUrl,
+                ref: parsedSource.ref,
+                useCache: true,
+                maxCacheAgeMs: 0,
+            });
 
             spinner.stop("✅ Repository cloned");
 
