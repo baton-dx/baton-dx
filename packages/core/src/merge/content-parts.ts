@@ -6,7 +6,7 @@
  * Idempotent — safe to apply multiple times.
  */
 export function normalizeMarkdown(content: string): string {
-  return content.replace(/\n{3,}/g, "\n\n").replace(/\n*$/, "\n");
+  return `${content.replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
 }
 
 /**
