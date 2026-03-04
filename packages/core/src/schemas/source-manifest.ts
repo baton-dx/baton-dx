@@ -29,7 +29,13 @@ export const sourceProfileEntrySchema = z.object({
  * by scanning the profiles/ directory for baton.profile.yaml files.
  */
 /**
- * AI section in source manifest — default AI tools for all profiles in this source
+ * AI section in source manifest — default AI tools for all profiles in this source.
+ *
+ * `tools` defines which AI tools this source targets. Individual profiles inherit
+ * this list unless they override it with their own `ai.tools`.
+ *
+ * Use `["*"]` as a wildcard to explicitly target all supported AI tools.
+ * Omitting `tools` entirely has the same effect when profiles contain AI content.
  */
 const sourceAiSectionSchema = z
     .object({
@@ -56,7 +62,9 @@ export const sourceManifestSchema = z.object({
     description: z.string().optional(),
     repository: z.string().optional(),
 
-    // Optional: Default AI tools for all profiles in this source (can be overridden by profiles)
+    // Default AI tools for all profiles in this source.
+    // Profiles inherit this list; use ["*"] for all tools.
+    // Individual profiles can override with their own ai.tools.
     ai: sourceAiSectionSchema,
 
     // Optional: Default IDE platforms for all profiles in this source

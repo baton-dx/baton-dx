@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getAllAIToolAdapters } from "../adapters/registry.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import {
     type ResolvedProfileSupport,
@@ -93,6 +94,145 @@ describe("resolveProfileSupport", () => {
             const result = resolveProfileSupport(profile, source);
 
             expect(result.aiTools).toEqual(["cursor"]);
+        });
+    });
+
+    describe("AI tools wildcard inference", () => {
+        const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
+
+        it("returns all tool keys when profile has skills but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: { skills: [{ name: "test-skill", scope: "project" }] },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("returns all tool keys when profile has rules but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: { rules: ["some-rule.md"] },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("returns all tool keys when profile has memory but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: { memory: [{ source: "MEMORY.md", merge: "append" }] },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("returns all tool keys when profile has agents but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: { agents: ["agent.md"] },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("returns all tool keys when profile has mcp but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: {
+                    mcp: [{ name: "my-server", transport: "stdio", command: "node" }],
+                },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("returns all tool keys when profile has commands but no ai.tools", () => {
+            const profile = makeProfile({
+                ai: { commands: ["build"] },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it("prefers explicit ai.tools over wildcard inference", () => {
+            const profile = makeProfile({
+                ai: {
+                    tools: ["cursor"],
+                    skills: [{ name: "test-skill", scope: "project" }],
+                },
+            });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(["cursor"]);
+        });
+
+        it("prefers source ai.tools fallback over wildcard inference", () => {
+            const profile = makeProfile({
+                ai: { skills: [{ name: "test-skill", scope: "project" }] },
+            });
+            const source = makeSource({ ai: { tools: ["claude-code", "cursor"] } });
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(["claude-code", "cursor"]);
+        });
+    });
+
+    describe('explicit "*" wildcard in ai.tools', () => {
+        const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
+
+        it('expands profile ai.tools: ["*"] to all tool keys', () => {
+            const profile = makeProfile({ ai: { tools: ["*"] } });
+            const source = makeSource();
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it('expands source ai.tools: ["*"] to all tool keys', () => {
+            const profile = makeProfile({
+                ai: { skills: [{ name: "test-skill", scope: "project" }] },
+            });
+            const source = makeSource({ ai: { tools: ["*"] } });
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
+        });
+
+        it('profile explicit tools override source "*" wildcard', () => {
+            const profile = makeProfile({ ai: { tools: ["cursor"] } });
+            const source = makeSource({ ai: { tools: ["*"] } });
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(["cursor"]);
+        });
+
+        it('profile "*" wildcard overrides source explicit tools', () => {
+            const profile = makeProfile({ ai: { tools: ["*"] } });
+            const source = makeSource({ ai: { tools: ["cursor", "claude-code"] } });
+
+            const result = resolveProfileSupport(profile, source);
+
+            expect(result.aiTools).toEqual(allToolKeys);
         });
     });
 
