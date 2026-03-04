@@ -3,9 +3,13 @@ import simpleGit from "simple-git";
 
 /** Creates a non-interactive simple-git instance (no credential prompts). */
 export function createGit(baseDir?: string) {
-    return simpleGit({ baseDir: baseDir ?? process.cwd() })
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes");
+    const git = simpleGit({ baseDir: baseDir ?? process.cwd() }).env("GIT_TERMINAL_PROMPT", "0");
+    // Only set GIT_SSH_COMMAND if user hasn't configured their own
+    // (preserves custom SSH agents like 1Password, Secretive, ~/.ssh/config ProxyCommand)
+    if (!process.env.GIT_SSH_COMMAND) {
+        git.env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes");
+    }
+    return git;
 }
 
 /** Creates an interactive simple-git instance (allows credential prompts / browser auth). */

@@ -5,6 +5,7 @@ import { isFirstRun } from "@baton-dx/core";
 import { defineCommand, runMain } from "citty";
 import { aiToolsCommand } from "./commands/ai-tools/index.js";
 import { applyCommand } from "./commands/apply.js";
+import { authCommand } from "./commands/auth/index.js";
 import { configCommand } from "./commands/config/index.js";
 import { diffCommand } from "./commands/diff.js";
 import { idesCommand } from "./commands/ides/index.js";
@@ -59,6 +60,7 @@ const main = defineCommand({
         diff: diffCommand,
         manage: manageCommand,
         config: configCommand,
+        auth: authCommand,
         source: sourceCommand,
         profile: profileCommand,
         "ai-tools": aiToolsCommand,
@@ -96,6 +98,7 @@ const main = defineCommand({
             console.log("  profile    Manage profiles (create, list, remove)");
             console.log("  ai-tools   Manage AI tool detection and configuration");
             console.log("  ides       Manage IDE platform detection and configuration");
+            console.log("  auth       Authentication diagnostics (auth status)");
             console.log("");
             console.log("Maintenance:");
             console.log("  self-update  Update Baton to the latest stable version");

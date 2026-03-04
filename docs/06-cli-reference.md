@@ -133,14 +133,14 @@ baton diff --name-only
 
 ### `baton manage`
 
-Interactive project management wizard. Provides a menu-driven interface for common operations.
+Interactive project management wizard. Provides a menu-driven interface for common operations. The Overview section shows resolved tool preferences (project-level overrides take effect when configured).
 
 ```bash
 baton manage
 ```
 
 **Options:**
-- Overview — Show project status and configuration
+- Overview — Show project status, resolved tool preferences, and configuration
 - Add Profile — Add a new profile from a source
 - Remove Profile — Remove an installed profile
 - Remove Baton — Remove Baton from the project
@@ -161,6 +161,23 @@ baton config set <key> <value>  # Set a setting value
 **Settings:**
 - `default-scope` — Default scope for new configs (`project` or `global`)
 - `symlink-mode` — Use symlinks instead of copies (`true` or `false`)
+
+---
+
+## Auth Commands
+
+### `baton auth status`
+
+Diagnose authentication for private source repositories. Runs the full auth cascade and shows which methods are available.
+
+```bash
+baton auth status
+baton auth status --hostname gitlab.example.com
+```
+
+| Flag | Description |
+|------|-------------|
+| `--hostname <host>` | Test auth for a specific hostname (default: github.com) |
 
 ---
 

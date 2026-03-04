@@ -266,7 +266,7 @@ export const applyCommand = defineCommand({
                         const auth = await resolveAuth(hostname);
                         if (auth.method === "none") {
                             p.log.warn(
-                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname, auth.triedMethods)}`,
                             );
                             continue;
                         }

@@ -9,11 +9,11 @@ Common issues and solutions when using Baton.
 **How Baton resolves auth:** Baton automatically detects credentials using an auth cascade — it never prompts interactively and never hangs. The cascade checks these sources in order:
 
 1. **Environment variables** — `GITHUB_TOKEN`, `GH_TOKEN`, or `BATON_GIT_TOKEN`
-2. **SSH keys** — looks for `~/.ssh/id_*` keys and verifies connectivity
+2. **Git credential helper** — queries your system credential store via `git credential fill` (macOS Keychain, Windows Credential Manager, GitHub CLI credential helper, etc.)
 3. **GitHub CLI** — runs `gh auth token` (GitHub hosts only)
-4. **Git credential helper** — queries your system credential store (macOS Keychain, Windows Credential Manager, etc.)
+4. **SSH keys** — looks for `~/.ssh/id_*` keys and verifies connectivity
 
-If none succeed, Baton shows a clear error with setup instructions.
+If none succeed, Baton shows a clear error with setup instructions and which methods were attempted.
 
 ### Solutions
 
@@ -21,9 +21,10 @@ If none succeed, Baton shows a clear error with setup instructions.
 
    ```bash
    gh auth login
+   gh auth setup-git
    ```
 
-   This is the fastest path — it stores a token that both `gh` and Baton can use.
+   `gh auth setup-git` registers the GitHub CLI as a git credential helper, so `git credential fill` picks up the token automatically. This is the fastest and most reliable path.
 
 2. **SSH key:**
 
@@ -62,14 +63,14 @@ If none succeed, Baton shows a clear error with setup instructions.
 
 ### How to diagnose
 
-To verify the issue is auth-related:
+Use `baton auth status` to see which auth methods are available:
 
 ```bash
-# Test if git can access the repo without prompting
-GIT_TERMINAL_PROMPT=0 git ls-remote https://github.com/org/repo.git
-
-# If this fails with "terminal prompts disabled", authentication is the issue
+baton auth status
+baton auth status --hostname gitlab.example.com
 ```
+
+This runs the full auth cascade and shows the status of each method, helping you identify what's configured and what's missing.
 
 ## Git not installed
 

@@ -106,7 +106,7 @@ export const diffCommand = defineCommand({
                         const auth = await resolveAuth(hostname);
                         if (auth.method === "none") {
                             spinner.message(
-                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname, auth.triedMethods)}`,
                             );
                             continue;
                         }

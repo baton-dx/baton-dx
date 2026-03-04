@@ -260,11 +260,15 @@ export {
 } from "./self-update/index.js";
 // Export auth cascade
 export {
+    type AuthDiagnosticStep,
+    type AuthLogger,
     type AuthMethod,
+    type AuthOptions,
     type AuthResult,
     clearAuthCache,
     getAuthSetupInstructions,
     resolveAuth,
+    runAuthDiagnostic,
 } from "./sources/auth-cascade.js";
 // Export File resolver
 export {
