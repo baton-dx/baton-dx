@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { getAllAIToolAdapters } from "../adapters/registry.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import type { sourceManifestSchema } from "../schemas/source-manifest.js";
 
@@ -22,13 +23,18 @@ export interface ResolvedProfileSupport {
  * Resolve the effective AI tools and IDE platforms for a profile,
  * applying inheritance from the source manifest.
  *
- * Inheritance rules:
- * - If the profile defines ai.tools, use them (even if empty array)
- * - Otherwise, fall back to sourceManifest.ai.tools
- * - If the profile defines an ide section (keys = platform names), use those keys
- * - Otherwise, fall back to sourceManifest.ide.platforms
+ * AI tools resolution (in order):
+ *   1. profile `ai.tools` — explicit list or `["*"]` wildcard
+ *   2. source `ai.tools`  — fallback, explicit list or `["*"]` wildcard
+ *   3. implicit wildcard   — all tools, when profile has AI content but no tools declared
+ *   4. empty array         — no AI content anywhere
+ *
+ * IDE platforms resolution:
+ * - If the profile defines an `ide` section (keys = platform names), use those keys
+ * - Otherwise, fall back to `sourceManifest.ide.platforms`
  *
  * Profile-level tools/IDEs can be a subset of source-level declarations.
+ * `["*"]` in either manifest expands to all registered AI tool keys.
  *
  * @param profileManifest - The profile's manifest
  * @param sourceManifest - The source's manifest (parent defaults)
@@ -48,7 +54,19 @@ export function resolveProfileSupport(
 }
 
 /**
- * Resolve AI tools: prefer profile's ai.tools, fall back to source's ai.tools
+ * Resolve AI tools: prefer profile's ai.tools, fall back to source's ai.tools.
+ *
+ * Both profile and source support `["*"]` as an explicit wildcard that expands
+ * to all registered AI tool keys. Omitting `ai.tools` entirely is an implicit
+ * wildcard when the profile has AI content (skills, rules, agents, memory, mcp,
+ * or commands). This prevents profiles from being silently filtered out of the
+ * intersection just because the author omitted the optional `ai.tools` field.
+ *
+ * Resolution order:
+ *   1. profile ai.tools (explicit list or `["*"]`)
+ *   2. source ai.tools  (fallback, explicit list or `["*"]`)
+ *   3. implicit wildcard (all tools) — when profile has AI content
+ *   4. empty array       — no AI content anywhere
  */
 function resolveAiTools(
     profileManifest: ProfileManifest,
@@ -56,15 +74,59 @@ function resolveAiTools(
 ): string[] {
     // If profile explicitly defines ai.tools (even empty array), use it
     if (profileManifest.ai?.tools !== undefined) {
-        return profileManifest.ai.tools;
+        return expandWildcard(profileManifest.ai.tools);
     }
 
     // Fall back to source's ai.tools
     if (sourceManifest.ai?.tools !== undefined) {
-        return sourceManifest.ai.tools;
+        return expandWildcard(sourceManifest.ai.tools);
+    }
+
+    // If profile has AI content but no explicit tools list, support all tools
+    if (hasAiContent(profileManifest)) {
+        return allToolKeys();
     }
 
     return [];
+}
+
+/**
+ * Expand `["*"]` to all registered AI tool keys, pass other lists through unchanged.
+ */
+function expandWildcard(tools: string[]): string[] {
+    if (tools.length === 1 && tools[0] === "*") {
+        return allToolKeys();
+    }
+    return tools;
+}
+
+/**
+ * All registered AI tool keys from the adapter registry.
+ */
+function allToolKeys(): string[] {
+    return getAllAIToolAdapters().map((a) => a.key);
+}
+
+/**
+ * Check whether the profile manifest has any AI content fields defined
+ * (skills, rules, agents, memory, mcp, or commands).
+ */
+function hasAiContent(profileManifest: ProfileManifest): boolean {
+    const ai = profileManifest.ai;
+    if (!ai) return false;
+
+    return (
+        (ai.skills !== undefined && ai.skills.length > 0) ||
+        (ai.rules !== undefined &&
+            (Array.isArray(ai.rules) ? ai.rules.length > 0 : Object.keys(ai.rules).length > 0)) ||
+        (ai.agents !== undefined &&
+            (Array.isArray(ai.agents)
+                ? ai.agents.length > 0
+                : Object.keys(ai.agents).length > 0)) ||
+        (ai.memory !== undefined && ai.memory.length > 0) ||
+        (ai.mcp !== undefined && ai.mcp.length > 0) ||
+        (ai.commands !== undefined && ai.commands.length > 0)
+    );
 }
 
 /**

@@ -105,11 +105,18 @@ export const mcpServerSchema = z.object({
 export type McpServer = z.infer<typeof mcpServerSchema>;
 
 /**
- * AI section in profile manifest
+ * AI section in profile manifest.
+ *
+ * `tools` is optional — when omitted, the profile inherits `ai.tools` from
+ * its source manifest. If neither profile nor source declares tools but the
+ * profile has AI content (skills, rules, agents, memory, mcp, commands),
+ * all AI tools are targeted (implicit wildcard).
+ *
+ * Use `["*"]` as an explicit wildcard to target all supported AI tools.
  */
 const aiSectionSchema = z
     .object({
-        tools: z.array(z.string()).optional(), // Target AI tools (e.g., ["claude-code", "cursor"])
+        tools: z.array(z.string()).optional(), // Optional: inherits from source. Use ["*"] for all tools.
         skills: z.array(skillItemSchema).optional(),
         rules: rulesSchema.optional(),
         agents: agentsSchema.optional(),

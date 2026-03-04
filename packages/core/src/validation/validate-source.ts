@@ -98,6 +98,7 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
     const knownKeys = getAllAIToolKeys();
     if (sourceManifest.ai?.tools) {
         for (const tool of sourceManifest.ai.tools) {
+            if (tool === "*") continue; // wildcard — matches all tools
             if (!knownKeys.includes(tool)) {
                 issues.push({
                     severity: "warning",
@@ -187,6 +188,7 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
         // ── Check 5 (profile-level): AI tool keys ──────────────────────
         if (profileManifest.ai?.tools) {
             for (const tool of profileManifest.ai.tools) {
+                if (tool === "*") continue; // wildcard — matches all tools
                 if (!knownKeys.includes(tool)) {
                     issues.push({
                         severity: "warning",
