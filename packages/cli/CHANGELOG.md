@@ -1,5 +1,23 @@
 # @baton-dx/cli
 
+## 0.14.5
+
+### Patch Changes
+
+- [#143](https://github.com/baton-dx/baton-dx/pull/143) [`0b17a29`](https://github.com/baton-dx/baton-dx/commit/0b17a29db0babbb03582057e0619811e9af388f7) Thanks [@mantaray0](https://github.com/mantaray0)! - fix(core): reorder auth cascade to follow git credential best practices
+
+  - Reorder auth cascade: env → git credential fill → gh-cli → SSH (was env → SSH → gh-cli → git credential)
+  - Respect user's GIT_SSH_COMMAND in createGit() and SSH connectivity check
+  - Add optional diagnostic logger and triedMethods to auth cascade
+  - Add runAuthDiagnostic() for full non-short-circuit cascade results
+
+  fix(cli): use resolvePreferences consistently in manage and config commands
+
+  - Fix manage.ts Overview to use resolvePreferences() instead of raw getGlobalAiTools()
+  - Fix config/index.ts Active Intersections to use resolved preferences
+  - Add `baton auth status` diagnostic command
+  - Wire verbose logger to auth cascade in sync command
+
 ## 0.14.4
 
 ### Patch Changes
