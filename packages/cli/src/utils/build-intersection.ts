@@ -4,8 +4,10 @@ import {
     cloneGitSource,
     computeIntersection,
     findSourceManifest,
+    getAuthenticatedUrl,
     loadProfileManifest,
     parseSource,
+    resolveAuth,
     resolveProfileSupport,
 } from "@baton-dx/core";
 import { findSourceRoot } from "./context-detection.js";
@@ -27,11 +29,17 @@ export async function buildIntersection(
     let profileDir: string;
 
     if (parsed.provider === "github" || parsed.provider === "gitlab") {
+        const hostname = new URL(parsed.url).hostname;
+        const auth = await resolveAuth(hostname);
+        const cloneUrl =
+            auth.method !== "none" ? await getAuthenticatedUrl(parsed.url, auth) : parsed.url;
+
         const repoClone = await cloneGitSource({
-            url: parsed.url,
+            url: cloneUrl,
             ref: parsed.ref,
             useCache: true,
             maxCacheAgeMs: 0,
+            authToken: auth.token,
         });
         repoRoot = repoClone.localPath;
         profileDir = parsed.subpath ? resolve(repoRoot, parsed.subpath) : repoRoot;

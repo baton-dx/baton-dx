@@ -583,8 +583,12 @@ export const syncCommand = defineCommand({
                                 aggregatedSyncedIde.add(platform);
                             }
                         }
-                    } catch {
-                        // Best-effort — skip if intersection cannot be computed for this profile
+                    } catch (error) {
+                        if (verbose) {
+                            p.log.warn(
+                                `Could not compute intersection for ${profileSource.source}: ${error instanceof Error ? error.message : String(error)}`,
+                            );
+                        }
                     }
                 }
 
