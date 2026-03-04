@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.14.7
+
+### Patch Changes
+
+- [#150](https://github.com/baton-dx/baton-dx/pull/150) [`5bd0bca`](https://github.com/baton-dx/baton-dx/commit/5bd0bcadd1c84053d2da169de47c7196e61936d4) Thanks [@mantaray0](https://github.com/mantaray0)! - Fix "No AI tools in intersection" for users without system-level git credentials by adding auth cascade to `buildIntersection`. Previously, intersection computation re-cloned repos without authentication, silently failing for private repositories. Also adds verbose logging for intersection errors.
+
 ## 0.14.6
 
 ## 0.14.5
