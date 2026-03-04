@@ -1,17 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-
-const heroCode = `# Install Baton DX
-npm install -g @baton-dx/cli
-
-# Initialize in your project
-baton init
-
-# Add a source (Git repo with configs)
-baton source add gh:myorg/ai-configs
-
-# Sync profiles to your tools
-baton sync`;
+import { HeroTerminal } from "./HeroTerminal";
 
 export function Hero() {
   return (
@@ -38,9 +27,9 @@ export function Hero() {
             </div>
 
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Manage AI&nbsp;Tool
+              Manage AI&nbsp;Tool Configs
               <br />
-              <span className="text-brand-600">Configs Like a Pro</span>
+              <span className="text-3xl text-brand-600 sm:text-4xl lg:text-5xl">Like a Pro</span>
             </h1>
 
             <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
@@ -51,7 +40,13 @@ export function Hero() {
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                href="https://github.com/batondx/baton-dx"
+                href="/docs"
+                className={buttonVariants({ variant: "default", size: "lg" })}
+              >
+                Get Started
+              </Link>
+              <Link
+                href="https://github.com/baton-dx/baton-dx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonVariants({ variant: "outline", size: "lg" })}
@@ -59,33 +54,11 @@ export function Hero() {
                 View on GitHub
               </Link>
             </div>
-
-            <p className="mt-4 font-mono text-sm text-muted-foreground">
-              <span className="select-none text-muted-foreground/50">$ </span>
-              npm install -g @baton-dx/cli
-            </p>
           </div>
 
-          {/* Right — code snippet */}
+          {/* Right — terminal */}
           <div className="relative">
-            <div className="overflow-hidden rounded-xl border border-border bg-zinc-950 shadow-2xl">
-              {/* Window chrome */}
-              <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-                <span className="h-3 w-3 rounded-full bg-red-500/80" />
-                <span className="h-3 w-3 rounded-full bg-yellow-500/80" />
-                <span className="h-3 w-3 rounded-full bg-green-500/80" />
-                <span className="ml-3 text-xs text-white/40">terminal</span>
-              </div>
-
-              {/* Code */}
-              <pre className="overflow-x-auto p-5 text-sm leading-7">
-                <code>
-                  {heroCode.split("\n").map((line, i) => (
-                    <HeroCodeLine key={i} line={line} />
-                  ))}
-                </code>
-              </pre>
-            </div>
+            <HeroTerminal />
 
             {/* Decorative glow */}
             <div className="absolute -bottom-8 -right-8 -z-10 h-64 w-64 rounded-full bg-brand-500/20 blur-3xl" />
@@ -93,36 +66,5 @@ export function Hero() {
         </div>
       </div>
     </section>
-  );
-}
-
-function HeroCodeLine({ line }: { line: string }) {
-  if (line.startsWith("#")) {
-    return (
-      <span className="block text-zinc-500">
-        {line}
-        {"\n"}
-      </span>
-    );
-  }
-  if (line === "") {
-    return <span className="block">{"\n"}</span>;
-  }
-  // Command — split at first space to color the command name
-  const spaceIdx = line.indexOf(" ");
-  if (spaceIdx === -1) {
-    return (
-      <span className="block">
-        <span className="text-emerald-400">{line}</span>
-        {"\n"}
-      </span>
-    );
-  }
-  return (
-    <span className="block">
-      <span className="text-emerald-400">{line.slice(0, spaceIdx)}</span>
-      <span className="text-zinc-300">{line.slice(spaceIdx)}</span>
-      {"\n"}
-    </span>
   );
 }

@@ -7,7 +7,7 @@
   "hero": {
     "headline": "Manage AI Tool Configs Like a Pro",
     "subheadline": "Baton DX is a CLI package manager for Developer Experience & AI configuration. Version, share, and sync AI tool configs across 14 tools with a single command.",
-    "cta_install": "npm install -g @baton-dx/cli",
+    "cta_install": "bun add -g @baton-dx/cli",
     "cta_docs": "Read the Docs",
     "cta_github": "View on GitHub"
   },
@@ -28,7 +28,7 @@
   "how_it_works": {
     "title": "Get started in 3 steps",
     "step1_title": "Install Baton DX",
-    "step1_desc": "Install the CLI globally with npm, Homebrew, or your preferred package manager.",
+    "step1_desc": "Install the CLI globally with bun, npm, or your preferred package manager.",
     "step2_title": "Create a Source",
     "step2_desc": "Point Baton to a Git repo or npm package containing your AI tool configurations.",
     "step3_title": "Sync Profiles",
@@ -37,7 +37,7 @@
   "cta": {
     "title": "Start managing your AI configs today",
     "desc": "Join developers who use Baton DX to keep their AI tools in sync.",
-    "install": "npm install -g @baton-dx/cli",
+    "install": "bun add -g @baton-dx/cli",
     "docs_link": "Read the documentation →"
   },
   "footer": {

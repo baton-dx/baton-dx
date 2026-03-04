@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { InstallTabs } from "./InstallTabs";
 
 export function CTASection() {
   return (
@@ -14,9 +15,8 @@ export function CTASection() {
         </p>
 
         {/* Install command */}
-        <div className="mt-8 flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-5 py-3.5 font-mono text-sm">
-          <span className="select-none text-muted-foreground/60">$</span>
-          <span className="select-all text-foreground">npm install -g @baton-dx/cli</span>
+        <div className="mt-8">
+          <InstallTabs />
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
@@ -27,7 +27,7 @@ export function CTASection() {
             Read the Docs →
           </Link>
           <Link
-            href="https://github.com/batondx/baton-dx"
+            href="https://github.com/baton-dx/baton-dx"
             target="_blank"
             rel="noopener noreferrer"
             className={buttonVariants({ variant: "outline", size: "lg" })}

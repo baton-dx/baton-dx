@@ -2,11 +2,6 @@ import Link from "next/link";
 
 type HeaderSection = "landing" | "docs" | "marketplace";
 
-const sectionLabels: Record<HeaderSection, string> = {
-  landing: "Baton DX",
-  docs: "Docs",
-  marketplace: "Marketplace",
-};
 
 const navItems = [
   { label: "Docs", href: "https://docs.batondx.dev", section: "docs" },
@@ -15,7 +10,7 @@ const navItems = [
 
 async function getStarCount(): Promise<number | null> {
   try {
-    const res = await fetch("https://api.github.com/repos/batondx/baton-dx", {
+    const res = await fetch("https://api.github.com/repos/baton-dx/baton-dx", {
       next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
@@ -42,33 +37,34 @@ export async function Header({ section = "landing" }: { section?: HeaderSection 
           <Link href="/" className="flex items-center">
             <img src="/baton-dx_Logo.svg" alt="Baton DX" className="h-6 w-auto" />
           </Link>
-          <span className="text-lg font-bold tracking-tight text-foreground">
-            {sectionLabels[section]}
+          <span className="text-sm font-semibold text-muted-foreground">
+            Baton DX
           </span>
         </div>
 
-        {/* Nav */}
-        <nav className="ml-8 hidden items-center gap-6 md:flex">
-          {navItems
-            .filter((item) => item.section !== section)
-            .map((item) => (
+        {/* Nav + GitHub — pushed to far right */}
+        <div className="ml-auto flex items-center gap-6">
+          <nav className="hidden items-center gap-6 md:flex">
+            {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className={`text-sm transition-colors ${
+                  item.section === section
+                    ? "font-bold text-brand-600"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
                 {item.label}
               </Link>
             ))}
-        </nav>
+          </nav>
 
-        {/* GitHub Stars — pushed to far right */}
-        <div className="ml-auto">
           <Link
-            href="https://github.com/batondx/baton-dx"
+            href="https://github.com/baton-dx/baton-dx"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <GitHubIcon />
             {stars !== null && (

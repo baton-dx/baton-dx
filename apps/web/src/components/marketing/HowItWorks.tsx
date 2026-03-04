@@ -1,24 +1,42 @@
-const steps = [
+import type { ReactNode } from "react";
+import { CommandTabs } from "./CommandTabs";
+import { InstallTabs } from "./InstallTabs";
+
+const steps: { number: string; title: string; description: string; codeBlock: ReactNode }[] = [
   {
     number: "01",
     title: "Install Baton DX",
     description:
-      "Install the CLI globally with npm, Homebrew, or your preferred package manager. Works on macOS, Linux, and Windows.",
-    code: "npm install -g @baton-dx/cli\n\n# or via Homebrew\nbrew install batondx/tap/baton-dx",
+      "Install the CLI globally with bun, npm, or your preferred package manager. Works on macOS, Linux, and Windows.",
+    codeBlock: <InstallTabs />,
   },
   {
     number: "02",
     title: "Create a Source",
     description:
       "Point Baton to a Git repo or npm package containing AI tool configurations. Sources are versioned and shareable.",
-    code: "# Initialize your project\nbaton init\n\n# Add a source\nbaton source add gh:myorg/ai-configs",
+    codeBlock: (
+      <CommandTabs
+        tabs={[
+          { label: "init", command: "baton init" },
+          { label: "add source", command: "baton source add gh:myorg/ai-configs" },
+        ]}
+      />
+    ),
   },
   {
     number: "03",
     title: "Sync Profiles",
     description:
       "Run baton sync to pull selected profiles into your project or home directory. Configs are placed exactly where each tool expects them.",
-    code: "# Select and sync profiles\nbaton sync\n\n# Check what was placed\nbaton status",
+    codeBlock: (
+      <CommandTabs
+        tabs={[
+          { label: "sync", command: "baton sync" },
+          { label: "status", command: "baton status" },
+        ]}
+      />
+    ),
   },
 ];
 
@@ -57,51 +75,12 @@ export function HowItWorks() {
                   {step.description}
                 </p>
 
-                {/* Code block */}
-                <div className="overflow-hidden rounded-lg bg-zinc-950">
-                  <pre className="overflow-x-auto p-4 text-xs leading-6">
-                    <code>
-                      {step.code.split("\n").map((line, i) => (
-                        <StepCodeLine key={i} line={line} />
-                      ))}
-                    </code>
-                  </pre>
-                </div>
+                {step.codeBlock}
               </div>
             </div>
           ))}
         </div>
       </div>
     </section>
-  );
-}
-
-function StepCodeLine({ line }: { line: string }) {
-  if (line.startsWith("#")) {
-    return (
-      <span className="block text-zinc-500">
-        {line}
-        {"\n"}
-      </span>
-    );
-  }
-  if (line === "") {
-    return <span className="block text-zinc-300">{"\n"}</span>;
-  }
-  const spaceIdx = line.indexOf(" ");
-  if (spaceIdx === -1) {
-    return (
-      <span className="block text-emerald-400">
-        {line}
-        {"\n"}
-      </span>
-    );
-  }
-  return (
-    <span className="block">
-      <span className="text-emerald-400">{line.slice(0, spaceIdx)}</span>
-      <span className="text-zinc-300">{line.slice(spaceIdx)}</span>
-      {"\n"}
-    </span>
   );
 }

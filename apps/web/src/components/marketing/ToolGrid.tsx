@@ -42,7 +42,7 @@ export function ToolGrid() {
         <p className="mt-8 text-center text-sm text-muted-foreground">
           More tools added regularly.{" "}
           <a
-            href="https://github.com/batondx/baton-dx/issues"
+            href="https://github.com/baton-dx/baton-dx/issues"
             className="text-brand-600 underline-offset-2 hover:underline"
             target="_blank"
             rel="noopener noreferrer"

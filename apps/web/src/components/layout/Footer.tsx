@@ -5,14 +5,13 @@ const footerLinks = [
     title: "Product",
     links: [
       { label: "Documentation", href: "https://docs.batondx.dev" },
-      { label: "Changelog", href: "https://github.com/batondx/baton-dx/blob/main/CHANGELOG.md" },
       { label: "Marketplace", href: "https://marketplace.batondx.dev" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "GitHub", href: "https://github.com/batondx/baton-dx" },
+      { label: "GitHub", href: "https://github.com/baton-dx/baton-dx" },
       { label: "npm Package", href: "https://www.npmjs.com/package/@baton-dx/cli" },
       { label: "Contributing", href: "https://docs.batondx.dev/contributing" },
     ],
@@ -20,9 +19,9 @@ const footerLinks = [
   {
     title: "Legal",
     links: [
-      { label: "MIT License", href: "https://github.com/batondx/baton-dx/blob/main/LICENSE" },
-      { label: "Code of Conduct", href: "https://github.com/batondx/baton-dx/blob/main/CODE_OF_CONDUCT.md" },
-      { label: "Security", href: "https://github.com/batondx/baton-dx/blob/main/SECURITY.md" },
+      { label: "MIT License", href: "https://github.com/baton-dx/baton-dx/blob/main/LICENSE" },
+      { label: "Code of Conduct", href: "https://github.com/baton-dx/baton-dx/blob/main/CODE_OF_CONDUCT.md" },
+      { label: "Security", href: "https://github.com/baton-dx/baton-dx/blob/main/SECURITY.md" },
     ],
   },
 ];
