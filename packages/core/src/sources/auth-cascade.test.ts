@@ -403,7 +403,12 @@ describe("getAuthSetupInstructions", () => {
     });
 
     it("shows tried methods when provided", () => {
-        const msg = getAuthSetupInstructions("github.com", ["env", "git-credential", "gh-cli", "ssh"]);
+        const msg = getAuthSetupInstructions("github.com", [
+            "env",
+            "git-credential",
+            "gh-cli",
+            "ssh",
+        ]);
         expect(msg).toContain("Tried: env, git-credential, gh-cli, ssh");
     });
 });
