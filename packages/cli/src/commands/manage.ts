@@ -24,6 +24,7 @@ import {
     readState,
     removeGitignoreManagedSection,
     removePlacedFiles,
+    resolvePreferences,
     updateGitignoreWithSections,
     writeProjectPreferences,
 } from "@baton-dx/core";
@@ -186,8 +187,9 @@ async function showOverview(cwd: string): Promise<void> {
 
     // --- Intersection per Profile ---
     if (manifest.profiles.length > 0) {
-        const aiTools = await getGlobalAiTools();
-        const idePlatforms = await getGlobalIdePlatforms();
+        const prefs = await resolvePreferences(cwd);
+        const aiTools = prefs.ai.tools;
+        const idePlatforms = prefs.ide.platforms;
 
         if (aiTools.length > 0 || idePlatforms.length > 0) {
             const developerTools = { aiTools, idePlatforms };

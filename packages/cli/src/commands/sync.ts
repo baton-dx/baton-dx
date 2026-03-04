@@ -283,10 +283,16 @@ export const syncCommand = defineCommand({
 
                         // Pre-resolve auth via cascade
                         const hostname = new URL(url).hostname;
-                        const auth = await resolveAuth(hostname);
+                        const authLogger = verbose
+                            ? { debug: (msg: string) => p.log.info(msg) }
+                            : undefined;
+                        const auth = await resolveAuth(
+                            hostname,
+                            authLogger ? { logger: authLogger } : undefined,
+                        );
                         if (auth.method === "none") {
                             p.log.warn(
-                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname)}`,
+                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname, auth.triedMethods)}`,
                             );
                             continue;
                         }

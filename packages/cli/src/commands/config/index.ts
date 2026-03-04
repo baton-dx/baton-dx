@@ -38,15 +38,25 @@ async function showDashboard(): Promise<void> {
         }
     }
 
+    // Resolve effective tools — project preferences override global if set
+    let resolvedAiTools: string[];
+    let resolvedIdePlatforms: string[];
+
+    if (projectManifest) {
+        const prefs = await resolvePreferences(process.cwd());
+        resolvedAiTools = prefs.ai.tools;
+        resolvedIdePlatforms = prefs.ide.platforms;
+    } else {
+        resolvedAiTools = aiTools;
+        resolvedIdePlatforms = idePlatforms;
+    }
+
     // --- Developer Tools ---
     console.log("");
     p.log.step("Developer Tools");
 
-    // Use resolved preferences if in a project directory, otherwise show global config
     if (projectManifest) {
         const prefs = await resolvePreferences(process.cwd());
-        const resolvedAiTools = prefs.ai.tools;
-        const resolvedIdePlatforms = prefs.ide.platforms;
 
         if (resolvedAiTools.length === 0 && resolvedIdePlatforms.length === 0) {
             p.log.info("  No tools configured. Run: baton ai-tools scan && baton ides scan");
@@ -72,11 +82,11 @@ async function showDashboard(): Promise<void> {
             }
         }
     } else {
-        if (aiTools.length === 0 && idePlatforms.length === 0) {
+        if (resolvedAiTools.length === 0 && resolvedIdePlatforms.length === 0) {
             p.log.info("  No tools configured. Run: baton ai-tools scan && baton ides scan");
         } else {
-            if (aiTools.length > 0) {
-                const toolNames = aiTools.map((key) => {
+            if (resolvedAiTools.length > 0) {
+                const toolNames = resolvedAiTools.map((key) => {
                     try {
                         return getAIToolConfig(key).name;
                     } catch {
@@ -85,8 +95,10 @@ async function showDashboard(): Promise<void> {
                 });
                 p.log.info(`  AI Tools: ${toolNames.join(", ")} (from global config)`);
             }
-            if (idePlatforms.length > 0) {
-                p.log.info(`  IDE Platforms: ${idePlatforms.join(", ")} (from global config)`);
+            if (resolvedIdePlatforms.length > 0) {
+                p.log.info(
+                    `  IDE Platforms: ${resolvedIdePlatforms.join(", ")} (from global config)`,
+                );
             }
         }
     }
@@ -107,10 +119,13 @@ async function showDashboard(): Promise<void> {
 
     // --- Active Intersections ---
     if (projectManifest && projectManifest.profiles.length > 0) {
-        const hasDeveloperTools = aiTools.length > 0 || idePlatforms.length > 0;
+        const hasDeveloperTools = resolvedAiTools.length > 0 || resolvedIdePlatforms.length > 0;
 
         if (hasDeveloperTools) {
-            const developerTools = { aiTools, idePlatforms };
+            const developerTools = {
+                aiTools: resolvedAiTools,
+                idePlatforms: resolvedIdePlatforms,
+            };
             console.log("");
             p.log.step("Active Intersections");
 

@@ -44,7 +44,7 @@ export async function selectMultipleProfilesFromSource(
             const auth = await resolveAuth(hostname);
             if (auth.method === "none") {
                 spinner.stop("Authentication failed");
-                p.cancel(`❌ ${getAuthSetupInstructions(hostname)}`);
+                p.cancel(`❌ ${getAuthSetupInstructions(hostname, auth.triedMethods)}`);
                 process.exit(1);
             }
             const cloneUrl = await getAuthenticatedUrl(parsedSource.url, auth);
