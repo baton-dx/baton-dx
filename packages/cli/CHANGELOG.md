@@ -1,5 +1,7 @@
 # @baton-dx/cli
 
+## 0.14.6
+
 ## 0.14.5
 
 ### Patch Changes
