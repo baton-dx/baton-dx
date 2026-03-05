@@ -14,6 +14,10 @@ export interface CloneContext {
     cachePath: string;
     /** Whether the repo uses sparse-checkout */
     sparseCheckout: boolean;
+    /** Auth token for private repos (passed through to cloneGitSource) */
+    authToken?: string;
+    /** Authenticated URL for the source repo (e.g. SSH URL when using SSH auth) */
+    cloneUrl?: string;
 }
 
 /**
@@ -283,9 +287,10 @@ async function loadProfileFromSource(
     // Git source (github, gitlab, git): clone and load
     const subpath = parsed.provider !== "git" ? parsed.subpath : undefined;
     const cloned = await cloneGitSource({
-        url: parsed.url,
+        url: cloneContext?.cloneUrl ?? parsed.url,
         ref: parsed.ref,
         subpath,
+        authToken: cloneContext?.authToken,
     });
 
     const manifestPath = resolve(cloned.localPath, "baton.profile.yaml");

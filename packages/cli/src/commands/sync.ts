@@ -235,6 +235,8 @@ export const syncCommand = defineCommand({
             const allProfiles = [];
             // Track SHA per source for lockfile
             const sourceShas = new Map<string, string>();
+            // Track authenticated URL + token per source for reuse in Step 5
+            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
             for (const profileSource of projectManifest.profiles || []) {
                 try {
                     if (verbose) {
@@ -297,6 +299,7 @@ export const syncCommand = defineCommand({
                             continue;
                         }
                         const cloneUrl = await getAuthenticatedUrl(url, auth);
+                        sourceAuth.set(profileSource.source, { cloneUrl, authToken: auth.token });
 
                         // Always resolve to latest version
                         let resolvedRef: string;
@@ -329,6 +332,8 @@ export const syncCommand = defineCommand({
                         cloneContext = {
                             cachePath: cloned.cachePath,
                             sparseCheckout: cloned.sparseCheckout,
+                            authToken: auth.token,
+                            cloneUrl,
                         };
                     }
 
@@ -714,16 +719,19 @@ export const syncCommand = defineCommand({
                     parsed.provider === "gitlab" ||
                     parsed.provider === "git"
                 ) {
-                    const url = parsed.provider === "git" ? parsed.url : parsed.url;
+                    // Reuse authenticated URL + token from Step 1 (avoids cache key mismatch and auth failure)
+                    const cached = sourceAuth.get(profileSource.source);
+                    const cloneUrl = cached?.cloneUrl ?? parsed.url;
 
                     // Use the already-resolved SHA from sourceShas (resolved in Step 1)
                     const resolvedSha = sourceShas.get(profileSource.source);
 
                     const cloned = await cloneGitSource({
-                        url,
+                        url: cloneUrl,
                         ref: resolvedSha || profileSource.version,
                         subpath: "subpath" in parsed ? parsed.subpath : undefined,
                         useCache: true,
+                        authToken: cached?.authToken,
                     });
                     for (const prof of allProfiles) {
                         if (prof.source === profileSource.source) {

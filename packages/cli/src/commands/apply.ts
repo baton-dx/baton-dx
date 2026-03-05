@@ -224,6 +224,8 @@ export const applyCommand = defineCommand({
             const allProfiles = [];
             // Track SHA per source for lockfile
             const sourceShas = new Map<string, string>();
+            // Track authenticated URL + token per source for reuse in Step 5
+            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
             for (const profileSource of projectManifest.profiles || []) {
                 try {
                     if (verbose) {
@@ -271,6 +273,7 @@ export const applyCommand = defineCommand({
                             continue;
                         }
                         const cloneUrl = await getAuthenticatedUrl(url, auth);
+                        sourceAuth.set(profileSource.source, { cloneUrl, authToken: auth.token });
 
                         // Determine ref: use locked SHA if available, otherwise profileSource.version
                         let ref = profileSource.version;
@@ -303,6 +306,8 @@ export const applyCommand = defineCommand({
                         cloneContext = {
                             cachePath: cloned.cachePath,
                             sparseCheckout: cloned.sparseCheckout,
+                            authToken: auth.token,
+                            cloneUrl,
                         };
                     }
 
@@ -659,7 +664,9 @@ export const applyCommand = defineCommand({
                     parsed.provider === "gitlab" ||
                     parsed.provider === "git"
                 ) {
-                    const url = parsed.provider === "git" ? parsed.url : parsed.url;
+                    // Reuse authenticated URL + token from Step 1 (avoids cache key mismatch and auth failure)
+                    const cached = sourceAuth.get(profileSource.source);
+                    const cloneUrl = cached?.cloneUrl ?? parsed.url;
 
                     // Use locked SHA for deterministic clone
                     let ref = profileSource.version;
@@ -672,11 +679,12 @@ export const applyCommand = defineCommand({
                     }
 
                     const cloned = await cloneGitSource({
-                        url,
+                        url: cloneUrl,
                         ref,
                         subpath: "subpath" in parsed ? parsed.subpath : undefined,
                         useCache: true,
                         maxCacheAgeMs,
+                        authToken: cached?.authToken,
                     });
                     for (const prof of allProfiles) {
                         if (prof.source === profileSource.source) {

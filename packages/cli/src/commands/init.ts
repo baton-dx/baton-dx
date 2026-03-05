@@ -12,12 +12,14 @@ import {
     detectInstalledIdes,
     findSourceManifest,
     type GitignoreSection,
+    getAuthenticatedUrl,
     getDefaultGlobalSource,
     getGlobalAiTools,
     getGlobalIdePlatforms,
     getGlobalSources,
     loadProfileManifest,
     parseSource,
+    resolveAuth,
     resolveProfileSupport,
     setGlobalAiTools,
     setGlobalIdePlatforms,
@@ -383,11 +385,18 @@ async function showProfileIntersections(profileSources: string[]): Promise<void>
 
             if (parsed.provider === "github" || parsed.provider === "gitlab") {
                 // Clone repo (cache hit) — without subpath to get the repo root
+                const hostname = new URL(parsed.url).hostname;
+                const auth = await resolveAuth(hostname);
+                const cloneUrl =
+                    auth.method !== "none"
+                        ? await getAuthenticatedUrl(parsed.url, auth)
+                        : parsed.url;
                 const repoClone = await cloneGitSource({
-                    url: parsed.url,
+                    url: cloneUrl,
                     ref: parsed.ref,
                     useCache: true,
                     maxCacheAgeMs: 0,
+                    authToken: auth.token,
                 });
                 repoRoot = repoClone.localPath;
                 profileDir = parsed.subpath ? resolve(repoRoot, parsed.subpath) : repoRoot;
