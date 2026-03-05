@@ -1,0 +1,10 @@
+# Save list of staged files before formatting
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Run biome formatting on staged files
+bunx biome check --write --staged --no-errors-on-unmatched
+
+# Re-stage only the files that were originally staged
+if [ -n "$STAGED_FILES" ]; then
+  echo "$STAGED_FILES" | xargs git add
+fi

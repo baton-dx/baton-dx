@@ -16,7 +16,8 @@
     "dev": "tsx packages/cli/src/index.ts",
     "changeset": "changeset",
     "ci:version": "changeset version && bun run format && bun update",
-    "ci:publish": "bun run build && bun run test && changeset publish"
+    "ci:publish": "bun run build && bun run test && changeset publish",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
@@ -24,6 +25,7 @@
     "@changesets/cli": "^2.30.0",
     "@types/node": "^25.3.3",
     "@vitest/coverage-v8": "^4.0.18",
+    "husky": "^9.1.7",
     "knip": "^5.85.0",
     "tsdown": "^0.20.3",
     "tsx": "^4.21.0",
