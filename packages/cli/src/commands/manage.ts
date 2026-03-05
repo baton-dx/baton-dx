@@ -10,6 +10,7 @@ import {
     FileNotFoundError,
     flattenPlacedFiles,
     getAllAIToolAdapters,
+    getAuthenticatedUrl,
     getDefaultGlobalSource,
     getGlobalAiTools,
     getGlobalIdePlatforms,
@@ -24,6 +25,7 @@ import {
     readState,
     removeGitignoreManagedSection,
     removePlacedFiles,
+    resolveAuth,
     resolvePreferences,
     updateGitignoreWithSections,
     writeProjectPreferences,
@@ -59,11 +61,16 @@ async function loadInstalledProfileMeta(
         let profileDir: string;
 
         if (parsed.provider === "github" || parsed.provider === "gitlab") {
+            const hostname = new URL(parsed.url).hostname;
+            const auth = await resolveAuth(hostname);
+            const cloneUrl =
+                auth.method !== "none" ? await getAuthenticatedUrl(parsed.url, auth) : parsed.url;
             const repoClone = await cloneGitSource({
-                url: parsed.url,
+                url: cloneUrl,
                 ref: parsed.ref,
                 useCache: true,
                 maxCacheAgeMs: 0,
+                authToken: auth.token,
             });
             profileDir = parsed.subpath
                 ? resolve(repoClone.localPath, parsed.subpath)
