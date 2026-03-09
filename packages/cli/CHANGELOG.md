@@ -1,5 +1,17 @@
 # @baton-dx/cli
 
+## 0.16.0
+
+### Minor Changes
+
+- [#161](https://github.com/baton-dx/baton-dx/pull/161) [`f922e7c`](https://github.com/baton-dx/baton-dx/commit/f922e7cea1e085a0f1c5c81e3b255fb3c8e7b809) Thanks [@mantaray0](https://github.com/mantaray0)! - Refactor baton:include directive modes and add link mode with hint support
+
+  - Rename `mode="merge"` to `mode="inline"` (now the default)
+  - Add `mode="link"` — outputs a Markdown link `[src](src)`
+  - Update `mode="reference"` — outputs `@src` mention (Claude Code native, plain text for other tools)
+  - Add `hint` attribute with `{{file}}` placeholder for `link` and `reference` modes
+  - Add `optional="true"` attribute to silently skip missing files
+
 ## 0.14.8
 
 ### Patch Changes

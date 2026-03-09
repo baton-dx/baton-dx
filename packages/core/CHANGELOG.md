@@ -1,5 +1,12 @@
 # @baton-dx/core
 
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @baton-dx/ai-tool-paths@0.16.0
+
 ## 0.14.8
 
 ### Patch Changes
