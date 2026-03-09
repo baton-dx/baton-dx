@@ -89,7 +89,7 @@ export async function resolveInclude(
             : `See ${rendered} for additional context.`;
     }
 
-    // Default: inline content
+    // Default: inline content (trimmed to avoid stray blank lines at boundaries)
     const content = await readFile(absolutePath, "utf-8");
-    return content;
+    return content.trim();
 }

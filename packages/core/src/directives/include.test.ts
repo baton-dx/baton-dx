@@ -36,6 +36,12 @@ describe("resolveInclude", () => {
         expect(result).toBe("content");
     });
 
+    it("inline mode trims leading/trailing whitespace", async () => {
+        await writeFile(join(projectRoot, "padded.md"), "\n\n  Actual content\n\n");
+        const result = await resolveInclude(makeInclude({ src: "padded.md" }), projectRoot);
+        expect(result).toBe("Actual content");
+    });
+
     it('mode="link" generates markdown link', async () => {
         await writeFile(join(projectRoot, "api.md"), "API docs");
         const result = await resolveInclude(
