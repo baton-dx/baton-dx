@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 0.16.1
+
+### Patch Changes
+
+- [#164](https://github.com/baton-dx/baton-dx/pull/164) [`ce87cef`](https://github.com/baton-dx/baton-dx/commit/ce87cef9316985fc4c6e5c32dc3483de3cb7b1b6) Thanks [@mantaray0](https://github.com/mantaray0)! - Trim leading/trailing whitespace from inline-included files to prevent stray blank lines at include boundaries
+
 ## 0.16.0
 
 ### Minor Changes
