@@ -25,12 +25,9 @@ export async function resolveInclude(
         return "";
     }
 
-    const rawMode = directive.attributes.mode || "inline";
+    const mode = directive.attributes.mode || "inline";
     const optional = directive.attributes.optional === "true";
     const hint = directive.attributes.hint;
-
-    // Normalize deprecated aliases
-    const mode = rawMode === "merge" ? "inline" : rawMode === "ref" ? "reference" : rawMode;
 
     // Reject absolute paths
     if (isAbsolute(src)) {

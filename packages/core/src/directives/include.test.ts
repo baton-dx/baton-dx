@@ -36,15 +36,6 @@ describe("resolveInclude", () => {
         expect(result).toBe("content");
     });
 
-    it('mode="merge" still works as deprecated alias for inline', async () => {
-        await writeFile(join(projectRoot, "file.md"), "content");
-        const result = await resolveInclude(
-            makeInclude({ src: "file.md", mode: "merge" }),
-            projectRoot,
-        );
-        expect(result).toBe("content");
-    });
-
     it('mode="link" generates markdown link', async () => {
         await writeFile(join(projectRoot, "api.md"), "API docs");
         const result = await resolveInclude(
@@ -67,15 +58,6 @@ describe("resolveInclude", () => {
         await writeFile(join(projectRoot, "api.md"), "API docs");
         const result = await resolveInclude(
             makeInclude({ src: "api.md", mode: "reference" }),
-            projectRoot,
-        );
-        expect(result).toBe("See @api.md for additional context.");
-    });
-
-    it('mode="ref" is alias for reference', async () => {
-        await writeFile(join(projectRoot, "api.md"), "API docs");
-        const result = await resolveInclude(
-            makeInclude({ src: "api.md", mode: "ref" }),
             projectRoot,
         );
         expect(result).toBe("See @api.md for additional context.");
