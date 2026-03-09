@@ -83,12 +83,21 @@ export function getOrCreatePlacedFiles(
 }
 
 /**
+ * Optional transform applied to file content during recursive copy.
+ * Only called for .md files. Receives file content, returns transformed content.
+ */
+export type ContentTransform = (content: string, filePath: string) => Promise<string>;
+
+/**
  * Recursively copy all files from sourceDir to targetDir.
  * Returns the number of files written (skips identical content).
+ *
+ * @param contentTransform - Optional async transform for .md file content (e.g. directive processing)
  */
 export async function copyDirectoryRecursive(
     sourceDir: string,
     targetDir: string,
+    contentTransform?: ContentTransform,
 ): Promise<number> {
     await mkdir(targetDir, { recursive: true });
     const entries = await readdir(sourceDir, { withFileTypes: true });
@@ -99,9 +108,13 @@ export async function copyDirectoryRecursive(
         const targetPath = resolve(targetDir, entry.name);
 
         if (entry.isDirectory()) {
-            placed += await copyDirectoryRecursive(sourcePath, targetPath);
+            placed += await copyDirectoryRecursive(sourcePath, targetPath, contentTransform);
         } else {
-            const content = await readFile(sourcePath, "utf-8");
+            let content = await readFile(sourcePath, "utf-8");
+            // Apply content transform to .md files (e.g. baton directives)
+            if (contentTransform && entry.name.endsWith(".md")) {
+                content = await contentTransform(content, sourcePath);
+            }
             // Idempotency: skip if content is identical
             const existing = await readFile(targetPath, "utf-8").catch(() => undefined);
             if (existing !== content) {
