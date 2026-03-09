@@ -21,25 +21,82 @@ describe("resolveInclude", () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it('mode="merge" inlines file content', async () => {
+    it('mode="inline" inlines file content', async () => {
         await writeFile(join(projectRoot, "PROJECT.md"), "# My Project\nDetails here.");
-        const result = await resolveInclude(makeInclude({ src: "PROJECT.md" }), projectRoot);
+        const result = await resolveInclude(
+            makeInclude({ src: "PROJECT.md", mode: "inline" }),
+            projectRoot,
+        );
         expect(result).toBe("# My Project\nDetails here.");
     });
 
-    it("default mode is merge", async () => {
+    it("default mode is inline", async () => {
         await writeFile(join(projectRoot, "file.md"), "content");
         const result = await resolveInclude(makeInclude({ src: "file.md" }), projectRoot);
         expect(result).toBe("content");
     });
 
-    it('mode="reference" generates read instruction', async () => {
+    it('mode="merge" still works as deprecated alias for inline', async () => {
+        await writeFile(join(projectRoot, "file.md"), "content");
+        const result = await resolveInclude(
+            makeInclude({ src: "file.md", mode: "merge" }),
+            projectRoot,
+        );
+        expect(result).toBe("content");
+    });
+
+    it('mode="link" generates markdown link', async () => {
+        await writeFile(join(projectRoot, "api.md"), "API docs");
+        const result = await resolveInclude(
+            makeInclude({ src: "api.md", mode: "link" }),
+            projectRoot,
+        );
+        expect(result).toBe("[api.md](api.md)");
+    });
+
+    it('mode="link" with hint uses template', async () => {
+        await writeFile(join(projectRoot, "api.md"), "API docs");
+        const result = await resolveInclude(
+            makeInclude({ src: "api.md", mode: "link", hint: "See {{file}} for details" }),
+            projectRoot,
+        );
+        expect(result).toBe("See [api.md](api.md) for details");
+    });
+
+    it('mode="reference" generates @-mention', async () => {
         await writeFile(join(projectRoot, "api.md"), "API docs");
         const result = await resolveInclude(
             makeInclude({ src: "api.md", mode: "reference" }),
             projectRoot,
         );
-        expect(result).toContain("Read the file `api.md`");
+        expect(result).toBe("See @api.md for additional context.");
+    });
+
+    it('mode="ref" is alias for reference', async () => {
+        await writeFile(join(projectRoot, "api.md"), "API docs");
+        const result = await resolveInclude(
+            makeInclude({ src: "api.md", mode: "ref" }),
+            projectRoot,
+        );
+        expect(result).toBe("See @api.md for additional context.");
+    });
+
+    it('mode="reference" with hint uses template', async () => {
+        await writeFile(join(projectRoot, "api.md"), "API docs");
+        const result = await resolveInclude(
+            makeInclude({ src: "api.md", mode: "reference", hint: "Read {{file}} for API docs" }),
+            projectRoot,
+        );
+        expect(result).toBe("Read @api.md for API docs");
+    });
+
+    it("hint is ignored for inline mode", async () => {
+        await writeFile(join(projectRoot, "file.md"), "content");
+        const result = await resolveInclude(
+            makeInclude({ src: "file.md", mode: "inline", hint: "This {{file}} hint is ignored" }),
+            projectRoot,
+        );
+        expect(result).toBe("content");
     });
 
     it('optional="true" silently skips missing files', async () => {

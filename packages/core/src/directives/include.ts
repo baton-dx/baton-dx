@@ -25,8 +25,12 @@ export async function resolveInclude(
         return "";
     }
 
-    const mode = directive.attributes.mode || "merge";
+    const rawMode = directive.attributes.mode || "inline";
     const optional = directive.attributes.optional === "true";
+    const hint = directive.attributes.hint;
+
+    // Normalize deprecated aliases
+    const mode = rawMode === "merge" ? "inline" : rawMode === "ref" ? "reference" : rawMode;
 
     // Reject absolute paths
     if (isAbsolute(src)) {
@@ -76,11 +80,19 @@ export async function resolveInclude(
         return "";
     }
 
-    if (mode === "reference") {
-        return `> **Included by reference:** Read the file \`${src}\` for additional context.`;
+    if (mode === "link") {
+        const rendered = `[${src}](${src})`;
+        return hint ? hint.replace("{{file}}", rendered) : rendered;
     }
 
-    // Default: merge (inline content)
+    if (mode === "reference") {
+        const rendered = `@${src}`;
+        return hint
+            ? hint.replace("{{file}}", rendered)
+            : `See ${rendered} for additional context.`;
+    }
+
+    // Default: inline content
     const content = await readFile(absolutePath, "utf-8");
     return content;
 }
