@@ -85,6 +85,7 @@ baton sync
 - **Unified AI Configuration** — One manifest for 14 AI coding tools
 - **MCP Server Distribution** — Define MCP servers once, placed into each tool's native config format
 - **Profile Inheritance** — Compose profiles with `extends` for layered configuration
+- **Directives** — Conditional content and file inclusion with `baton:if` and `baton:include`
 - **Smart Sync** — Transform and place files in the correct format for each tool
 - **Version Control** — Lockfile-based reproducibility with SHA-256 integrity
 - **Merge Strategies** — replace, deep, append, prepend, skip, prompt, directory, import

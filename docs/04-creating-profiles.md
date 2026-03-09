@@ -445,6 +445,116 @@ variables:
 
 ---
 
+## Directives
+
+Directives are HTML comments with a `baton:` prefix that Baton processes at sync time. They let you conditionally include content or pull in external files — all without breaking Markdown rendering.
+
+Directives work in **all content types**: skills, rules, agents, memory, and commands.
+
+### Conditional Content (`baton:if`)
+
+Show or hide content based on the current tool, IDE, scope, or content type:
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+Claude-specific instructions here.
+<!-- baton:endif -->
+
+<!-- baton:if not-tool="cursor" -->
+This appears for every tool except Cursor.
+<!-- baton:endif -->
+
+<!-- baton:if ide="vscode" -->
+VS Code tips here.
+<!-- baton:endif -->
+
+<!-- baton:if scope="project" -->
+Project-scoped content only.
+<!-- baton:endif -->
+
+<!-- baton:if type="memory" -->
+Only when placed as memory content.
+<!-- baton:endif -->
+```
+
+Conditionals can be nested:
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+<!-- baton:if scope="project" -->
+Claude Code project-specific content.
+<!-- baton:endif -->
+<!-- baton:endif -->
+```
+
+**Fail-open behavior:** If a `baton:if` has no matching `baton:endif`, the content is kept and a warning is emitted. This prevents accidental data loss from typos.
+
+| Attribute | Description |
+|-----------|-------------|
+| `tool` | Match a specific AI tool key (e.g. `claude-code`, `cursor`) |
+| `not-tool` | Match all tools *except* this one |
+| `ide` | Match a specific IDE platform (e.g. `vscode`) |
+| `scope` | Match placement scope: `project` or `global` |
+| `type` | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
+
+### File Inclusion (`baton:include`)
+
+Include external files by reference or inline their content:
+
+```markdown
+<!-- baton:include src="PROJECT.md" -->
+<!-- baton:include src="docs/api.md" mode="inline" -->
+<!-- baton:include src="docs/api.md" mode="link" -->
+<!-- baton:include src="docs/api.md" mode="link" hint="API Docs: {{file}}" -->
+<!-- baton:include src="docs/api.md" mode="reference" -->
+<!-- baton:include src="docs/api.md" mode="reference" hint="Read {{file}} for details" -->
+<!-- baton:include src="docs/OPTIONAL.md" optional="true" -->
+```
+
+| Attribute | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `src` | yes | — | Path relative to project root |
+| `mode` | no | `inline` | How to include the file (see below) |
+| `hint` | no | — | Template for `link`/`reference` output. Use `{{file}}` for the rendered reference. Ignored for `inline`. |
+| `optional` | no | `false` | `true` = silently skip if the file doesn't exist |
+
+#### Include Modes
+
+| Mode | Output (without hint) | Output (with `hint="See {{file}} for details"`) |
+|------|----------------------|--------------------------------------------------|
+| `inline` | File content inlined verbatim | *(hint ignored — full content is inlined)* |
+| `link` | `[docs/api.md](docs/api.md)` | `See [docs/api.md](docs/api.md) for details` |
+| `reference` | `See @docs/api.md for additional context.` | `See @docs/api.md for details` |
+
+**Default mode is `inline`** — the file's content replaces the directive. This is the most common use case and requires no `mode` attribute.
+
+**`link` mode** produces a standard Markdown link. This works across all AI tools since every tool understands Markdown links.
+
+**`reference` mode** produces an `@file` mention. This is natively understood by Claude Code (which resolves `@file` references), but **other tools treat it as plain text**. Use `link` mode if you need cross-tool compatibility.
+
+#### Security
+
+- `src` must be a relative path (no absolute paths, no `../` traversal)
+- Binary files are rejected
+- Files larger than 1 MB are skipped
+- The resolved path must stay within the project root
+
+### Combining Directives
+
+Conditionals and includes work together. Includes inside excluded conditionals are never read:
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+<!-- baton:include src="docs/claude-specific.md" -->
+<!-- baton:endif -->
+
+<!-- baton:if tool="cursor" -->
+<!-- baton:include src="docs/cursor-tips.md" mode="link" hint="See {{file}}" -->
+<!-- baton:endif -->
+```
+
+---
+
 ## Hooks
 
 Hooks allow you to run commands at specific points during the sync lifecycle.

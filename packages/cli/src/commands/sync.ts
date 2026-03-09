@@ -11,6 +11,7 @@ import {
     cloneGitSource,
     createGit,
     detectInstalledAITools,
+    detectInstalledIdes,
     detectLegacyPaths,
     FileNotFoundError,
     getAIToolAdaptersForKeys,
@@ -36,6 +37,7 @@ import {
     parseFrontmatter,
     parseSource,
     placeFile,
+    processDirectives,
     type RuleEntry,
     type RuleFile,
     readLock,
@@ -546,6 +548,7 @@ export const syncCommand = defineCommand({
 
             const prefs = await resolvePreferences(projectRoot);
             const detectedAITools = await detectInstalledAITools();
+            const detectedIdes = await detectInstalledIdes();
 
             if (verbose) {
                 p.log.info(
@@ -904,10 +907,25 @@ export const syncCommand = defineCommand({
                                 ? targetSkillPath
                                 : resolve(projectRoot, targetSkillPath);
 
-                            // Recursively copy skill files
+                            // Recursively copy skill files (with directive processing for .md files)
+                            const skillTransform = async (content: string) =>
+                                processDirectives(content, {
+                                    context: {
+                                        projectRoot,
+                                        currentTool: adapter.key,
+                                        detectedTools: syncedAiTools,
+                                        detectedIdes,
+                                        scope: skillItem.scope,
+                                        contentType: "skills",
+                                    },
+                                    onWarning: (msg) => {
+                                        if (verbose) p.log.info(`  [directive] ${msg}`);
+                                    },
+                                });
                             const placed = await copyDirectoryRecursive(
                                 skillSourceDir,
                                 absoluteTargetDir,
+                                skillTransform,
                             );
                             if (placed > 0) stats.created += placed;
                             else stats.skipped++;
@@ -1154,8 +1172,21 @@ export const syncCommand = defineCommand({
                 for (const [absolutePath, entry] of contentAccumulator) {
                     try {
                         const combinedContent = normalizeMarkdown(entry.parts.join("\n\n"));
+                        const finalContent = await processDirectives(combinedContent, {
+                            context: {
+                                projectRoot,
+                                currentTool: entry.adapter.key,
+                                detectedTools: syncedAiTools,
+                                detectedIdes,
+                                scope: entry.scope,
+                                contentType: entry.type,
+                            },
+                            onWarning: (msg) => {
+                                if (verbose) p.log.info(`  [directive] ${msg}`);
+                            },
+                        });
                         const result = await placeFile(
-                            combinedContent,
+                            finalContent,
                             entry.adapter,
                             entry.type,
                             entry.scope,
@@ -1188,7 +1219,7 @@ export const syncCommand = defineCommand({
                             const pf = getOrCreatePlacedFiles(placedFiles, profileName);
                             if (!pf[canonicalKey]) {
                                 pf[canonicalKey] = {
-                                    content: combinedContent,
+                                    content: finalContent,
                                     type: entry.type as LockFileEntry["type"],
                                 };
                             }
@@ -1230,11 +1261,26 @@ export const syncCommand = defineCommand({
                                     continue;
                                 }
 
+                                const cmdScope = resolveScope(undefined, profile.manifest.scope);
+                                const finalContent = await processDirectives(content, {
+                                    context: {
+                                        projectRoot,
+                                        currentTool: adapter.key,
+                                        detectedTools: syncedAiTools,
+                                        detectedIdes,
+                                        scope: cmdScope,
+                                        contentType: "commands",
+                                    },
+                                    onWarning: (msg) => {
+                                        if (verbose) p.log.info(`  [directive] ${msg}`);
+                                    },
+                                });
+
                                 const result = await placeFile(
-                                    content,
+                                    finalContent,
                                     adapter,
                                     "commands",
-                                    resolveScope(undefined, profile.manifest.scope),
+                                    cmdScope,
                                     commandName,
                                     placementConfig,
                                 );
@@ -1255,7 +1301,7 @@ export const syncCommand = defineCommand({
                                 const canonicalKey = `commands/${commandName}`;
                                 const pf = getOrCreatePlacedFiles(placedFiles, profile.name);
                                 if (!pf[canonicalKey]) {
-                                    pf[canonicalKey] = { content, type: "commands" };
+                                    pf[canonicalKey] = { content: finalContent, type: "commands" };
                                 }
 
                                 if (verbose) {

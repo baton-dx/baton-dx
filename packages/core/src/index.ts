@@ -71,6 +71,12 @@ export {
     detectInstalledAITools,
     setDetectedAITools,
 } from "./detection/ai-tool-detection.js";
+// Export directive processing
+export {
+    type DirectiveContext,
+    type DirectiveOptions,
+    processDirectives,
+} from "./directives/index.js";
 // Export all error classes
 export {
     AIToolAdapterNotFoundError,
