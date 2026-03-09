@@ -6,7 +6,7 @@ import type { ParsedDirective } from "./types.js";
  * Matches: <!-- baton:include src="..." --> , <!-- baton:if tool="..." --> , <!-- baton:endif -->
  * Does NOT match regular HTML comments or unknown directive types.
  */
-const DIRECTIVE_REGEX = /<!--\s*baton:(include|if|endif)\b((?:\s+[\w-]+="[^"]*")*)\s*-->/g;
+const DIRECTIVE_REGEX = /<!--\s*baton:(include|if|endif)\b([^>]*?)-->/g;
 
 /**
  * Regex to extract key="value" attribute pairs from the attribute portion.

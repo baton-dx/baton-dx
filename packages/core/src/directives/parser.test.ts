@@ -86,10 +86,12 @@ describe("parseDirectives", () => {
         expect(result).toHaveLength(0);
     });
 
-    it("ignores malformed directives (missing quotes)", () => {
-        // Unquoted attributes don't match the directive regex at all
+    it("parses malformed directives (missing quotes) with no attributes", () => {
+        // Unquoted attributes are matched as a directive but ATTR_REGEX extracts no key="value" pairs
         const result = parseDirectives("<!-- baton:include src=PROJECT.md -->");
-        expect(result).toHaveLength(0);
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("include");
+        expect(result[0].attributes).toEqual({});
     });
 
     it("records correct startIndex and endIndex", () => {
