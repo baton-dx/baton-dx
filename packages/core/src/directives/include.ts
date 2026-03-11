@@ -1,7 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, normalize, resolve } from "node:path";
 import { isBinaryFile } from "../substitution/variables.js";
-import type { ParsedDirective } from "./types.js";
+import { computePlacementTarget } from "./placement.js";
+import type { FilePlacement, ParsedDirective } from "./types.js";
 
 /** Maximum file size for inclusion (1 MB) */
 const MAX_FILE_SIZE = 1024 * 1024;
@@ -34,6 +35,8 @@ export async function resolveInclude(
     projectRoot: string,
     onWarning?: (message: string) => void,
     profileRoot?: string,
+    profileName?: string,
+    onPlacement?: (placement: FilePlacement) => void,
 ): Promise<string> {
     const rawSrc = directive.attributes.src;
     if (!rawSrc) {
@@ -112,11 +115,25 @@ export async function resolveInclude(
     }
 
     if (mode === "link") {
+        // Profile-relative link: emit placement and rewrite path to .baton/includes/
+        if (!isProjectRelative && profileRoot && profileName && onPlacement) {
+            const targetRelative = computePlacementTarget(profileName, src);
+            onPlacement({ sourcePath: absolutePath, targetRelative, profileName });
+            const rendered = `[${targetRelative}](${targetRelative})`;
+            return hint ? hint.replace("{{file}}", rendered) : rendered;
+        }
+        // @project/ link or no placement callback: use original path
         const rendered = `[${rawSrc}](${rawSrc})`;
         return hint ? hint.replace("{{file}}", rendered) : rendered;
     }
 
     if (mode === "reference") {
+        if (!isProjectRelative && profileRoot && profileName && onPlacement) {
+            const targetRelative = computePlacementTarget(profileName, src);
+            onPlacement({ sourcePath: absolutePath, targetRelative, profileName });
+            const rendered = `@${targetRelative}`;
+            return hint ? hint.replace("{{file}}", rendered) : `See ${rendered} for additional context.`;
+        }
         const rendered = `@${rawSrc}`;
         return hint
             ? hint.replace("{{file}}", rendered)
