@@ -86,6 +86,28 @@ baton sync
 - **MCP Server Distribution** — Define MCP servers once, placed into each tool's native config format
 - **Profile Inheritance** — Compose profiles with `extends` for layered configuration
 - **Directives** — Conditional content and file inclusion with `baton:if` and `baton:include`
+
+### Directives — Smart Composition
+
+Baton profiles use directives to compose content dynamically based on the target project and tool:
+
+```markdown
+<!-- baton:if has="typescript" -->
+## TypeScript Standards
+<!-- baton:include src="fragments/typescript.md" -->
+<!-- baton:endif -->
+
+<!-- baton:if tool="claude-code" -->
+Use @file to reference project files.
+<!-- baton:else -->
+Reference files by relative path.
+<!-- baton:endif -->
+
+<!-- baton:include src="@project/PROJECT.md" -->
+```
+
+Conditions: `tool`, `ide`, `scope`, `type`, `file`, `var`, `has` (with AND/OR composition).
+Include modes: `inline`, `link`, `reference` — with `@project/` for project-relative resolution.
 - **Smart Sync** — Transform and place files in the correct format for each tool
 - **Version Control** — Lockfile-based reproducibility with SHA-256 integrity
 - **Merge Strategies** — replace, deep, append, prepend, skip, prompt, directory, import

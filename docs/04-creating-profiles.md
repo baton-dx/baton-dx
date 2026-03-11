@@ -496,6 +496,12 @@ Claude Code project-specific content.
 | `ide` | Match a specific IDE platform (e.g. `vscode`) |
 | `scope` | Match placement scope: `project` or `global` |
 | `type` | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
+| `file` | Match when a file exists in the target project (e.g. `file="tsconfig.json"`) |
+| `not-file` | Match when a file does *not* exist in the target project |
+| `var` | Match when a variable is defined (e.g. `var="framework"`) |
+| `not-var` | Match when a variable is *not* defined |
+| `has` | Match a project trait detected by Baton (e.g. `has="typescript"`, `has="react"`) |
+| `not-has` | Match when a trait is *not* detected |
 
 ### File Inclusion (`baton:include`)
 
@@ -517,6 +523,15 @@ Include external files by reference or inline their content:
 | `mode` | no | `inline` | How to include the file (see below) |
 | `hint` | no | — | Template for `link`/`reference` output. Use `{{file}}` for the rendered reference. Ignored for `inline`. |
 | `optional` | no | `false` | `true` = silently skip if the file doesn't exist |
+
+#### Resolution Roots
+
+By default, `baton:include` resolves paths relative to the **profile source** directory. Use the `@project/` prefix to resolve relative to the **target project**:
+
+| Prefix | Resolves relative to | `optional` default | Use case |
+|--------|---------------------|-------------------|----------|
+| *(none)* | Profile source | `false` | Fragments bundled with the profile |
+| `@project/` | Target project root | `true` | Project-specific context (e.g., PROJECT.md) |
 
 #### Include Modes
 
@@ -552,6 +567,35 @@ Conditionals and includes work together. Includes inside excluded conditionals a
 <!-- baton:include src="docs/cursor-tips.md" mode="link" hint="See {{file}}" -->
 <!-- baton:endif -->
 ```
+
+### Recommended: ROOT + Fragments Pattern
+
+Structure your profile content as a ROOT file that composes fragments via directives:
+
+```
+profile/ai/memory/
+├── MEMORY.md              ← ROOT (listed in baton.profile.yaml)
+└── fragments/
+    ├── typescript.md
+    ├── react-patterns.md
+    └── biome-config.md
+```
+
+The ROOT file uses directives to build the final content dynamically:
+
+```markdown
+# Team Standards
+
+<!-- baton:include src="ai/memory/fragments/typescript.md" -->
+
+<!-- baton:if has="react" -->
+<!-- baton:include src="ai/memory/fragments/react-patterns.md" -->
+<!-- baton:endif -->
+
+<!-- baton:include src="@project/PROJECT.md" -->
+```
+
+This pattern works for memory, skills (SKILL.md + fragments/), and agents.
 
 ---
 
