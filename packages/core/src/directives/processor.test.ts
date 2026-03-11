@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { processDirectives } from "./processor.js";
-import type { DirectiveContext, DirectiveOptions } from "./types.js";
+import type { DirectiveContext, DirectiveOptions, FilePlacement } from "./types.js";
 
 function makeContext(overrides: Partial<DirectiveContext> = {}): DirectiveContext {
     return {
@@ -260,5 +260,35 @@ describe("processDirectives", () => {
         ].join("\n");
         const result = await processDirectives(content, makeOptions({ projectRoot }));
         expect(result).toContain("Deep content");
+    });
+});
+
+describe("processDirectives — placements", () => {
+    it("collects placements from link includes via onPlacement", async () => {
+        const { mkdtemp } = await import("node:fs/promises");
+
+        const profileRoot = await mkdtemp(join(tmpdir(), "profile-"));
+        await writeFile(join(profileRoot, "fragment.md"), "Fragment content");
+
+        const placements: FilePlacement[] = [];
+        const content = '# Header\n<!-- baton:include src="fragment.md" mode="link" -->';
+        const result = await processDirectives(content, {
+            context: {
+                projectRoot: "/project",
+                profileRoot,
+                profileName: "test-profile",
+                currentTool: "claude-code",
+                detectedTools: ["claude-code"],
+                detectedIdes: [],
+                scope: "project",
+                contentType: "memory",
+            },
+            onPlacement: (p) => placements.push(p),
+        });
+
+        expect(placements).toHaveLength(1);
+        expect(placements[0].targetRelative).toContain(".baton/includes/test-profile/fragment.md");
+        expect(result).toContain(".baton/includes/test-profile/fragment.md");
+        expect(result).toContain("# Header");
     });
 });

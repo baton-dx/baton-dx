@@ -6,6 +6,8 @@ export interface DirectiveContext {
     projectRoot: string;
     /** Absolute path to the profile's local directory (for profile-relative includes) */
     profileRoot?: string;
+    /** Profile name (used for placement target paths in .baton/includes/) */
+    profileName?: string;
     /** Current AI tool adapter key (e.g. "claude-code", "cursor") */
     currentTool: string;
     /** All AI tool keys being synced */

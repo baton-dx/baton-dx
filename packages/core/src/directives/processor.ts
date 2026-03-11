@@ -46,6 +46,8 @@ export async function processDirectives(
                 context.projectRoot,
                 onWarning,
                 context.profileRoot,
+                context.profileName,
+                options.onPlacement,
             );
             result =
                 result.slice(0, directive.startIndex) +
