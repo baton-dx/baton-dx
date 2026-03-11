@@ -8,6 +8,7 @@ import { applyCommand } from "./commands/apply.js";
 import { authCommand } from "./commands/auth/index.js";
 import { configCommand } from "./commands/config/index.js";
 import { diffCommand } from "./commands/diff.js";
+import { previewCommand } from "./commands/preview.js";
 import { idesCommand } from "./commands/ides/index.js";
 import { initCommand } from "./commands/init.js";
 import { manageCommand } from "./commands/manage.js";
@@ -58,6 +59,7 @@ const main = defineCommand({
         sync: syncCommand,
         update: updateCommand,
         diff: diffCommand,
+        preview: previewCommand,
         manage: manageCommand,
         config: configCommand,
         auth: authCommand,
@@ -88,6 +90,7 @@ const main = defineCommand({
             console.log("  sync       Fetch latest versions, sync, and update lockfile");
             console.log("  update     (deprecated) Use 'baton sync' instead");
             console.log("  diff       Compare local files with remote source versions");
+            console.log("  preview    Preview processed output for a specific AI tool");
             console.log("  manage     Interactive project management wizard");
             console.log("  config     Show dashboard overview or configure settings");
             console.log("");
