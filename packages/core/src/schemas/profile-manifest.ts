@@ -4,8 +4,18 @@ import { weightSchema } from "./source-manifest.js";
 /**
  * Merge strategy types for file merging
  */
+/**
+ * Active merge strategies.
+ * - `concat`: contributions joined in weight order (default)
+ * - `replace`: highest-weight contribution wins entirely
+ *
+ * Legacy strategies (append, prepend, deep, skip, prompt, directory, import)
+ * are accepted for backward compatibility but emit deprecation warnings.
+ */
 export const mergeStrategySchema = z.enum([
+    "concat",
     "replace",
+    // Legacy — accepted with deprecation warning
     "deep",
     "append",
     "prepend",

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mergeContentParts, normalizeMarkdown } from "./content-parts";
+import { describe, expect, it, vi } from "vitest";
+import { mergeContentParts, normalizeMergeStrategy, normalizeMarkdown } from "./content-parts";
 
 describe("normalizeMarkdown", () => {
     it("should collapse 3+ consecutive newlines to exactly 2", () => {
@@ -27,15 +27,12 @@ describe("normalizeMarkdown", () => {
     });
 
     it("should handle content parts that end with newlines joined by \\n\\n", () => {
-        // This is the real-world scenario: parts ending with \n joined by \n\n
         const part1 = "# Memory from profile A\nSome content\n";
         const part2 = "# Memory from profile B\nMore content\n";
         const joined = `${part1}\n\n${part2}`;
 
-        // Without normalization: part1\n + \n\n + part2 = 3 consecutive newlines
         expect(joined).toContain("\n\n\n");
 
-        // After normalization: max 1 blank line between sections
         const result = normalizeMarkdown(joined);
         expect(result).not.toMatch(/\n{3,}/);
         expect(result).toContain("# Memory from profile A");
@@ -48,10 +45,41 @@ describe("normalizeMarkdown", () => {
     });
 });
 
+describe("normalizeMergeStrategy", () => {
+    it("maps append to concat with warning", () => {
+        const warn = vi.fn();
+        expect(normalizeMergeStrategy("append", warn)).toBe("concat");
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("deprecated"));
+    });
+
+    it("maps prepend to concat with warning", () => {
+        const warn = vi.fn();
+        expect(normalizeMergeStrategy("prepend", warn)).toBe("concat");
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("deprecated"));
+    });
+
+    it("maps skip to replace with warning", () => {
+        const warn = vi.fn();
+        expect(normalizeMergeStrategy("skip", warn)).toBe("replace");
+    });
+
+    it("passes through concat unchanged", () => {
+        const warn = vi.fn();
+        expect(normalizeMergeStrategy("concat", warn)).toBe("concat");
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("passes through replace unchanged", () => {
+        const warn = vi.fn();
+        expect(normalizeMergeStrategy("replace", warn)).toBe("replace");
+        expect(warn).not.toHaveBeenCalled();
+    });
+});
+
 describe("mergeContentParts", () => {
-    it("should join parts with append strategy and normalize", () => {
+    it("concat strategy joins parts in order", () => {
         const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "append");
+        const result = mergeContentParts(parts, "concat");
 
         expect(result).not.toMatch(/\n{3,}/);
         expect(result).toContain("content A");
@@ -60,29 +88,37 @@ describe("mergeContentParts", () => {
         expect(result.endsWith("\n")).toBe(true);
     });
 
-    it("should join parts with prepend strategy (reversed) and normalize", () => {
-        const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "prepend");
-
-        expect(result).not.toMatch(/\n{3,}/);
-        expect(result).toContain("content A");
-        expect(result).toContain("content B");
-        expect(result.indexOf("content B")).toBeLessThan(result.indexOf("content A"));
-        expect(result.endsWith("\n")).toBe(true);
-    });
-
-    it("should return first part for skip strategy", () => {
-        const parts = ["first", "second"];
-        expect(mergeContentParts(parts, "skip")).toBe("first");
-    });
-
-    it("should return last part for replace strategy", () => {
+    it("replace strategy returns last part", () => {
         const parts = ["first", "second"];
         expect(mergeContentParts(parts, "replace")).toBe("second");
     });
 
-    it("should return last part for unknown strategy (default)", () => {
+    it("legacy append maps to concat", () => {
+        const parts = ["content A\n", "content B\n"];
+        const result = mergeContentParts(parts, "append");
+
+        expect(result).toContain("content A");
+        expect(result).toContain("content B");
+        expect(result.indexOf("content A")).toBeLessThan(result.indexOf("content B"));
+    });
+
+    it("legacy prepend maps to concat", () => {
+        const parts = ["content A\n", "content B\n"];
+        const result = mergeContentParts(parts, "prepend");
+
+        expect(result).toContain("content A");
+        expect(result).toContain("content B");
+    });
+
+    it("legacy skip maps to replace", () => {
         const parts = ["first", "second"];
-        expect(mergeContentParts(parts, "unknown")).toBe("second");
+        expect(mergeContentParts(parts, "skip")).toBe("second");
+    });
+
+    it("unknown strategy falls back to concat", () => {
+        const parts = ["first\n", "second\n"];
+        const result = mergeContentParts(parts, "unknown");
+        expect(result).toContain("first");
+        expect(result).toContain("second");
     });
 });

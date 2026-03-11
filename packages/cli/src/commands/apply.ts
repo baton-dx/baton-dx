@@ -742,8 +742,23 @@ export const applyCommand = defineCommand({
                                     memoryEntry.filename,
                                 );
                                 try {
-                                    const content = await readFile(memoryFilePath, "utf-8");
-                                    contentParts.push(content);
+                                    const rawContent = await readFile(memoryFilePath, "utf-8");
+                                    // Process directives per-contribution with profile-relative root
+                                    const processed = await processDirectives(rawContent, {
+                                        context: {
+                                            projectRoot,
+                                            profileRoot: profileDir,
+                                            currentTool: adapter.key,
+                                            detectedTools: syncedAiTools,
+                                            detectedIdes,
+                                            scope: memoryEntry.scope,
+                                            contentType: "memory",
+                                        },
+                                        onWarning: (msg) => {
+                                            if (verbose) p.log.info(`  [directive] ${msg}`);
+                                        },
+                                    });
+                                    contentParts.push(processed);
                                 } catch {
                                     spinner.message(`Warning: Could not read ${memoryFilePath}`);
                                 }
@@ -839,10 +854,12 @@ export const applyCommand = defineCommand({
                                 ? targetSkillPath
                                 : resolve(projectRoot, targetSkillPath);
 
+                            const skillProfileDir = profileLocalPaths.get(skillItem.profileName);
                             const skillTransform = async (content: string) =>
                                 processDirectives(content, {
                                     context: {
                                         projectRoot,
+                                        profileRoot: skillProfileDir,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
@@ -945,6 +962,22 @@ export const applyCommand = defineCommand({
                                 continue;
                             }
 
+                            // Process directives per-contribution with profile-relative root
+                            rawContent = await processDirectives(rawContent, {
+                                context: {
+                                    projectRoot,
+                                    profileRoot: profileDir,
+                                    currentTool: adapter.key,
+                                    detectedTools: syncedAiTools,
+                                    detectedIdes,
+                                    scope: ruleEntry.scope,
+                                    contentType: "rules",
+                                },
+                                onWarning: (msg) => {
+                                    if (verbose) p.log.info(`  [directive] ${msg}`);
+                                },
+                            });
+
                             const parsed = parseFrontmatter(rawContent);
 
                             const ruleFile: RuleFile = {
@@ -1028,6 +1061,22 @@ export const applyCommand = defineCommand({
                                 continue;
                             }
 
+                            // Process directives per-contribution with profile-relative root
+                            rawContent = await processDirectives(rawContent, {
+                                context: {
+                                    projectRoot,
+                                    profileRoot: profileDir,
+                                    currentTool: adapter.key,
+                                    detectedTools: syncedAiTools,
+                                    detectedIdes,
+                                    scope: agentEntry.scope,
+                                    contentType: "agents",
+                                },
+                                onWarning: (msg) => {
+                                    if (verbose) p.log.info(`  [directive] ${msg}`);
+                                },
+                            });
+
                             const parsed = parseFrontmatter(rawContent);
 
                             const frontmatter =
@@ -1082,20 +1131,8 @@ export const applyCommand = defineCommand({
             if (!dryRun && syncAi) {
                 for (const [absolutePath, entry] of contentAccumulator) {
                     try {
-                        const combinedContent = normalizeMarkdown(entry.parts.join("\n\n"));
-                        const finalContent = await processDirectives(combinedContent, {
-                            context: {
-                                projectRoot,
-                                currentTool: entry.adapter.key,
-                                detectedTools: syncedAiTools,
-                                detectedIdes,
-                                scope: entry.scope,
-                                contentType: entry.type,
-                            },
-                            onWarning: (msg) => {
-                                if (verbose) p.log.info(`  [directive] ${msg}`);
-                            },
-                        });
+                        // Directives already processed per-contribution before merging
+                        const finalContent = normalizeMarkdown(entry.parts.join("\n\n"));
                         const result = await placeFile(
                             finalContent,
                             entry.adapter,
@@ -1175,6 +1212,7 @@ export const applyCommand = defineCommand({
                                 const finalContent = await processDirectives(content, {
                                     context: {
                                         projectRoot,
+                                        profileRoot: profileDir,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
