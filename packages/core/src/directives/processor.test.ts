@@ -149,12 +149,28 @@ describe("processDirectives", () => {
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("Unmatched baton:if"));
     });
 
-    it("unmatched baton:endif → left in place", async () => {
+    it("unmatched baton:endif → warning emitted, tag cleaned from output", async () => {
         const warn = vi.fn();
         const content = "<!-- baton:endif -->";
         const result = await processDirectives(content, makeOptions({ projectRoot }, warn));
-        expect(result).toContain("baton:endif");
+        expect(result).not.toContain("baton:endif");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("Unmatched baton:endif"));
+    });
+
+    it("cleanup removes all remaining baton:* comments from output", async () => {
+        const content = [
+            "Before",
+            "<!-- baton:endif -->",
+            "Middle",
+            '<!-- baton:unknown foo="bar" -->',
+            "After",
+        ].join("\n");
+        const warn = vi.fn();
+        const result = await processDirectives(content, makeOptions({ projectRoot }, warn));
+        expect(result).not.toContain("baton:");
+        expect(result).toContain("Before");
+        expect(result).toContain("Middle");
+        expect(result).toContain("After");
     });
 
     it("not-tool conditional", async () => {
@@ -185,6 +201,47 @@ describe("processDirectives", () => {
         ].join("\n");
         const result = await processDirectives(content, makeOptions({ contentType: "memory" }));
         expect(result).not.toContain("Rules only");
+    });
+
+    it("baton:else — condition true keeps if-branch", async () => {
+        const content = [
+            '<!-- baton:if tool="claude-code" -->',
+            "Use @file for context.",
+            "<!-- baton:else -->",
+            "Use file paths for context.",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).toContain("Use @file for context.");
+        expect(result).not.toContain("Use file paths for context.");
+    });
+
+    it("baton:else — condition false keeps else-branch", async () => {
+        const content = [
+            '<!-- baton:if tool="cursor" -->',
+            "Cursor-specific.",
+            "<!-- baton:else -->",
+            "Generic fallback.",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).not.toContain("Cursor-specific.");
+        expect(result).toContain("Generic fallback.");
+    });
+
+    it("baton:else with nested conditionals", async () => {
+        const content = [
+            '<!-- baton:if tool="cursor" -->',
+            "Cursor content",
+            "<!-- baton:else -->",
+            '<!-- baton:if scope="project" -->',
+            "Project fallback",
+            "<!-- baton:endif -->",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).not.toContain("Cursor content");
+        expect(result).toContain("Project fallback");
     });
 
     it("deeply nested conditionals (5 levels)", async () => {

@@ -4,6 +4,8 @@
 export interface DirectiveContext {
     /** Absolute path to the project root */
     projectRoot: string;
+    /** Absolute path to the profile's local directory (for profile-relative includes) */
+    profileRoot?: string;
     /** Current AI tool adapter key (e.g. "claude-code", "cursor") */
     currentTool: string;
     /** All AI tool keys being synced */
@@ -14,6 +16,8 @@ export interface DirectiveContext {
     scope: string;
     /** Content type: "memory", "rules", "agents", "skills", "commands" */
     contentType: string;
+    /** User-defined variables from baton.yaml */
+    variables?: Record<string, string>;
 }
 
 /**
@@ -29,7 +33,7 @@ export interface DirectiveOptions {
  * A single parsed directive extracted from content.
  */
 export interface ParsedDirective {
-    type: "include" | "if" | "endif";
+    type: "include" | "if" | "else" | "endif";
     attributes: Record<string, string>;
     /** Start index of the full HTML comment in the source string */
     startIndex: number;
@@ -44,6 +48,8 @@ export interface ParsedDirective {
  */
 export interface ConditionalBlock {
     ifDirective: ParsedDirective;
+    /** Optional baton:else directive within the block */
+    elseDirective?: ParsedDirective;
     endifDirective: ParsedDirective;
     /** Nesting depth (0 = top-level) */
     depth: number;

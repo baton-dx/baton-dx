@@ -98,10 +98,10 @@ describe("resolveInclude", () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    it("missing file without optional → warning + not-found comment", async () => {
+    it("missing file without optional → warning + empty string", async () => {
         const warn = vi.fn();
         const result = await resolveInclude(makeInclude({ src: "missing.md" }), projectRoot, warn);
-        expect(result).toContain("file not found");
+        expect(result).toBe("");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
     });
 
@@ -113,7 +113,7 @@ describe("resolveInclude", () => {
             warn,
         );
         expect(result).toBe("");
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining("traverse outside project root"));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("traverse outside root"));
     });
 
     it("rejects absolute paths", async () => {
@@ -152,5 +152,99 @@ describe("resolveInclude", () => {
         const result = await resolveInclude(makeInclude({}), projectRoot, warn);
         expect(result).toBe("");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing required src"));
+    });
+
+    describe("dual-root resolution", () => {
+        let profileRoot: string;
+
+        beforeEach(async () => {
+            profileRoot = join(tmpdir(), `baton-include-profile-${Date.now()}`);
+            await mkdir(join(profileRoot, "fragments"), { recursive: true });
+        });
+
+        afterEach(async () => {
+            await rm(profileRoot, { recursive: true, force: true });
+        });
+
+        it("resolves relative to profileRoot when available", async () => {
+            await writeFile(join(profileRoot, "fragments", "ts.md"), "TypeScript rules");
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/ts.md" }),
+                projectRoot,
+                undefined,
+                profileRoot,
+            );
+            expect(result).toBe("TypeScript rules");
+        });
+
+        it("@project/ prefix resolves relative to projectRoot", async () => {
+            await writeFile(join(projectRoot, "README.md"), "Project readme");
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/README.md" }),
+                projectRoot,
+                undefined,
+                profileRoot,
+            );
+            expect(result).toBe("Project readme");
+        });
+
+        it("profile-relative defaults to optional=false (warns on missing)", async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/missing.md" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
+        });
+
+        it("@project/ defaults to optional=true (silent skip on missing)", async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/NONEXISTENT.md" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('@project/ optional="false" warns on missing', async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/NONEXISTENT.md", optional: "false" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
+        });
+
+        it('profile-relative optional="true" silently skips missing', async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/missing.md", optional: "true" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it("falls back to projectRoot when no profileRoot provided", async () => {
+            await writeFile(join(projectRoot, "file.md"), "project file");
+            const result = await resolveInclude(
+                makeInclude({ src: "file.md" }),
+                projectRoot,
+                undefined,
+                undefined,
+            );
+            expect(result).toBe("project file");
+        });
     });
 });
