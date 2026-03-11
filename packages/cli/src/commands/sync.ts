@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
     type AgentEntry,
@@ -14,6 +14,7 @@ import {
     detectInstalledIdes,
     detectLegacyPaths,
     FileNotFoundError,
+    type FilePlacement,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
@@ -700,6 +701,8 @@ export const syncCommand = defineCommand({
             const aiToolPlacedPaths = new Set<string>(); // AI tool adapter placements
             const idePlacedPaths = new Set<string>(); // IDE platform placements
             const filePlacedPaths = new Set<string>(); // profile files section placements
+            const includePlacedPaths = new Set<string>(); // .baton/includes/ placements
+            const pendingPlacements: FilePlacement[] = [];
             let newPlacedMcpServers: Record<string, string[]> = {}; // MCP server names per tool
 
             // Build a map from profile name to local directory path
@@ -810,6 +813,7 @@ export const syncCommand = defineCommand({
                                         context: {
                                             projectRoot,
                                             profileRoot: profileDir,
+                                            profileName: contribution.profileName,
                                             currentTool: adapter.key,
                                             detectedTools: syncedAiTools,
                                             detectedIdes,
@@ -819,6 +823,7 @@ export const syncCommand = defineCommand({
                                         onWarning: (msg) => {
                                             if (verbose) p.log.info(`  [directive] ${msg}`);
                                         },
+                                        onPlacement: (placement) => pendingPlacements.push(placement),
                                     });
                                     contentParts.push(processed);
                                 } catch {
@@ -929,6 +934,7 @@ export const syncCommand = defineCommand({
                                     context: {
                                         projectRoot,
                                         profileRoot: skillProfileDir,
+                                        profileName: skillItem.profileName,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
@@ -938,6 +944,7 @@ export const syncCommand = defineCommand({
                                     onWarning: (msg) => {
                                         if (verbose) p.log.info(`  [directive] ${msg}`);
                                     },
+                                    onPlacement: (placement) => pendingPlacements.push(placement),
                                 });
                             const placed = await copyDirectoryRecursive(
                                 skillSourceDir,
@@ -1041,6 +1048,7 @@ export const syncCommand = defineCommand({
                                 context: {
                                     projectRoot,
                                     profileRoot: profileDir,
+                                    profileName: ruleEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
                                     detectedIdes,
@@ -1050,6 +1058,7 @@ export const syncCommand = defineCommand({
                                 onWarning: (msg) => {
                                     if (verbose) p.log.info(`  [directive] ${msg}`);
                                 },
+                                onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
                             // Parse frontmatter
@@ -1150,6 +1159,7 @@ export const syncCommand = defineCommand({
                                 context: {
                                     projectRoot,
                                     profileRoot: profileDir,
+                                    profileName: agentEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
                                     detectedIdes,
@@ -1159,6 +1169,7 @@ export const syncCommand = defineCommand({
                                 onWarning: (msg) => {
                                     if (verbose) p.log.info(`  [directive] ${msg}`);
                                 },
+                                onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
                             // Parse frontmatter
@@ -1303,6 +1314,7 @@ export const syncCommand = defineCommand({
                                     context: {
                                         projectRoot,
                                         profileRoot: profileDir,
+                                        profileName: profile.name,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
@@ -1312,6 +1324,7 @@ export const syncCommand = defineCommand({
                                     onWarning: (msg) => {
                                         if (verbose) p.log.info(`  [directive] ${msg}`);
                                     },
+                                    onPlacement: (placement) => pendingPlacements.push(placement),
                                 });
 
                                 const result = await placeFile(
@@ -1655,12 +1668,29 @@ export const syncCommand = defineCommand({
                 });
             }
 
+            // Copy placement files (.baton/includes/)
+            if (!dryRun && pendingPlacements.length > 0) {
+                spinner.start("Copying referenced files...");
+                const seen = new Set<string>();
+                for (const placement of pendingPlacements) {
+                    if (seen.has(placement.targetRelative)) continue;
+                    seen.add(placement.targetRelative);
+                    const targetAbsolute = resolve(projectRoot, placement.targetRelative);
+                    await mkdir(dirname(targetAbsolute), { recursive: true });
+                    await copyFile(placement.sourcePath, targetAbsolute);
+                    actualPlacedPaths.add(placement.targetRelative);
+                    includePlacedPaths.add(placement.targetRelative);
+                }
+                spinner.stop(`Copied ${seen.size} referenced file(s)`);
+            }
+
             // Step 9b: Write local state (tool-specific disk paths, never committed)
             if (!dryRun) {
                 await writeStateData({
                     aiToolPaths: aiToolPlacedPaths,
                     idePaths: idePlacedPaths,
                     filePaths: filePlacedPaths,
+                    includePaths: includePlacedPaths,
                     syncedAiTools,
                     mcpServers: newPlacedMcpServers,
                     projectRoot,

@@ -227,13 +227,22 @@ export async function writeStateData(params: {
     aiToolPaths: Set<string>;
     idePaths: Set<string>;
     filePaths: Set<string>;
+    includePaths?: Set<string>;
     syncedAiTools: string[];
     mcpServers?: Record<string, string[]>;
     projectRoot: string;
     spinner: ReturnType<typeof p.spinner>;
 }): Promise<void> {
-    const { aiToolPaths, idePaths, filePaths, syncedAiTools, mcpServers, projectRoot, spinner } =
-        params;
+    const {
+        aiToolPaths,
+        idePaths,
+        filePaths,
+        includePaths,
+        syncedAiTools,
+        mcpServers,
+        projectRoot,
+        spinner,
+    } = params;
 
     spinner.start("Writing local state...");
 
@@ -244,6 +253,7 @@ export async function writeStateData(params: {
             "ai-tools": [...aiToolPaths].sort(),
             ides: [...idePaths].sort(),
             files: [...filePaths].sort(),
+            ...(includePaths && includePaths.size > 0 ? { includes: [...includePaths].sort() } : {}),
         },
         ...(mcpServers && Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
     };

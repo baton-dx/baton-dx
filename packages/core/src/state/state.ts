@@ -26,6 +26,10 @@ export const placementStateSchema = z.object({
                 .describe(
                     "Paths placed from profile files sections (biome.json, tsconfig.json, ...)",
                 ),
+            includes: z
+                .array(z.string())
+                .optional()
+                .describe("Paths placed in .baton/includes/ for link/reference mode includes"),
         })
         .describe("Tool-specific relative paths placed on disk, grouped by category"),
     /**
@@ -85,5 +89,10 @@ export async function writeState(projectRoot: string, state: PlacementState): Pr
  * Used for orphan detection, which compares a flat set of previous vs current paths.
  */
 export function flattenPlacedFiles(placedFiles: PlacementState["placed_files"]): string[] {
-    return [...placedFiles["ai-tools"], ...placedFiles.ides, ...placedFiles.files];
+    return [
+        ...placedFiles["ai-tools"],
+        ...placedFiles.ides,
+        ...placedFiles.files,
+        ...(placedFiles.includes ?? []),
+    ];
 }

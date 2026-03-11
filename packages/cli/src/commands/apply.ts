@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import {
     type AgentEntry,
@@ -13,6 +13,7 @@ import {
     detectInstalledIdes,
     detectLegacyPaths,
     FileNotFoundError,
+    type FilePlacement,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
@@ -648,6 +649,8 @@ export const applyCommand = defineCommand({
             const aiToolPlacedPaths = new Set<string>(); // AI tool adapter placements
             const idePlacedPaths = new Set<string>(); // IDE platform placements
             const filePlacedPaths = new Set<string>(); // profile files section placements
+            const includePlacedPaths = new Set<string>(); // .baton/includes/ placements
+            const pendingPlacements: FilePlacement[] = [];
 
             // Build a map from profile name to local directory path
             const profileLocalPaths = new Map<string, string>();
@@ -748,6 +751,7 @@ export const applyCommand = defineCommand({
                                         context: {
                                             projectRoot,
                                             profileRoot: profileDir,
+                                            profileName: contribution.profileName,
                                             currentTool: adapter.key,
                                             detectedTools: syncedAiTools,
                                             detectedIdes,
@@ -757,6 +761,7 @@ export const applyCommand = defineCommand({
                                         onWarning: (msg) => {
                                             if (verbose) p.log.info(`  [directive] ${msg}`);
                                         },
+                                        onPlacement: (placement) => pendingPlacements.push(placement),
                                     });
                                     contentParts.push(processed);
                                 } catch {
@@ -860,6 +865,7 @@ export const applyCommand = defineCommand({
                                     context: {
                                         projectRoot,
                                         profileRoot: skillProfileDir,
+                                        profileName: skillItem.profileName,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
@@ -869,6 +875,7 @@ export const applyCommand = defineCommand({
                                     onWarning: (msg) => {
                                         if (verbose) p.log.info(`  [directive] ${msg}`);
                                     },
+                                    onPlacement: (placement) => pendingPlacements.push(placement),
                                 });
                             const placed = await copyDirectoryRecursive(
                                 skillSourceDir,
@@ -967,6 +974,7 @@ export const applyCommand = defineCommand({
                                 context: {
                                     projectRoot,
                                     profileRoot: profileDir,
+                                    profileName: ruleEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
                                     detectedIdes,
@@ -976,6 +984,7 @@ export const applyCommand = defineCommand({
                                 onWarning: (msg) => {
                                     if (verbose) p.log.info(`  [directive] ${msg}`);
                                 },
+                                onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
                             const parsed = parseFrontmatter(rawContent);
@@ -1066,6 +1075,7 @@ export const applyCommand = defineCommand({
                                 context: {
                                     projectRoot,
                                     profileRoot: profileDir,
+                                    profileName: agentEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
                                     detectedIdes,
@@ -1075,6 +1085,7 @@ export const applyCommand = defineCommand({
                                 onWarning: (msg) => {
                                     if (verbose) p.log.info(`  [directive] ${msg}`);
                                 },
+                                onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
                             const parsed = parseFrontmatter(rawContent);
@@ -1213,6 +1224,7 @@ export const applyCommand = defineCommand({
                                     context: {
                                         projectRoot,
                                         profileRoot: profileDir,
+                                        profileName: profile.name,
                                         currentTool: adapter.key,
                                         detectedTools: syncedAiTools,
                                         detectedIdes,
@@ -1222,6 +1234,7 @@ export const applyCommand = defineCommand({
                                     onWarning: (msg) => {
                                         if (verbose) p.log.info(`  [directive] ${msg}`);
                                     },
+                                    onPlacement: (placement) => pendingPlacements.push(placement),
                                 });
 
                                 const result = await placeFile(
@@ -1441,12 +1454,29 @@ export const applyCommand = defineCommand({
                 });
             }
 
+            // Copy placement files (.baton/includes/)
+            if (!dryRun && pendingPlacements.length > 0) {
+                spinner.start("Copying referenced files...");
+                const seen = new Set<string>();
+                for (const placement of pendingPlacements) {
+                    if (seen.has(placement.targetRelative)) continue;
+                    seen.add(placement.targetRelative);
+                    const targetAbsolute = resolve(projectRoot, placement.targetRelative);
+                    await mkdir(dirname(targetAbsolute), { recursive: true });
+                    await copyFile(placement.sourcePath, targetAbsolute);
+                    actualPlacedPaths.add(placement.targetRelative);
+                    includePlacedPaths.add(placement.targetRelative);
+                }
+                spinner.stop(`Copied ${seen.size} referenced file(s)`);
+            }
+
             // Step 9b: Write local state (tool-specific disk paths, never committed)
             if (!dryRun) {
                 await writeStateData({
                     aiToolPaths: aiToolPlacedPaths,
                     idePaths: idePlacedPaths,
                     filePaths: filePlacedPaths,
+                    includePaths: includePlacedPaths,
                     syncedAiTools,
                     projectRoot,
                     spinner,
