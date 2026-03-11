@@ -40,22 +40,22 @@ describe("discoverProfile", () => {
 
         const result = await discoverProfile(profileDir);
         expect(result.memory).toBeDefined();
-        expect(result.memory!.type).toBe("memory");
-        expect(result.memory!.filePath).toBe(join(memoryDir, "MEMORY.md"));
-        expect(result.memory!.content).toBe(content);
-        expect(result.memory!.merge).toBe("append");
-        expect(result.memory!.scope).toBe("global");
+        expect(result.memory?.type).toBe("memory");
+        expect(result.memory?.filePath).toBe(join(memoryDir, "MEMORY.md"));
+        expect(result.memory?.content).toBe(content);
+        expect(result.memory?.merge).toBe("append");
+        expect(result.memory?.scope).toBe("global");
     });
 
-    it("defaults merge to 'append' when not in frontmatter", async () => {
+    it("defaults merge to 'concat' when not in frontmatter", async () => {
         const memoryDir = join(profileDir, "ai", "memory");
         await mkdir(memoryDir, { recursive: true });
         await writeFile(join(memoryDir, "MEMORY.md"), "Just some memory content");
 
         const result = await discoverProfile(profileDir);
         expect(result.memory).toBeDefined();
-        expect(result.memory!.merge).toBe("append");
-        expect(result.memory!.scope).toBeUndefined();
+        expect(result.memory?.merge).toBe("concat");
+        expect(result.memory?.scope).toBeUndefined();
     });
 
     it("warns when ai/memory/ exists but no MEMORY.md", async () => {
@@ -81,13 +81,13 @@ describe("discoverProfile", () => {
 
         const style = result.rules.find((r) => r.name === "style-guide");
         expect(style).toBeDefined();
-        expect(style!.type).toBe("rule");
-        expect(style!.scope).toBe("project");
-        expect(style!.content).toBe("---\nscope: project\n---\nUse tabs.");
+        expect(style?.type).toBe("rule");
+        expect(style?.scope).toBe("project");
+        expect(style?.content).toBe("---\nscope: project\n---\nUse tabs.");
 
         const naming = result.rules.find((r) => r.name === "naming");
         expect(naming).toBeDefined();
-        expect(naming!.scope).toBeUndefined();
+        expect(naming?.scope).toBeUndefined();
     });
 
     it("ignores non-.md files in ai/rules/", async () => {
@@ -216,12 +216,12 @@ describe("discoverProfile", () => {
 
         const rootFile = result.files.find((f) => f.targetRelative === "root.txt");
         expect(rootFile).toBeDefined();
-        expect(rootFile!.type).toBe("file");
-        expect(rootFile!.sourcePath).toBe(join(filesDir, "root.txt"));
+        expect(rootFile?.type).toBe("file");
+        expect(rootFile?.sourcePath).toBe(join(filesDir, "root.txt"));
 
         const deepFile = result.files.find((f) => f.targetRelative === "config/sub/deep.json");
         expect(deepFile).toBeDefined();
-        expect(deepFile!.sourcePath).toBe(join(filesDir, "config", "sub", "deep.json"));
+        expect(deepFile?.sourcePath).toBe(join(filesDir, "config", "sub", "deep.json"));
     });
 
     // --- IDE ---
@@ -237,13 +237,13 @@ describe("discoverProfile", () => {
 
         const settings = result.ide.find((f) => f.targetRelative === "settings.json");
         expect(settings).toBeDefined();
-        expect(settings!.type).toBe("ide");
-        expect(settings!.platform).toBe("vscode");
-        expect(settings!.sourcePath).toBe(join(vscodeDir, "settings.json"));
+        expect(settings?.type).toBe("ide");
+        expect(settings?.platform).toBe("vscode");
+        expect(settings?.sourcePath).toBe(join(vscodeDir, "settings.json"));
 
         const snippet = result.ide.find((f) => f.targetRelative === "snippets/ts.json");
         expect(snippet).toBeDefined();
-        expect(snippet!.platform).toBe("vscode");
+        expect(snippet?.platform).toBe("vscode");
     });
 
     // --- Underscore exclusion ---

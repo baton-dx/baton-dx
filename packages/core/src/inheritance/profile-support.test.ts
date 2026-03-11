@@ -50,7 +50,7 @@ describe("resolveProfileSupport", () => {
         });
 
         it("falls back to source ai.tools when profile ai has no tools field", () => {
-            const profile = makeProfile({ ai: { skills: [{ name: "test", scope: "project" }] } });
+            const profile = makeProfile({ ai: {} });
             const source = makeSource({ ai: { tools: ["claude-code"] } });
 
             const result = resolveProfileSupport(profile, source);
@@ -100,67 +100,9 @@ describe("resolveProfileSupport", () => {
     describe("AI tools wildcard inference", () => {
         const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
 
-        it("returns all tool keys when profile has skills but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: { skills: [{ name: "test-skill", scope: "project" }] },
-            });
-            const source = makeSource();
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(allToolKeys);
-        });
-
-        it("returns all tool keys when profile has rules but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: { rules: ["some-rule.md"] },
-            });
-            const source = makeSource();
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(allToolKeys);
-        });
-
-        it("returns all tool keys when profile has memory but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: { memory: [{ source: "MEMORY.md", merge: "append" }] },
-            });
-            const source = makeSource();
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(allToolKeys);
-        });
-
-        it("returns all tool keys when profile has agents but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: { agents: ["agent.md"] },
-            });
-            const source = makeSource();
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(allToolKeys);
-        });
-
-        it("returns all tool keys when profile has mcp but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: {
-                    mcp: [{ name: "my-server", transport: "stdio", command: "node" }],
-                },
-            });
-            const source = makeSource();
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(allToolKeys);
-        });
-
-        it("returns all tool keys when profile has commands but no ai.tools", () => {
-            const profile = makeProfile({
-                ai: { commands: ["build"] },
-            });
+        it("returns all tool keys when profile has ai section but no ai.tools", () => {
+            // In v2, having an `ai` section (even empty) indicates AI content
+            const profile = makeProfile({ ai: {} });
             const source = makeSource();
 
             const result = resolveProfileSupport(profile, source);
@@ -170,10 +112,7 @@ describe("resolveProfileSupport", () => {
 
         it("prefers explicit ai.tools over wildcard inference", () => {
             const profile = makeProfile({
-                ai: {
-                    tools: ["cursor"],
-                    skills: [{ name: "test-skill", scope: "project" }],
-                },
+                ai: { tools: ["cursor"] },
             });
             const source = makeSource();
 
@@ -183,9 +122,7 @@ describe("resolveProfileSupport", () => {
         });
 
         it("prefers source ai.tools fallback over wildcard inference", () => {
-            const profile = makeProfile({
-                ai: { skills: [{ name: "test-skill", scope: "project" }] },
-            });
+            const profile = makeProfile({ ai: {} });
             const source = makeSource({ ai: { tools: ["claude-code", "cursor"] } });
 
             const result = resolveProfileSupport(profile, source);
@@ -207,9 +144,7 @@ describe("resolveProfileSupport", () => {
         });
 
         it('expands source ai.tools: ["*"] to all tool keys', () => {
-            const profile = makeProfile({
-                ai: { skills: [{ name: "test-skill", scope: "project" }] },
-            });
+            const profile = makeProfile({ ai: {} });
             const source = makeSource({ ai: { tools: ["*"] } });
 
             const result = resolveProfileSupport(profile, source);
@@ -236,24 +171,8 @@ describe("resolveProfileSupport", () => {
         });
     });
 
-    describe("IDE platforms inheritance", () => {
-        it("returns profile ide keys when profile defines ide section", () => {
-            const profile = makeProfile({
-                ide: {
-                    vscode: [".vscode/settings.json"],
-                    jetbrains: [".idea/codeStyles/codeStyleConfig.xml"],
-                },
-            });
-            const source = makeSource({
-                ide: { platforms: ["vscode", "jetbrains", "zed"] },
-            });
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.idePlatforms).toEqual(["vscode", "jetbrains"]);
-        });
-
-        it("falls back to source ide.platforms when profile has no ide section", () => {
+    describe("IDE platforms resolution", () => {
+        it("returns source ide.platforms", () => {
             const profile = makeProfile();
             const source = makeSource({ ide: { platforms: ["vscode", "cursor"] } });
 
@@ -262,16 +181,7 @@ describe("resolveProfileSupport", () => {
             expect(result.idePlatforms).toEqual(["vscode", "cursor"]);
         });
 
-        it("uses profile empty ide object (no platforms)", () => {
-            const profile = makeProfile({ ide: {} });
-            const source = makeSource({ ide: { platforms: ["vscode", "jetbrains"] } });
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.idePlatforms).toEqual([]);
-        });
-
-        it("returns empty array when neither profile nor source define ide", () => {
+        it("returns empty array when source has no ide platforms", () => {
             const profile = makeProfile();
             const source = makeSource();
 
@@ -288,29 +198,12 @@ describe("resolveProfileSupport", () => {
 
             expect(result.idePlatforms).toEqual([]);
         });
-
-        it("allows profile to have a subset of source platforms", () => {
-            const profile = makeProfile({
-                ide: { vscode: [".vscode/settings.json"] },
-            });
-            const source = makeSource({
-                ide: { platforms: ["vscode", "jetbrains", "zed"] },
-            });
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.idePlatforms).toEqual(["vscode"]);
-        });
     });
 
     describe("combined resolution", () => {
-        it("resolves both ai tools and ide platforms from profile", () => {
+        it("resolves both ai tools and ide platforms", () => {
             const profile = makeProfile({
                 ai: { tools: ["claude-code", "cursor"] },
-                ide: {
-                    vscode: [".vscode/settings.json"],
-                    zed: [".zed/settings.json"],
-                },
             });
             const source = makeSource({
                 ai: { tools: ["claude-code", "cursor", "windsurf"] },
@@ -320,13 +213,12 @@ describe("resolveProfileSupport", () => {
             const result = resolveProfileSupport(profile, source);
 
             expect(result.aiTools).toEqual(["claude-code", "cursor"]);
-            expect(result.idePlatforms).toEqual(["vscode", "zed"]);
+            expect(result.idePlatforms).toEqual(["vscode", "jetbrains", "zed"]);
         });
 
-        it("resolves ai from profile and ide from source (mixed inheritance)", () => {
+        it("resolves ai from profile and ide from source", () => {
             const profile = makeProfile({
                 ai: { tools: ["cursor"] },
-                // no ide section → inherits from source
             });
             const source = makeSource({
                 ai: { tools: ["cursor", "claude-code"] },
@@ -339,22 +231,6 @@ describe("resolveProfileSupport", () => {
             expect(result.idePlatforms).toEqual(["vscode", "jetbrains"]);
         });
 
-        it("resolves ai from source and ide from profile (mixed inheritance)", () => {
-            const profile = makeProfile({
-                // no ai section → inherits from source
-                ide: { vscode: [".vscode/extensions.json"] },
-            });
-            const source = makeSource({
-                ai: { tools: ["windsurf", "codex"] },
-                ide: { platforms: ["vscode", "jetbrains", "zed"] },
-            });
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(["windsurf", "codex"]);
-            expect(result.idePlatforms).toEqual(["vscode"]);
-        });
-
         it("returns empty arrays when both profile and source are minimal", () => {
             const profile = makeProfile();
             const source = makeSource();
@@ -363,22 +239,6 @@ describe("resolveProfileSupport", () => {
 
             expect(result.aiTools).toEqual([]);
             expect(result.idePlatforms).toEqual([]);
-        });
-
-        it("handles full source support with full profile override", () => {
-            const profile = makeProfile({
-                ai: { tools: ["claude-code"] },
-                ide: { jetbrains: [".idea/misc.xml"] },
-            });
-            const source = makeSource({
-                ai: { tools: ["claude-code", "cursor", "windsurf", "codex", "amp"] },
-                ide: { platforms: ["vscode", "jetbrains", "cursor", "zed"] },
-            });
-
-            const result = resolveProfileSupport(profile, source);
-
-            expect(result.aiTools).toEqual(["claude-code"]);
-            expect(result.idePlatforms).toEqual(["jetbrains"]);
         });
     });
 });

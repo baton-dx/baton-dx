@@ -56,22 +56,13 @@ export interface CommandEntry {
     scope: Scope;
 }
 
-const VALID_MERGE_STRATEGIES: readonly string[] = [
-    "replace",
-    "deep",
-    "append",
-    "prepend",
-    "skip",
-    "prompt",
-    "directory",
-    "import",
-];
+const VALID_MERGE_STRATEGIES: readonly string[] = ["concat", "replace"];
 
 function toMergeStrategy(value: string): MergeStrategy {
     if (VALID_MERGE_STRATEGIES.includes(value)) {
         return value as MergeStrategy;
     }
-    return "append";
+    return "concat";
 }
 
 /** Merge a single profile's memory into the accumulator map. */
@@ -184,31 +175,4 @@ export function assembleContentFromDiscovery(inputs: DiscoveryInput[]): Assemble
         sourceFilePaths,
         warnings,
     };
-}
-
-/**
- * Detect whether a profile manifest declares AI content via the manifest path.
- * When this returns false, the discovery path should be used instead.
- */
-export function hasManifestContent(manifest: {
-    ai?: {
-        memory?: unknown[];
-        rules?: unknown;
-        agents?: unknown;
-        skills?: unknown[];
-        commands?: unknown[];
-        mcp?: unknown[];
-    };
-}): boolean {
-    const ai = manifest.ai;
-    if (!ai) return false;
-
-    return !!(
-        (ai.memory && ai.memory.length > 0) ||
-        ai.rules ||
-        ai.agents ||
-        (ai.skills && ai.skills.length > 0) ||
-        (ai.commands && ai.commands.length > 0) ||
-        (ai.mcp && ai.mcp.length > 0)
-    );
 }

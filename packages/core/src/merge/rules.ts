@@ -1,15 +1,13 @@
 import type { Scope } from "@baton-dx/ai-tool-paths";
-import type { ResolvedProfile } from "../inheritance/profile-chain.js";
-import { resolveScope } from "./scope-resolution.js";
-import type { WeightConflictWarning } from "./weight-sort.js";
-import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 
 /**
- * Represents a rule entry that can be agent-specific or universal
+ * Represents a rule entry — always universal in v2.
+ * The `agents` field is kept (always `[]`) for backward compatibility
+ * with the sync pipeline's placement logic.
  */
 export interface RuleEntry {
     name: string; // Rule filename (e.g., "coding-standards", "frontend/react")
-    agents: string[]; // Target agent keys (empty array = universal)
+    agents: string[]; // Always empty in v2 — per-tool targeting uses baton:if directives
     scope: Scope; // Resolved scope for placement
     profileName: string; // Source profile name for file resolution
 }
@@ -19,129 +17,25 @@ export interface RuleEntry {
  */
 export interface MergeRulesResult {
     rules: RuleEntry[];
-    warnings: WeightConflictWarning[];
+    warnings: string[];
 }
 
 /**
- * Merge rules from multiple profiles in an inheritance chain.
- * Rules are merged additively - all rules from all profiles are collected.
- * Name conflicts: more specific profile wins (later in chain overrides earlier).
+ * Merge/deduplicate rule entries from discovery.
  *
- * Lock behavior: Rules from profiles with weight -1 cannot be overridden.
- * Same-weight warnings: When two profiles with the same weight define the same rule key,
- * a warning is emitted.
+ * In v2, rules come from filesystem discovery (flat arrays of RuleEntry).
+ * Per-tool targeting is handled by baton:if directives in frontmatter,
+ * not by the manifest schema.
  *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Array of unique rule entries with their target agents
+ * Deduplication: last entry wins (entries are expected in weight-sorted order).
+ *
+ * @param entries - Array of rule entries in merge order (base first, overrides last)
+ * @returns Deduplicated array of rule entries
  */
-export function mergeRules(profiles: ResolvedProfile[]): RuleEntry[] {
-    return mergeRulesWithWarnings(profiles).rules;
-}
-
-/**
- * Merge rules with detailed conflict warnings.
- *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Rules and any same-weight conflict warnings
- */
-export function mergeRulesWithWarnings(profiles: ResolvedProfile[]): MergeRulesResult {
+export function mergeRuleEntries(entries: RuleEntry[]): RuleEntry[] {
     const ruleMap = new Map<string, RuleEntry>();
-    const lockedKeys = new Set<string>();
-    const warnings: WeightConflictWarning[] = [];
-
-    // Track which profile set each key for same-weight conflict detection
-    const keyOwner = new Map<string, { profileName: string; weight: number }>();
-
-    for (const profile of profiles) {
-        const rules = profile.manifest.ai?.rules;
-
-        if (!rules) {
-            continue;
-        }
-
-        const weight = getProfileWeight(profile);
-        const locked = isLockedProfile(profile);
-
-        if (Array.isArray(rules)) {
-            for (const ruleName of rules) {
-                const key = `universal:${ruleName}`;
-
-                if (lockedKeys.has(key)) {
-                    continue;
-                }
-
-                const existing = keyOwner.get(key);
-                if (
-                    existing &&
-                    existing.weight === weight &&
-                    existing.profileName !== profile.name
-                ) {
-                    warnings.push({
-                        key: ruleName,
-                        category: "rule",
-                        profileA: existing.profileName,
-                        profileB: profile.name,
-                        weight,
-                    });
-                }
-
-                ruleMap.set(key, {
-                    name: ruleName,
-                    agents: [],
-                    scope: resolveScope(undefined, profile.manifest.scope),
-                    profileName: profile.name,
-                });
-                keyOwner.set(key, { profileName: profile.name, weight });
-
-                if (locked) {
-                    lockedKeys.add(key);
-                }
-            }
-        } else {
-            for (const [agentKey, ruleNames] of Object.entries(rules)) {
-                if (!ruleNames) continue;
-
-                for (const ruleName of ruleNames) {
-                    const isUniversal = agentKey === "universal";
-                    const key = `${agentKey}:${ruleName}`;
-
-                    if (lockedKeys.has(key)) {
-                        continue;
-                    }
-
-                    const existing = keyOwner.get(key);
-                    if (
-                        existing &&
-                        existing.weight === weight &&
-                        existing.profileName !== profile.name
-                    ) {
-                        warnings.push({
-                            key: `${agentKey}:${ruleName}`,
-                            category: "rule",
-                            profileA: existing.profileName,
-                            profileB: profile.name,
-                            weight,
-                        });
-                    }
-
-                    ruleMap.set(key, {
-                        name: ruleName,
-                        agents: isUniversal ? [] : [agentKey],
-                        scope: resolveScope(undefined, profile.manifest.scope),
-                        profileName: profile.name,
-                    });
-                    keyOwner.set(key, { profileName: profile.name, weight });
-
-                    if (locked) {
-                        lockedKeys.add(key);
-                    }
-                }
-            }
-        }
+    for (const entry of entries) {
+        ruleMap.set(entry.name, entry);
     }
-
-    return {
-        rules: Array.from(ruleMap.values()),
-        warnings,
-    };
+    return Array.from(ruleMap.values());
 }

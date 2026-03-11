@@ -20,22 +20,13 @@ import {
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
-    getIdePlatformTargetDir,
-    getProfileWeight,
-    hasManifestContent,
-    isKnownIdePlatform,
-    isLockedProfile,
     type LockFileEntry,
     loadProfileManifest,
     loadProjectManifest,
     type MemoryEntry,
     type MergedSkillItem,
-    mergeAgentsWithWarnings,
     mergeContentParts,
     mergeMcpWithWarnings,
-    mergeMemoryWithWarnings,
-    mergeRulesWithWarnings,
-    mergeSkillsWithWarnings,
     normalizeMarkdown,
     type ProjectManifest,
     parseBatonFrontmatter,
@@ -52,11 +43,9 @@ import {
     resolveNpmSource,
     resolvePreferences,
     resolveProfileChain,
-    resolveScope,
     resolveVersion,
     type Scope,
     sortProfilesByWeight,
-    type WeightConflictWarning,
     writeMcpJson,
     writeMcpJsonc,
     writeMcpToml,
@@ -372,276 +361,84 @@ export const syncCommand = defineCommand({
             // Stable sort preserves declaration order for same-weight profiles
             const weightSortedProfiles = sortProfilesByWeight(allProfiles);
 
-            // Step 2: Merge configurations — dual-path routing
-            // If profiles have manifest-declared AI content, use manifest merge path.
-            // If profiles have no content declarations, use filesystem discovery path.
+            // Step 2: Merge configurations via filesystem discovery
             spinner.start("Merging configurations...");
 
-            // Collect all weight conflict warnings across merge operations
-            const allWeightWarnings: WeightConflictWarning[] = [];
+            // --- Discovery path: scan filesystem for content ---
+            if (verbose) {
+                p.log.step("Using filesystem discovery path");
+            }
 
-            // Detect which path to use: manifest vs discovery
-            const manifestProfiles = weightSortedProfiles.filter((p) =>
-                hasManifestContent(p.manifest),
-            );
-            const discoveryProfiles = weightSortedProfiles.filter(
-                (p) => !hasManifestContent(p.manifest),
-            );
-            const useDiscoveryPath = manifestProfiles.length === 0 && discoveryProfiles.length > 0;
-
-            if (manifestProfiles.length > 0 && discoveryProfiles.length > 0) {
-                // Mixed mode: some profiles use manifest, some don't
-                // Manifest takes precedence; warn about discovery-only profiles
-                for (const dp of discoveryProfiles) {
-                    p.log.warn(
-                        `Profile "${dp.name}" has no ai content declarations in manifest — ` +
-                            `it will be skipped for AI content. Add ai.* entries to baton.profile.yaml ` +
-                            `or remove manifest declarations from other profiles to use filesystem discovery.`,
-                    );
+            // Build a map from profile name to local directory path
+            const earlyLocalPaths = new Map<string, string>();
+            for (const prof of weightSortedProfiles) {
+                if (prof.localPath) {
+                    earlyLocalPaths.set(prof.name, prof.localPath);
                 }
             }
 
-            let mergedSkills: MergedSkillItem[];
-            let mergedRules: RuleEntry[];
-            let mergedAgents: AgentEntry[];
-            let mergedMemory: MemoryEntry[];
+            const discoveryInputs = [];
+            for (const profile of weightSortedProfiles) {
+                const localPath = earlyLocalPaths.get(profile.name);
+                if (!localPath) {
+                    if (verbose) {
+                        p.log.warn(
+                            `Profile "${profile.name}": no local path available — skipping discovery`,
+                        );
+                    }
+                    continue;
+                }
+                try {
+                    const discovery = await discoverProfile(localPath);
+                    discoveryInputs.push({
+                        discovery,
+                        meta: {
+                            name: profile.name,
+                            profileScope: profile.manifest.scope,
+                        },
+                    });
+                    if (discovery.warnings.length > 0 && verbose) {
+                        for (const w of discovery.warnings) {
+                            p.log.info(`  [discovery] ${profile.name}: ${w}`);
+                        }
+                    }
+                } catch (error) {
+                    p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
+                }
+            }
+
+            const assembled = assembleContentFromDiscovery(discoveryInputs);
+            const mergedSkills: MergedSkillItem[] = assembled.skills;
+            const mergedRules: RuleEntry[] = assembled.rules;
+            const mergedAgents: AgentEntry[] = assembled.agents;
+            const mergedMemory: MemoryEntry[] = assembled.memory;
+            const discoveryCommandEntries: CommandEntry[] = assembled.commands;
+            const discoverySourcePaths: Map<string, string> = assembled.sourceFilePaths;
+
+            // Populate commandMap for the placement phase
             const commandMap = new Map<string, string>();
-            let discoveryCommandEntries: CommandEntry[] = [];
-            // Discovery source file paths: maps "rules/<name>" / "agents/<name>" to absolute paths.
-            // Used by the discovery path to bypass manifest-style path construction.
-            let discoverySourcePaths = new Map<string, string>();
-
-            if (useDiscoveryPath) {
-                // --- Discovery path: scan filesystem for content ---
-                if (verbose) {
-                    p.log.step(
-                        "Using filesystem discovery path (no manifest content declarations)",
-                    );
-                }
-
-                // Build a map from profile name to local directory path (needed before Step 5)
-                // For the discovery path, we need local paths early to call discoverProfile()
-                const earlyLocalPaths = new Map<string, string>();
-                for (const prof of weightSortedProfiles) {
-                    if (prof.localPath) {
-                        earlyLocalPaths.set(prof.name, prof.localPath);
-                    }
-                }
-
-                const discoveryInputs = [];
-                for (const profile of weightSortedProfiles) {
-                    const localPath = earlyLocalPaths.get(profile.name);
-                    if (!localPath) {
-                        if (verbose) {
-                            p.log.warn(
-                                `Profile "${profile.name}": no local path available — skipping discovery`,
-                            );
-                        }
-                        continue;
-                    }
-                    try {
-                        const discovery = await discoverProfile(localPath);
-                        discoveryInputs.push({
-                            discovery,
-                            meta: {
-                                name: profile.name,
-                                profileScope: profile.manifest.scope,
-                            },
-                        });
-                        if (discovery.warnings.length > 0 && verbose) {
-                            for (const w of discovery.warnings) {
-                                p.log.info(`  [discovery] ${profile.name}: ${w}`);
-                            }
-                        }
-                    } catch (error) {
-                        p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
-                    }
-                }
-
-                const assembled = assembleContentFromDiscovery(discoveryInputs);
-                mergedSkills = assembled.skills;
-                mergedRules = assembled.rules;
-                mergedAgents = assembled.agents;
-                mergedMemory = assembled.memory;
-                discoveryCommandEntries = assembled.commands;
-                discoverySourcePaths = assembled.sourceFilePaths;
-
-                // Populate commandMap for compatibility with the placement phase
-                for (const cmd of assembled.commands) {
-                    commandMap.set(cmd.name, cmd.profileName);
-                }
-            } else {
-                // --- Manifest path: existing merge logic ---
-                const skillsResult = mergeSkillsWithWarnings(weightSortedProfiles);
-                mergedSkills = skillsResult.skills;
-                allWeightWarnings.push(...skillsResult.warnings);
-
-                const rulesResult = mergeRulesWithWarnings(weightSortedProfiles);
-                mergedRules = rulesResult.rules;
-                allWeightWarnings.push(...rulesResult.warnings);
-
-                const agentsResult = mergeAgentsWithWarnings(weightSortedProfiles);
-                mergedAgents = agentsResult.agents;
-                allWeightWarnings.push(...agentsResult.warnings);
-
-                const memoryResult = mergeMemoryWithWarnings(weightSortedProfiles);
-                mergedMemory = memoryResult.entries;
-                allWeightWarnings.push(...memoryResult.warnings);
-
-                // Collect all commands from all profiles (deduplicated by name, last wins)
-                // Respects weight lock: commands from weight -1 profiles cannot be overridden
-                const lockedCommands = new Set<string>();
-                const commandOwner = new Map<string, { profileName: string; weight: number }>();
-                for (const profile of weightSortedProfiles) {
-                    const weight = getProfileWeight(profile);
-                    const locked = isLockedProfile(profile);
-                    for (const cmd of profile.manifest.ai?.commands || []) {
-                        if (lockedCommands.has(cmd)) continue;
-
-                        const existing = commandOwner.get(cmd);
-                        if (
-                            existing &&
-                            existing.weight === weight &&
-                            existing.profileName !== profile.name
-                        ) {
-                            allWeightWarnings.push({
-                                key: cmd,
-                                category: "command",
-                                profileA: existing.profileName,
-                                profileB: profile.name,
-                                weight,
-                            });
-                        }
-
-                        commandMap.set(cmd, profile.name);
-                        commandOwner.set(cmd, { profileName: profile.name, weight });
-                        if (locked) lockedCommands.add(cmd);
-                    }
-                }
+            for (const cmd of assembled.commands) {
+                commandMap.set(cmd.name, cmd.profileName);
             }
 
             const mergedCommandCount = commandMap.size;
 
-            // Collect all files from all profiles (deduplicated by target path, last wins)
-            // Respects weight lock: files from weight -1 profiles cannot be overridden
+            // Files and IDE configs are no longer declared in manifests (v2).
+            // These empty maps keep the placement phase structurally intact.
             const fileMap = new Map<
                 string,
                 { source: string; target: string; profileName: string }
             >();
-            const lockedFiles = new Set<string>();
-            const fileOwner = new Map<string, { profileName: string; weight: number }>();
-            for (const profile of weightSortedProfiles) {
-                const weight = getProfileWeight(profile);
-                const locked = isLockedProfile(profile);
-                for (const fileConfig of profile.manifest.files || []) {
-                    const target = fileConfig.target || fileConfig.source;
-                    if (lockedFiles.has(target)) continue;
-
-                    const existing = fileOwner.get(target);
-                    if (
-                        existing &&
-                        existing.weight === weight &&
-                        existing.profileName !== profile.name
-                    ) {
-                        allWeightWarnings.push({
-                            key: target,
-                            category: "file",
-                            profileA: existing.profileName,
-                            profileB: profile.name,
-                            weight,
-                        });
-                    }
-
-                    fileMap.set(target, {
-                        source: fileConfig.source,
-                        target,
-                        profileName: profile.name,
-                    });
-                    fileOwner.set(target, { profileName: profile.name, weight });
-                    if (locked) lockedFiles.add(target);
-                }
-            }
             const mergedFileCount = fileMap.size;
-
-            // Collect all IDE configs from all profiles (deduplicated by target path, last wins)
-            // Uses central IDE platform registry for key → directory mapping
-            // Respects weight lock: IDE configs from weight -1 profiles cannot be overridden
             const ideMap = new Map<
                 string,
-                {
-                    ideKey: string;
-                    fileName: string;
-                    targetDir: string;
-                    profileName: string;
-                }
+                { ideKey: string; fileName: string; targetDir: string; profileName: string }
             >();
-            const lockedIdeConfigs = new Set<string>();
-            const ideOwner = new Map<string, { profileName: string; weight: number }>();
-            for (const profile of weightSortedProfiles) {
-                if (!profile.manifest.ide) continue;
-                const weight = getProfileWeight(profile);
-                const locked = isLockedProfile(profile);
-                for (const [ideKey, files] of Object.entries(profile.manifest.ide)) {
-                    if (!files) continue;
-                    const targetDir = getIdePlatformTargetDir(ideKey);
-                    if (!targetDir) {
-                        if (!isKnownIdePlatform(ideKey)) {
-                            p.log.warn(
-                                `Unknown IDE platform "${ideKey}" in profile "${profile.name}" — skipping. Register it in the IDE platform registry.`,
-                            );
-                        }
-                        continue;
-                    }
-                    for (const fileName of files) {
-                        const targetPath = `${targetDir}/${fileName}`;
-                        if (lockedIdeConfigs.has(targetPath)) continue;
-
-                        const existing = ideOwner.get(targetPath);
-                        if (
-                            existing &&
-                            existing.weight === weight &&
-                            existing.profileName !== profile.name
-                        ) {
-                            allWeightWarnings.push({
-                                key: targetPath,
-                                category: "ide",
-                                profileA: existing.profileName,
-                                profileB: profile.name,
-                                weight,
-                            });
-                        }
-
-                        ideMap.set(targetPath, {
-                            ideKey,
-                            fileName,
-                            targetDir,
-                            profileName: profile.name,
-                        });
-                        ideOwner.set(targetPath, { profileName: profile.name, weight });
-                        if (locked) lockedIdeConfigs.add(targetPath);
-                    }
-                }
-            }
             const mergedIdeCount = ideMap.size;
 
             spinner.stop(
-                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
+                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands`,
             );
-
-            // Emit weight conflict warnings (same weight, conflicting values)
-            if (allWeightWarnings.length > 0) {
-                for (const w of allWeightWarnings) {
-                    if (w.category === "memory") {
-                        p.log.info(
-                            `Memory "${w.key}": profiles "${w.profileA}" and "${w.profileB}" use different merge strategies at weight ${w.weight}. Strategy from "${w.profileB}" wins.`,
-                        );
-                    } else {
-                        p.log.warn(
-                            `Weight conflict: "${w.profileA}" and "${w.profileB}" both define ${w.category} "${w.key}" with weight ${w.weight}. Last declared wins.`,
-                        );
-                    }
-                }
-            }
 
             // Step 3: Determine which AI tools and IDE platforms to sync (intersection-based)
             spinner.start("Computing tool intersection...");
@@ -975,14 +772,12 @@ export const syncCommand = defineCommand({
                     }
                     for (const skillItem of mergedSkills) {
                         try {
-                            // Resolve source directory:
-                            // Discovery path → use discovered dirPath directly
-                            // Manifest path → construct from profile dir
-                            let skillSourceDir: string;
+                            // Resolve skill source directory from discovery
                             const discoveredSkillPath = discoverySourcePaths.get(
                                 `skills/${skillItem.name}`,
                             );
-                            if (useDiscoveryPath && discoveredSkillPath) {
+                            let skillSourceDir: string;
+                            if (discoveredSkillPath) {
                                 skillSourceDir = discoveredSkillPath;
                             } else {
                                 const profileDir = profileLocalPaths.get(skillItem.profileName);
@@ -1054,7 +849,7 @@ export const syncCommand = defineCommand({
                                 skillItem.profileName,
                             );
                             if (!profileFiles[canonicalKey]) {
-                                // Try SKILL.md (convention-over-config) then index.md (manifest path)
+                                // Try SKILL.md (convention-over-config) then index.md (legacy fallback)
                                 let entryContent: string | undefined;
                                 try {
                                     entryContent = await readFile(
@@ -1109,14 +904,12 @@ export const syncCommand = defineCommand({
                             const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
                             if (!isUniversal && !isForThisAdapter) continue;
 
-                            // Resolve source file path:
-                            // Discovery path → use discovered filePath directly (flat ai/rules/<name>.md)
-                            // Manifest path → construct from profile dir + subdirectory structure
-                            let ruleSourcePath: string;
+                            // Resolve source file path from discovery
                             const discoveredRulePath = discoverySourcePaths.get(
                                 `rules/${ruleName}`,
                             );
-                            if (useDiscoveryPath && discoveredRulePath) {
+                            let ruleSourcePath: string;
+                            if (discoveredRulePath) {
                                 ruleSourcePath = discoveredRulePath;
                             } else {
                                 const profileDir = profileLocalPaths.get(ruleEntry.profileName);
@@ -1126,12 +919,10 @@ export const syncCommand = defineCommand({
                                     );
                                     continue;
                                 }
-                                const ruleSubdir = isUniversal ? "universal" : ruleEntry.agents[0];
                                 ruleSourcePath = resolve(
                                     profileDir,
                                     "ai",
                                     "rules",
-                                    ruleSubdir,
                                     `${ruleName}.md`,
                                 );
                             }
@@ -1214,14 +1005,12 @@ export const syncCommand = defineCommand({
                             const isForThisAdapter = agentEntry.agents.includes(adapter.key);
                             if (!isUniversal && !isForThisAdapter) continue;
 
-                            // Resolve source file path:
-                            // Discovery path → use discovered filePath directly (flat ai/agents/<name>.md)
-                            // Manifest path → construct from profile dir + subdirectory structure
-                            let agentSourcePath: string;
+                            // Resolve agent source file path from discovery
                             const discoveredAgentPath = discoverySourcePaths.get(
                                 `agents/${agentName}`,
                             );
-                            if (useDiscoveryPath && discoveredAgentPath) {
+                            let agentSourcePath: string;
+                            if (discoveredAgentPath) {
                                 agentSourcePath = discoveredAgentPath;
                             } else {
                                 const profileDir = profileLocalPaths.get(agentEntry.profileName);
@@ -1231,14 +1020,10 @@ export const syncCommand = defineCommand({
                                     );
                                     continue;
                                 }
-                                const agentSubdir = isUniversal
-                                    ? "universal"
-                                    : agentEntry.agents[0];
                                 agentSourcePath = resolve(
                                     profileDir,
                                     "ai",
                                     "agents",
-                                    agentSubdir,
                                     `${agentName}.md`,
                                 );
                             }
@@ -1385,28 +1170,12 @@ export const syncCommand = defineCommand({
                 profileName: string;
                 scope: Scope;
             }> = [];
-            if (useDiscoveryPath) {
-                for (const cmd of discoveryCommandEntries) {
-                    commandPlacements.push({
-                        commandName: cmd.name,
-                        profileName: cmd.profileName,
-                        scope: cmd.scope,
-                    });
-                }
-            } else {
-                for (const profile of allProfiles) {
-                    const profileCommands = profile.manifest.ai?.commands || [];
-                    for (const cmdName of profileCommands) {
-                        // Only place commands that survived deduplication
-                        if (commandMap.get(cmdName) === profile.name) {
-                            commandPlacements.push({
-                                commandName: cmdName,
-                                profileName: profile.name,
-                                scope: resolveScope(undefined, profile.manifest.scope),
-                            });
-                        }
-                    }
-                }
+            for (const cmd of discoveryCommandEntries) {
+                commandPlacements.push({
+                    commandName: cmd.name,
+                    profileName: cmd.profileName,
+                    scope: cmd.scope,
+                });
             }
 
             if (!dryRun && syncAi) {
@@ -1420,14 +1189,12 @@ export const syncCommand = defineCommand({
                         scope: cmdPlacementScope,
                     } of commandPlacements) {
                         try {
-                            // Resolve source file path:
-                            // Discovery path → use discovered filePath directly
-                            // Manifest path → construct from profile dir
-                            let commandSourcePath: string;
+                            // Resolve source file path from discovery
                             const discoveredCmdPath = discoverySourcePaths.get(
                                 `commands/${commandName}`,
                             );
-                            if (useDiscoveryPath && discoveredCmdPath) {
+                            let commandSourcePath: string;
+                            if (discoveredCmdPath) {
                                 commandSourcePath = discoveredCmdPath;
                             } else {
                                 const cmdProfileDir = profileLocalPaths.get(cmdProfileName);

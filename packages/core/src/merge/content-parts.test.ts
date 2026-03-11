@@ -27,15 +27,12 @@ describe("normalizeMarkdown", () => {
     });
 
     it("should handle content parts that end with newlines joined by \\n\\n", () => {
-        // This is the real-world scenario: parts ending with \n joined by \n\n
         const part1 = "# Memory from profile A\nSome content\n";
         const part2 = "# Memory from profile B\nMore content\n";
         const joined = `${part1}\n\n${part2}`;
 
-        // Without normalization: part1\n + \n\n + part2 = 3 consecutive newlines
         expect(joined).toContain("\n\n\n");
 
-        // After normalization: max 1 blank line between sections
         const result = normalizeMarkdown(joined);
         expect(result).not.toMatch(/\n{3,}/);
         expect(result).toContain("# Memory from profile A");
@@ -49,9 +46,9 @@ describe("normalizeMarkdown", () => {
 });
 
 describe("mergeContentParts", () => {
-    it("should join parts with append strategy and normalize", () => {
+    it("should join parts with concat strategy and normalize", () => {
         const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "append");
+        const result = mergeContentParts(parts, "concat");
 
         expect(result).not.toMatch(/\n{3,}/);
         expect(result).toContain("content A");
@@ -60,29 +57,53 @@ describe("mergeContentParts", () => {
         expect(result.endsWith("\n")).toBe(true);
     });
 
-    it("should join parts with prepend strategy (reversed) and normalize", () => {
-        const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "prepend");
-
-        expect(result).not.toMatch(/\n{3,}/);
-        expect(result).toContain("content A");
-        expect(result).toContain("content B");
-        expect(result.indexOf("content B")).toBeLessThan(result.indexOf("content A"));
-        expect(result.endsWith("\n")).toBe(true);
-    });
-
-    it("should return first part for skip strategy", () => {
-        const parts = ["first", "second"];
-        expect(mergeContentParts(parts, "skip")).toBe("first");
-    });
-
     it("should return last part for replace strategy", () => {
         const parts = ["first", "second"];
         expect(mergeContentParts(parts, "replace")).toBe("second");
     });
 
-    it("should return last part for unknown strategy (default)", () => {
+    it("should return last part for unknown strategy (default/replace)", () => {
         const parts = ["first", "second"];
         expect(mergeContentParts(parts, "unknown")).toBe("second");
+    });
+
+    it("should throw for legacy 'append' strategy", () => {
+        const parts = ["first", "second"];
+        expect(() => mergeContentParts(parts, "append")).toThrow(
+            'Merge strategy "append" is no longer supported in v2',
+        );
+    });
+
+    it("should throw for legacy 'prepend' strategy", () => {
+        const parts = ["first", "second"];
+        expect(() => mergeContentParts(parts, "prepend")).toThrow(
+            'Merge strategy "prepend" is no longer supported in v2',
+        );
+    });
+
+    it("should throw for legacy 'skip' strategy", () => {
+        const parts = ["first", "second"];
+        expect(() => mergeContentParts(parts, "skip")).toThrow(
+            'Merge strategy "skip" is no longer supported in v2',
+        );
+    });
+
+    it("should throw for legacy 'deep' strategy", () => {
+        const parts = ["first", "second"];
+        expect(() => mergeContentParts(parts, "deep")).toThrow(
+            'Merge strategy "deep" is no longer supported in v2',
+        );
+    });
+
+    it("should throw for legacy 'prompt' strategy", () => {
+        expect(() => mergeContentParts(["a"], "prompt")).toThrow("no longer supported");
+    });
+
+    it("should throw for legacy 'directory' strategy", () => {
+        expect(() => mergeContentParts(["a"], "directory")).toThrow("no longer supported");
+    });
+
+    it("should throw for legacy 'import' strategy", () => {
+        expect(() => mergeContentParts(["a"], "import")).toThrow("no longer supported");
     });
 });

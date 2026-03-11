@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assembleContentFromDiscovery, hasManifestContent } from "./assemble.js";
+import { assembleContentFromDiscovery } from "./assemble.js";
 import { discoverProfile } from "./discover.js";
 
 let tempDir: string;
@@ -90,7 +90,7 @@ describe("discovery → assemble integration", () => {
 
     it("assembles memory with merge strategy from frontmatter", async () => {
         const profileDir = await createProfile("memory-test", {
-            "ai/memory/MEMORY.md": "---\nmerge: prepend\nscope: global\n---\n# Memory content",
+            "ai/memory/MEMORY.md": "---\nmerge: replace\nscope: global\n---\n# Memory content",
         });
 
         const discovery = await discoverProfile(profileDir);
@@ -99,9 +99,9 @@ describe("discovery → assemble integration", () => {
         expect(result.memory).toHaveLength(1);
         expect(result.memory[0]).toEqual({
             filename: "MEMORY.md",
-            mergeStrategy: "prepend",
+            mergeStrategy: "replace",
             scope: "global",
-            contributions: [{ profileName: "memory-test", mergeStrategy: "prepend" }],
+            contributions: [{ profileName: "memory-test", mergeStrategy: "replace" }],
         });
     });
 
@@ -151,10 +151,10 @@ describe("discovery → assemble integration", () => {
 
     it("merges memory contributions from multiple profiles", async () => {
         const baseDir = await createProfile("base-mem", {
-            "ai/memory/MEMORY.md": "---\nmerge: append\n---\n# Base memory",
+            "ai/memory/MEMORY.md": "---\nmerge: concat\n---\n# Base memory",
         });
         const overrideDir = await createProfile("override-mem", {
-            "ai/memory/MEMORY.md": "---\nmerge: prepend\n---\n# Override memory",
+            "ai/memory/MEMORY.md": "---\nmerge: replace\n---\n# Override memory",
         });
 
         const baseDiscovery = await discoverProfile(baseDir);
@@ -170,7 +170,7 @@ describe("discovery → assemble integration", () => {
         expect(result.memory[0].contributions[0].profileName).toBe("base-mem");
         expect(result.memory[0].contributions[1].profileName).toBe("override-mem");
         // Last profile wins on strategy
-        expect(result.memory[0].mergeStrategy).toBe("prepend");
+        expect(result.memory[0].mergeStrategy).toBe("replace");
     });
 
     it("inherits scope from profile when item scope is undefined", async () => {
@@ -248,52 +248,12 @@ describe("discovery → assemble integration", () => {
     });
 });
 
-describe("hasManifestContent", () => {
-    it("returns false for empty manifest", () => {
-        expect(hasManifestContent({})).toBe(false);
-    });
-
-    it("returns false for manifest with empty ai section", () => {
-        expect(hasManifestContent({ ai: {} })).toBe(false);
-    });
-
-    it("returns true for manifest with rules", () => {
-        expect(hasManifestContent({ ai: { rules: ["coding-standards"] } })).toBe(true);
-    });
-
-    it("returns true for manifest with memory", () => {
-        expect(
-            hasManifestContent({
-                ai: { memory: [{ source: "MEMORY.md", merge: "append" }] },
-            }),
-        ).toBe(true);
-    });
-
-    it("returns false for manifest with empty arrays", () => {
-        expect(hasManifestContent({ ai: { memory: [], skills: [], commands: [], mcp: [] } })).toBe(
-            false,
-        );
-    });
-
-    it("returns true for manifest with skills", () => {
-        expect(hasManifestContent({ ai: { skills: [{ name: "deploy" }] } })).toBe(true);
-    });
-
-    it("returns true for manifest with commands", () => {
-        expect(hasManifestContent({ ai: { commands: ["build"] } })).toBe(true);
-    });
-
-    it("returns true for manifest with mcp", () => {
-        expect(hasManifestContent({ ai: { mcp: [{ name: "server" }] } })).toBe(true);
-    });
-});
-
-describe("dual-path routing scenarios", () => {
+describe("discovery-path scenarios", () => {
     it("discovery path produces same-shaped output as manifest merge", async () => {
         // A profile with all content types — discovery should produce
         // the same output types as the manifest merge functions
         const profileDir = await createProfile("dual-path", {
-            "ai/memory/MEMORY.md": "---\nmerge: append\nscope: project\n---\n# Project memory",
+            "ai/memory/MEMORY.md": "---\nmerge: concat\nscope: project\n---\n# Project memory",
             "ai/rules/no-console.md": "# No console.log\nDo not use console.log.",
             "ai/agents/test-writer.md": "---\nscope: project\n---\n# Test Writer",
             "ai/skills/refactor/SKILL.md": "# Refactor\nRefactoring skill.",
@@ -352,7 +312,7 @@ describe("dual-path routing scenarios", () => {
             "ai/rules/style.md": "# Base style rules",
             "ai/rules/testing.md": "# Base testing rules",
             "ai/agents/reviewer.md": "# Base reviewer",
-            "ai/memory/MEMORY.md": "---\nmerge: append\n---\n# Base memory",
+            "ai/memory/MEMORY.md": "---\nmerge: concat\n---\n# Base memory",
         });
         const midDir = await createProfile("mid-chain", {
             "ai/rules/style.md": "# Mid style rules (overrides base)",
@@ -360,7 +320,7 @@ describe("dual-path routing scenarios", () => {
         });
         const topDir = await createProfile("top-chain", {
             "ai/rules/style.md": "# Top style rules (overrides all)",
-            "ai/memory/MEMORY.md": "---\nmerge: prepend\n---\n# Top memory",
+            "ai/memory/MEMORY.md": "---\nmerge: replace\n---\n# Top memory",
         });
 
         const baseDisc = await discoverProfile(baseDir);
@@ -388,29 +348,7 @@ describe("dual-path routing scenarios", () => {
 
         // Memory: 2 contributions, strategy from top
         expect(result.memory[0].contributions).toHaveLength(2);
-        expect(result.memory[0].mergeStrategy).toBe("prepend");
-    });
-
-    it("hasManifestContent correctly distinguishes v1 from v2 profiles", () => {
-        // v1 profile with manifest declarations
-        const v1Manifest = {
-            ai: {
-                memory: [{ source: "MEMORY.md", merge: "append" as const }],
-                rules: ["coding-standards"],
-                skills: [{ name: "deploy" }],
-            },
-        };
-        expect(hasManifestContent(v1Manifest)).toBe(true);
-
-        // v2 profile with no declarations (convention-over-config)
-        const v2Manifest = {
-            ai: {},
-        };
-        expect(hasManifestContent(v2Manifest)).toBe(false);
-
-        // v2 profile with no ai section at all
-        const v2MinimalManifest = {};
-        expect(hasManifestContent(v2MinimalManifest)).toBe(false);
+        expect(result.memory[0].mergeStrategy).toBe("replace");
     });
 
     it("discovery path uses all agents as universal (empty agents array)", async () => {
@@ -433,7 +371,7 @@ describe("dual-path routing scenarios", () => {
         }
     });
 
-    it("memory defaults to append merge strategy for unknown values", async () => {
+    it("memory defaults to concat merge strategy for unknown values", async () => {
         const profileDir = await createProfile("bad-merge", {
             "ai/memory/MEMORY.md": "---\nmerge: invalid-strategy\n---\n# Memory",
         });
@@ -441,8 +379,8 @@ describe("dual-path routing scenarios", () => {
         const discovery = await discoverProfile(profileDir);
         const result = assembleContentFromDiscovery([{ discovery, meta: { name: "bad-merge" } }]);
 
-        // "invalid-strategy" from discovery should fall back to "append" in assembly
-        expect(result.memory[0].mergeStrategy).toBe("append");
+        // "invalid-strategy" from discovery should fall back to "concat" in assembly
+        expect(result.memory[0].mergeStrategy).toBe("concat");
     });
 });
 

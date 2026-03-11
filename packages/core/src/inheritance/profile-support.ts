@@ -108,44 +108,23 @@ function allToolKeys(): string[] {
 }
 
 /**
- * Check whether the profile manifest has any AI content fields defined
- * (skills, rules, agents, memory, mcp, or commands).
+ * Check whether the profile manifest has an AI section defined.
+ * In v2, content is auto-discovered from the filesystem, so the presence of
+ * an `ai` section (even if empty) indicates the profile targets AI tools.
  */
 function hasAiContent(profileManifest: ProfileManifest): boolean {
-    const ai = profileManifest.ai;
-    if (!ai) return false;
-
-    return (
-        (ai.skills !== undefined && ai.skills.length > 0) ||
-        (ai.rules !== undefined &&
-            (Array.isArray(ai.rules) ? ai.rules.length > 0 : Object.keys(ai.rules).length > 0)) ||
-        (ai.agents !== undefined &&
-            (Array.isArray(ai.agents)
-                ? ai.agents.length > 0
-                : Object.keys(ai.agents).length > 0)) ||
-        (ai.memory !== undefined && ai.memory.length > 0) ||
-        (ai.mcp !== undefined && ai.mcp.length > 0) ||
-        (ai.commands !== undefined && ai.commands.length > 0)
-    );
+    return profileManifest.ai !== undefined;
 }
 
 /**
- * Resolve IDE platforms: prefer profile's ide keys, fall back to source's ide.platforms
- *
- * Note: Profile IDE section is Record<string, string[]> where keys are platform names.
- * Source IDE section is { platforms: string[] }. These are structurally different,
- * but both express "which platforms are supported".
+ * Resolve IDE platforms from source manifest.
+ * In v2, profiles no longer declare an `ide` section — IDE platforms
+ * are configured only at the source level.
  */
 function resolveIdePlatforms(
-    profileManifest: ProfileManifest,
+    _profileManifest: ProfileManifest,
     sourceManifest: SourceManifest,
 ): string[] {
-    // If profile has an ide section, extract platform keys
-    if (profileManifest.ide !== undefined) {
-        return Object.keys(profileManifest.ide);
-    }
-
-    // Fall back to source's ide.platforms
     if (sourceManifest.ide?.platforms !== undefined) {
         return sourceManifest.ide.platforms;
     }
