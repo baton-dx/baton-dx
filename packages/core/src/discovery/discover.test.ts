@@ -47,14 +47,14 @@ describe("discoverProfile", () => {
         expect(result.memory!.scope).toBe("global");
     });
 
-    it("defaults merge to 'concat' when not in frontmatter", async () => {
+    it("defaults merge to 'append' when not in frontmatter", async () => {
         const memoryDir = join(profileDir, "ai", "memory");
         await mkdir(memoryDir, { recursive: true });
         await writeFile(join(memoryDir, "MEMORY.md"), "Just some memory content");
 
         const result = await discoverProfile(profileDir);
         expect(result.memory).toBeDefined();
-        expect(result.memory!.merge).toBe("concat");
+        expect(result.memory!.merge).toBe("append");
         expect(result.memory!.scope).toBeUndefined();
     });
 

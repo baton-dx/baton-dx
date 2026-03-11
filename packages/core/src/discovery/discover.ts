@@ -40,7 +40,7 @@ async function discoverMemory(
         const content = await readFile(memoryPath, "utf-8");
         const parsed = parseFrontmatter(content);
         const merge =
-            typeof parsed.batonMetadata.merge === "string" ? parsed.batonMetadata.merge : "concat";
+            typeof parsed.batonMetadata.merge === "string" ? parsed.batonMetadata.merge : "append";
         const scope = isScope(parsed.batonMetadata.scope) ? parsed.batonMetadata.scope : undefined;
 
         return { type: "memory", filePath: memoryPath, content, merge, scope };

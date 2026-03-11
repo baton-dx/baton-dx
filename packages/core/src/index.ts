@@ -77,6 +77,17 @@ export {
     type DirectiveOptions,
     processDirectives,
 } from "./directives/index.js";
+// Export filesystem discovery (convention-over-configuration)
+export {
+    type AssembledContent,
+    assembleContentFromDiscovery,
+    type CommandEntry,
+    type DiscoveryInput,
+    type DiscoveryProfileMeta,
+    discoverProfile,
+    hasManifestContent,
+    type ProfileDiscoveryResult,
+} from "./discovery/index.js";
 // Export all error classes
 export {
     AIToolAdapterNotFoundError,
@@ -91,6 +102,13 @@ export {
     SourceParseError,
     VersionNotFoundError,
 } from "./errors.js";
+// Export frontmatter parser
+export {
+    BATON_OWNED_KEYS,
+    type BatonOwnedKey,
+    type ParsedFrontmatter as BatonParsedFrontmatter,
+    parseFrontmatter as parseBatonFrontmatter,
+} from "./frontmatter/index.js";
 // Export IDE detection
 export {
     clearIdeCache,
