@@ -21,12 +21,27 @@ export interface DirectiveContext {
 }
 
 /**
+ * Describes a file that needs to be copied from a profile source
+ * to .baton/includes/ for link/reference mode includes.
+ */
+export interface FilePlacement {
+    /** Absolute path to the source file in the profile */
+    sourcePath: string;
+    /** Relative target path under project root (e.g. ".baton/includes/my-profile/fragment.md") */
+    targetRelative: string;
+    /** The profile name this placement belongs to */
+    profileName: string;
+}
+
+/**
  * Options for directive processing.
  */
 export interface DirectiveOptions {
     context: DirectiveContext;
     /** Callback for non-fatal warnings (missing files, unknown keys, etc.) */
     onWarning?: (message: string) => void;
+    /** Callback emitted when a profile-relative link/reference include needs file placement */
+    onPlacement?: (placement: FilePlacement) => void;
 }
 
 /**

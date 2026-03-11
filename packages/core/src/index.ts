@@ -77,6 +77,8 @@ export {
     type DirectiveOptions,
     processDirectives,
 } from "./directives/index.js";
+export type { FilePlacement } from "./directives/types.js";
+export { computePlacementTarget } from "./directives/placement.js";
 // Export all error classes
 export {
     AIToolAdapterNotFoundError,
