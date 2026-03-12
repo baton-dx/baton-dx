@@ -1,7 +1,17 @@
-import { addGlobalSource, KEBAB_CASE_REGEX, parseSource, SourceParseError } from "@baton-dx/core";
+import { resolve } from "node:path";
+import {
+    addGlobalSource,
+    checkSourceBatonRequires,
+    findSourceManifest,
+    KEBAB_CASE_REGEX,
+    type ParsedSource,
+    parseSource,
+    SourceParseError,
+} from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { selectMultipleProfilesFromSource } from "../../utils/profile-selection.js";
+import { readCurrentVersion } from "../../utils/read-current-version.js";
 
 /**
  * Command: baton source connect
@@ -38,8 +48,9 @@ export const connectCommand = defineCommand({
             process.exit(1);
         }
 
+        let parsed: ParsedSource;
         try {
-            parseSource(url);
+            parsed = parseSource(url);
         } catch (error) {
             const message =
                 error instanceof SourceParseError
@@ -47,6 +58,23 @@ export const connectCommand = defineCommand({
                     : `Invalid source: ${(error as Error).message}`;
             p.cancel(message);
             process.exit(1);
+        }
+
+        // For local sources: warn if baton-cli version requirement is not met.
+        // Remote sources are skipped here — sync/apply will catch it after cloning.
+        if (parsed.provider === "local" || parsed.provider === "file") {
+            const absolutePath = parsed.path.startsWith("/")
+                ? parsed.path
+                : resolve(process.cwd(), parsed.path);
+            const sourceMeta = await findSourceManifest(absolutePath).catch(() => null);
+            const requiresBatonCli = sourceMeta?.requires?.["baton-cli"];
+            if (requiresBatonCli) {
+                const currentVersion = await readCurrentVersion();
+                const err = checkSourceBatonRequires(requiresBatonCli, currentVersion);
+                if (err) {
+                    p.log.warn(`Version requirement not met: ${err}`);
+                }
+            }
         }
 
         try {

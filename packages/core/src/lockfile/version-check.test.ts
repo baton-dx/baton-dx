@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LockFile } from "../schemas/lockfile.js";
-import { checkLockfileVersion } from "./version-check.js";
+import { checkLockfileVersion, checkSourceBatonRequires } from "./version-check.js";
 
 function makeLock(batonVersion?: string): LockFile {
     return {
@@ -52,5 +52,34 @@ describe("checkLockfileVersion", () => {
 
     it("returns null for non-semver current version (defensive)", () => {
         expect(checkLockfileVersion(makeLock("1.0.0"), "unknown")).toBeNull();
+    });
+});
+
+describe("checkSourceBatonRequires", () => {
+    it("returns null when current version satisfies the range", () => {
+        expect(checkSourceBatonRequires(">=1.0.0", "1.0.0")).toBeNull();
+        expect(checkSourceBatonRequires(">=1.0.0", "2.5.0")).toBeNull();
+        expect(checkSourceBatonRequires("^1.0.0", "1.2.3")).toBeNull();
+    });
+
+    it("returns an error message when current version does not satisfy the range", () => {
+        const result = checkSourceBatonRequires(">=2.0.0", "1.9.9");
+        expect(result).not.toBeNull();
+        expect(result).toContain(">=2.0.0");
+        expect(result).toContain("1.9.9");
+        expect(result).toContain("Update Baton");
+    });
+
+    it("returns null for an invalid range string (defensive)", () => {
+        expect(checkSourceBatonRequires("not-a-range", "1.0.0")).toBeNull();
+    });
+
+    it("returns null for a non-semver current version (defensive)", () => {
+        expect(checkSourceBatonRequires(">=1.0.0", "unknown")).toBeNull();
+    });
+
+    it("returns an error for exact version mismatch", () => {
+        const result = checkSourceBatonRequires(">=99.0.0", "1.0.0");
+        expect(result).not.toBeNull();
     });
 });

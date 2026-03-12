@@ -12,13 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 interface WizardOptions {
     name: string;
     git: boolean;
-    withInitialProfile: boolean;
 }
 
 interface WizardOverrides {
     name?: string;
     git?: boolean;
-    withInitialProfile?: boolean;
 }
 
 async function runInteractiveWizard(overrides: WizardOverrides = {}): Promise<WizardOptions> {
@@ -61,26 +59,9 @@ async function runInteractiveWizard(overrides: WizardOverrides = {}): Promise<Wi
         git = result;
     }
 
-    // 3. Initial Profile
-    let withInitialProfile: boolean;
-    if (overrides.withInitialProfile !== undefined) {
-        withInitialProfile = overrides.withInitialProfile;
-    } else {
-        const result = (await p.confirm({
-            message: "Create initial profile in profiles/default/?",
-            initialValue: true,
-        })) as boolean;
-        if (p.isCancel(result)) {
-            p.cancel("Operation cancelled.");
-            process.exit(0);
-        }
-        withInitialProfile = result;
-    }
-
     return {
         name,
         git,
-        withInitialProfile,
     };
 }
 
@@ -153,7 +134,7 @@ async function initializeGit(targetDir: string): Promise<void> {
  * Generate README.md with next steps
  */
 async function generateReadme(targetDir: string, options: WizardOptions): Promise<void> {
-    const { name, withInitialProfile } = options;
+    const { name } = options;
     const org = name.includes("-") ? name.split("-")[0] : name;
 
     const readmeContent = `# ${name}
@@ -166,10 +147,10 @@ Add profiles from this source repository to your project:
 
 \`\`\`bash
 # From GitHub (after you push)
-baton init --profile github:${org}/${name}/profiles/default
+baton init --profile github:${org}/${name}/profiles/base
 
 # Or locally (for testing)
-baton init --profile file:./${name}/profiles/default
+baton init --profile file:./${name}/profiles/base
 \`\`\`
 
 ## Next Steps
@@ -195,13 +176,18 @@ baton init --profile file:./${name}/profiles/default
 
 4. **Share with your team:**
    - Publish to GitHub for team-wide access
-   - Team members can use: \`baton init --profile github:${org}/${name}/profiles/default\`
+   - Team members can use: \`baton init --profile github:${org}/${name}/profiles/base\`
 
 ## Structure
 
 - \`baton.source.yaml\` - Source repository manifest
 - \`profiles/\` - Container for all profiles
-${withInitialProfile ? "  - `profiles/default/` - Default profile\n    - `baton.profile.yaml` - Profile manifest\n    - `ai/` - AI tool configurations\n    - `files/` - Dotfiles and configs to sync\n    - `ide/` - IDE settings\n" : ""}
+  - \`profiles/base/\` - Base profile
+    - \`baton.profile.yaml\` - Profile manifest
+    - \`ai/\` - AI tool configurations
+    - \`files/\` - Dotfiles and configs to sync
+    - \`ide/\` - IDE settings
+
 ## Learn More
 
 - [Baton Documentation](https://github.com/baton-dx/baton)
@@ -220,7 +206,7 @@ Generated with \`baton source create\`
  * Scaffold a source repository
  */
 export async function scaffoldSourceRepo(options: WizardOptions): Promise<string> {
-    const { name, git, withInitialProfile } = options;
+    const { name, git } = options;
 
     // Target directory is always ./<name>
     const targetDir = join(process.cwd(), name);
@@ -236,20 +222,21 @@ description: "Baton source repository"
 # Profiles are auto-discovered from the profiles/ directory.
 # Each profile must contain a baton.profile.yaml manifest.
 
+# Minimum baton-cli version required to use this source (optional).
+# Uncomment and set a semver range if needed:
+# requires:
+#   baton-cli: ">=1.0.0"
+
 metadata:
   created: "${new Date().getFullYear()}"
 `;
     await writeFile(join(targetDir, "baton.source.yaml"), sourceManifest);
 
-    // Create initial profile if requested
-    if (withInitialProfile) {
-        const profileDir = join(targetDir, "profiles", "default");
-        await mkdir(profileDir, { recursive: true });
-
-        // Copy minimal profile template
-        const profileTemplateDir = join(__dirname, "templates", "profile", "minimal");
-        await copyDirectory(profileTemplateDir, profileDir, { name: "default" });
-    }
+    // Always scaffold base profile
+    const profileDir = join(targetDir, "profiles", "base");
+    await mkdir(profileDir, { recursive: true });
+    const profileTemplateDir = join(__dirname, "templates", "profile", "base");
+    await copyDirectory(profileTemplateDir, profileDir, { name: "base" });
 
     // Generate README.md
     await generateReadme(targetDir, options);
@@ -298,7 +285,6 @@ export const sourceCreateCommand = defineCommand({
         if (yesArg) {
             overrides.name = overrides.name || "my-source";
             overrides.git = true;
-            overrides.withInitialProfile = false;
         }
 
         // Run wizard (skips steps where overrides are provided)
@@ -313,17 +299,12 @@ export const sourceCreateCommand = defineCommand({
             spinner.stop(`Source repository created at ${targetDir}`);
 
             // Build summary message
-            const features: string[] = [];
-            if (options.withInitialProfile) {
-                features.push("Initial Profile: profiles/default/");
-            }
+            const features: string[] = ["Base Profile: profiles/base/"];
             if (options.git) {
                 features.push("Git: Initialized with initial commit");
             }
 
-            if (features.length > 0) {
-                p.note(features.join("\n"), "Features");
-            }
+            p.note(features.join("\n"), "Features");
 
             const org = options.name.includes("-") ? options.name.split("-")[0] : options.name;
             const nextSteps: string[] = [];

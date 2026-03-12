@@ -81,7 +81,7 @@ describe("scaffoldSourceRepo (integration)", () => {
         await rm(testDir, { recursive: true, force: true });
     });
 
-    it.skip("should scaffold minimal source with profiles/ directory", async () => {
+    it.skip("should scaffold source with profiles/base/ directory", async () => {
         // Skipped: This test requires built templates in dist/ which may not exist during test runs
         // This functionality is tested via E2E tests instead
         const testName = "my-test-profile";
@@ -91,7 +91,6 @@ describe("scaffoldSourceRepo (integration)", () => {
         await scaffoldSourceRepo({
             name: testName,
             git: false,
-            withInitialProfile: true,
         });
 
         const readmeContent = await readFile(join(process.cwd(), testName, "README.md"), "utf-8");

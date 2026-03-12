@@ -77,8 +77,8 @@ export const createCommand = defineCommand({
         // Create profile directory
         await mkdir(targetDir, { recursive: true });
 
-        // Copy minimal template files
-        const templateDir = join(__dirname, "templates", "profile", "minimal");
+        // Copy base profile template
+        const templateDir = join(__dirname, "templates", "profile", "base");
         await copyProfileTemplate(templateDir, targetDir, { name });
 
         p.outro(`Profile '${name}' created in profiles/${name}/`);

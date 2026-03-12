@@ -1,4 +1,4 @@
-import { gt, valid } from "semver";
+import { gt, satisfies, valid, validRange } from "semver";
 import type { LockFile } from "../schemas/lockfile.js";
 
 /**
@@ -28,5 +28,30 @@ export function checkLockfileVersion(lockfile: LockFile, currentVersion: string)
         );
     }
 
+    return null;
+}
+
+/**
+ * Check whether the installed Baton version satisfies a range declared in a
+ * source manifest's `requires["baton-cli"]` field. Returns an error message
+ * when the requirement is not met, or `null` when everything is fine.
+ *
+ * Invalid range strings (caught by validate-source Check 3) are silently
+ * ignored here to avoid crashing at runtime.
+ */
+export function checkSourceBatonRequires(
+    requiresRange: string,
+    currentVersion: string,
+): string | null {
+    if (!validRange(requiresRange)) return null; // invalid range — caught by validation, skip here
+    if (!valid(currentVersion)) return null; // non-semver runtime version — skip
+
+    if (!satisfies(currentVersion, requiresRange)) {
+        return (
+            `This source requires baton-cli ${requiresRange}, ` +
+            `but you are running v${currentVersion}. ` +
+            `Update Baton to use this source.`
+        );
+    }
     return null;
 }

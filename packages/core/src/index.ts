@@ -153,7 +153,7 @@ export {
     readLock,
     writeLock,
 } from "./lockfile/manager.js";
-export { checkLockfileVersion } from "./lockfile/version-check.js";
+export { checkLockfileVersion, checkSourceBatonRequires } from "./lockfile/version-check.js";
 // Export MCP env-transform utility
 export { transformEnvVars } from "./mcp/env-transform.js";
 export type { SharedSettingsResult } from "./mcp/shared-settings.js";
