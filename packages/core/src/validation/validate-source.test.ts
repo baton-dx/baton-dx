@@ -173,7 +173,7 @@ describe("validateSource", () => {
         ).toBe(true);
     });
 
-    // ── Checks 6-12 removed in v2 ──────────────────────────────────
+    // ── Checks 6-12 removed (convention-over-configuration) ─────────
     // Content (skills, rules, agents, memory, commands, files, IDE) is now
     // auto-discovered from the filesystem — no manifest declarations to validate.
 
@@ -335,7 +335,7 @@ describe("validateSource", () => {
             ],
         });
 
-        // ── Base profile (v2: content auto-discovered, not declared) ──
+        // ── Base profile (content auto-discovered from filesystem) ─────
         const baseDir = join(TEST_DIR, "profiles", "base");
         await writeProfileManifest(baseDir, {
             name: "base",
@@ -345,7 +345,7 @@ describe("validateSource", () => {
             },
         });
 
-        // Create content files on disk (auto-discovered in v2)
+        // Create content files on disk (auto-discovered from filesystem)
         await mkdir(join(baseDir, "ai", "skills", "code-review"), { recursive: true });
         await writeFile(
             join(baseDir, "ai", "skills", "code-review", "SKILL.md"),

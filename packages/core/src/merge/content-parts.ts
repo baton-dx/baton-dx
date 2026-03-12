@@ -12,7 +12,7 @@ export function normalizeMarkdown(content: string): string {
 /**
  * Merge content parts according to the specified merge strategy.
  *
- * v2 supports two strategies:
+ * Baton 1.0 supports two strategies:
  * - "concat" (default): join all parts with \n\n and normalize whitespace
  * - "replace": last part wins
  *

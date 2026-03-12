@@ -51,7 +51,7 @@ export function mergeMcpWithWarnings(profiles: ResolvedProfile[]): MergeMcpResul
     const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
     for (const profile of profiles) {
-        // In v2, ai.mcp no longer exists in the schema — MCP servers
+        // ai.mcp no longer exists in the schema — MCP servers
         // are discovered from the filesystem. This cast supports legacy
         // manifests during migration. Discovery-based MCP assembly is
         // handled separately.

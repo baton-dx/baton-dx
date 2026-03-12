@@ -101,7 +101,7 @@ describe("resolveProfileSupport", () => {
         const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
 
         it("returns all tool keys when profile has ai section but no ai.tools", () => {
-            // In v2, having an `ai` section (even empty) indicates AI content
+            // Having an `ai` section (even empty) indicates AI content
             const profile = makeProfile({ ai: {} });
             const source = makeSource();
 

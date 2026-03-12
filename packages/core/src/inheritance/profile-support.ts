@@ -109,7 +109,7 @@ function allToolKeys(): string[] {
 
 /**
  * Check whether the profile manifest has an AI section defined.
- * In v2, content is auto-discovered from the filesystem, so the presence of
+ * Content is auto-discovered from the filesystem, so the presence of
  * an `ai` section (even if empty) indicates the profile targets AI tools.
  */
 function hasAiContent(profileManifest: ProfileManifest): boolean {
@@ -118,7 +118,7 @@ function hasAiContent(profileManifest: ProfileManifest): boolean {
 
 /**
  * Resolve IDE platforms from source manifest.
- * In v2, profiles no longer declare an `ide` section — IDE platforms
+ * Profiles no longer declare an `ide` section — IDE platforms
  * are configured only at the source level.
  */
 function resolveIdePlatforms(

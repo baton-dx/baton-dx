@@ -389,7 +389,7 @@ export const applyCommand = defineCommand({
             }
             const mergedCommandCount = commandMap.size;
 
-            // Files and IDE configs are no longer declared in manifests (v2).
+            // Files and IDE configs are no longer declared in manifests.
             // These empty maps keep the placement phase structurally intact.
             const fileMap = new Map<
                 string,

@@ -148,7 +148,7 @@ describe("Schema Validation - Profile Manifest", () => {
 
     describe("schema rejects legacy content fields", () => {
         it("ignores (strips) unknown ai fields via Zod", () => {
-            // Zod by default strips unknown keys, so v1 fields in ai.* just get ignored
+            // Zod by default strips unknown keys, so legacy fields in ai.* just get ignored
             const result = profileManifestSchema.safeParse({
                 name: "test",
                 version: "1.0.0",

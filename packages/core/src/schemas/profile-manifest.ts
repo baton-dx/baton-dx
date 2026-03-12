@@ -5,7 +5,7 @@ import { weightSchema } from "./source-manifest.js";
 /**
  * Merge strategy types for content merging.
  *
- * v2 only supports "concat" (join with \n\n, default) and "replace" (last wins).
+ * Baton 1.0 supports only "concat" (join with \n\n, default) and "replace" (last wins).
  */
 export const mergeStrategySchema = z.enum(["concat", "replace"]);
 
@@ -52,7 +52,7 @@ export const mcpServerSchema = z.object({
 export type McpServer = z.infer<typeof mcpServerSchema>;
 
 /**
- * AI section in profile manifest (v2).
+ * AI section in profile manifest.
  *
  * Content (rules, agents, skills, memory, commands) is auto-discovered from
  * the filesystem — no longer declared in the manifest.
@@ -68,7 +68,7 @@ const aiSectionSchema = z
     .optional();
 
 /**
- * Profile manifest schema (v2).
+ * Profile manifest schema.
  *
  * Content declarations (ai.rules, ai.agents, ai.skills, ai.memory, ai.commands,
  * ai.mcp, files, ide) have been removed. Content is auto-discovered from

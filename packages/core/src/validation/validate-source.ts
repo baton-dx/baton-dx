@@ -54,12 +54,12 @@ function extractVariableReferences(content: string): string[] {
 }
 
 /**
- * Check whether a directory has v1-style subdirectory structure (e.g. ai/rules/universal/).
- * In v2, rules and agents are flat files directly under ai/rules/ and ai/agents/.
+ * Check whether a directory has pre-1.0 subdirectory structure (e.g. ai/rules/universal/).
+ * Rules and agents are flat files directly under ai/rules/ and ai/agents/.
  *
- * Returns true if any subdirectory is found that suggests v1 layout.
+ * Returns true if any subdirectory is found that suggests legacy layout.
  */
-async function hasV1SubdirectoryLayout(dir: string): Promise<boolean> {
+async function hasLegacySubdirectoryLayout(dir: string): Promise<boolean> {
     try {
         const entries = await readdir(dir, { withFileTypes: true });
         return entries.some((e) => e.isDirectory());
@@ -269,7 +269,7 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
             }
         }
 
-        // ── Checks 6-12 removed in v2 ──────────────────────────────────
+        // ── Checks 6-12 removed (convention-over-configuration) ─────────
         // Content (skills, rules, agents, memory, commands, files, IDE)
         // is now auto-discovered from the filesystem. Manifest no longer
         // declares these sections, so file-existence checks are no longer needed.
@@ -286,25 +286,25 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
             });
         }
 
-        // ── Check 6b: Detect v1 subdirectory layout in ai/rules/ ───────
-        // In v2, rules are flat .md files directly under ai/rules/.
-        // A subdirectory (e.g. ai/rules/universal/ or ai/rules/cursor/) indicates v1 layout.
+        // ── Check 6b: Detect legacy subdirectory layout in ai/rules/ ────
+        // Rules are flat .md files directly under ai/rules/.
+        // A subdirectory (e.g. ai/rules/universal/ or ai/rules/cursor/) indicates legacy layout.
         const rulesDir = join(profileDir, "ai", "rules");
-        if (await hasV1SubdirectoryLayout(rulesDir)) {
+        if (await hasLegacySubdirectoryLayout(rulesDir)) {
             issues.push({
                 severity: "warning",
-                message: `ai/rules/ contains subdirectories (e.g. universal/, cursor/). In v2, rules are flat .md files directly under ai/rules/. Move files to ai/rules/<name>.md and remove subdirectories.`,
+                message: `ai/rules/ contains subdirectories (e.g. universal/, cursor/). Rules are flat .md files directly under ai/rules/. Move files to ai/rules/<name>.md and remove subdirectories.`,
                 path: join(profile.path, "ai", "rules"),
                 context: ctx,
             });
         }
 
-        // ── Check 6c: Detect v1 subdirectory layout in ai/agents/ ──────
+        // ── Check 6c: Detect legacy subdirectory layout in ai/agents/ ───
         const agentsDir = join(profileDir, "ai", "agents");
-        if (await hasV1SubdirectoryLayout(agentsDir)) {
+        if (await hasLegacySubdirectoryLayout(agentsDir)) {
             issues.push({
                 severity: "warning",
-                message: `ai/agents/ contains subdirectories. In v2, agents are flat .md files directly under ai/agents/. Move files to ai/agents/<name>.md and remove subdirectories.`,
+                message: `ai/agents/ contains subdirectories. Agents are flat .md files directly under ai/agents/. Move files to ai/agents/<name>.md and remove subdirectories.`,
                 path: join(profile.path, "ai", "agents"),
                 context: ctx,
             });
