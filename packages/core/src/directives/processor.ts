@@ -4,6 +4,14 @@ import { parseDirectives } from "./parser.js";
 import type { DirectiveOptions } from "./types.js";
 
 /**
+ * Regex to match any remaining baton:* HTML comment directives.
+ * Used in the cleanup pass to strip leftover artifacts.
+ */
+// Use (?:[^-]|-(?!->))* instead of [^>]*? to avoid polynomial backtracking (ReDoS).
+// Each step is deterministic: either a non-dash char, or a dash not followed by ->.
+const BATON_COMMENT_CLEANUP = /<!--\s*baton:(?:[^-]|-(?!->))*-->\s*/g;
+
+/**
  * Process all baton directives in content.
  *
  * Pipeline: parse → match conditionals → resolve conditionals (innermost-first)
@@ -25,7 +33,7 @@ export async function processDirectives(
     const { context, onWarning } = options;
 
     // Phase 1: Resolve conditionals
-    let result = resolveConditionals(content, options);
+    let result = await resolveConditionals(content, options);
 
     // Phase 2: Re-parse and resolve includes (positions shifted after conditional removal)
     const directives = parseDirectives(result);
@@ -35,12 +43,24 @@ export async function processDirectives(
         // Process in reverse document order so indices stay valid
         for (let i = includes.length - 1; i >= 0; i--) {
             const directive = includes[i];
-            const replacement = await resolveInclude(directive, context.projectRoot, onWarning);
+            const replacement = await resolveInclude(
+                directive,
+                context.projectRoot,
+                onWarning,
+                context.profileRoot,
+                context.profileName,
+                options.onPlacement,
+            );
             result =
                 result.slice(0, directive.startIndex) +
                 replacement +
                 result.slice(directive.endIndex);
         }
+    }
+
+    // Phase 3: Cleanup — remove any remaining baton:* HTML comments (skip in explain mode)
+    if (!options.explain) {
+        result = result.replace(BATON_COMMENT_CLEANUP, "");
     }
 
     return result;
@@ -53,9 +73,13 @@ export async function processDirectives(
  * Unmatched baton:if → content kept (fail-open).
  * Unmatched baton:endif → left in place.
  */
-function resolveConditionals(content: string, options: DirectiveOptions): string {
+async function resolveConditionals(content: string, options: DirectiveOptions): Promise<string> {
     const { context, onWarning } = options;
     let result = content;
+
+    if (options.explain) {
+        return annotateConditionals(result, options);
+    }
 
     // We need to iterate because after removing a block, positions shift
     // and we need to re-parse. matchConditionalPairs returns innermost-first,
@@ -69,9 +93,32 @@ function resolveConditionals(content: string, options: DirectiveOptions): string
 
         // Process the first (innermost) matched pair
         const block = matched[0];
-        const keep = evaluateCondition(block.ifDirective.attributes, context, onWarning);
+        const keep = await evaluateCondition(block.ifDirective.attributes, context, onWarning);
 
-        if (keep) {
+        if (block.elseDirective) {
+            // if/else/endif block
+            if (keep) {
+                // Keep content between if and else
+                const innerContent = result.slice(
+                    block.ifDirective.endIndex,
+                    block.elseDirective.startIndex,
+                );
+                result =
+                    result.slice(0, block.ifDirective.startIndex) +
+                    innerContent.trim() +
+                    result.slice(block.endifDirective.endIndex);
+            } else {
+                // Keep content between else and endif
+                const innerContent = result.slice(
+                    block.elseDirective.endIndex,
+                    block.endifDirective.startIndex,
+                );
+                result =
+                    result.slice(0, block.ifDirective.startIndex) +
+                    innerContent.trim() +
+                    result.slice(block.endifDirective.endIndex);
+            }
+        } else if (keep) {
             // Keep content between if and endif, remove the directive tags
             const innerContent = result.slice(
                 block.ifDirective.endIndex,
@@ -90,4 +137,75 @@ function resolveConditionals(content: string, options: DirectiveOptions): string
     }
 
     return result;
+}
+
+/**
+ * Annotate conditional blocks with evaluation results instead of stripping them.
+ * Replaces baton:if/else/endif comments with readable markers showing what was
+ * included or excluded and why.
+ */
+async function annotateConditionals(content: string, options: DirectiveOptions): Promise<string> {
+    const { context, onWarning } = options;
+    let result = content;
+
+    let safetyLimit = 100;
+    while (safetyLimit-- > 0) {
+        const directives = parseDirectives(result);
+        const { matched } = matchConditionalPairs(directives, onWarning);
+
+        if (matched.length === 0) break;
+
+        const block = matched[0];
+        const keep = await evaluateCondition(block.ifDirective.attributes, context, onWarning);
+
+        // Build a readable condition summary from the attributes
+        const conditionSummary = formatConditionAttributes(block.ifDirective.attributes);
+
+        if (block.elseDirective) {
+            const ifContent = result.slice(
+                block.ifDirective.endIndex,
+                block.elseDirective.startIndex,
+            );
+            const elseContent = result.slice(
+                block.elseDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+
+            const annotated = keep
+                ? `\n>>> [INCLUDED] if ${conditionSummary} <<<\n${ifContent.trim()}\n>>> [EXCLUDED] else <<<\n${elseContent.trim()}\n>>> [END] <<<\n`
+                : `\n>>> [EXCLUDED] if ${conditionSummary} <<<\n${ifContent.trim()}\n>>> [INCLUDED] else <<<\n${elseContent.trim()}\n>>> [END] <<<\n`;
+
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                annotated +
+                result.slice(block.endifDirective.endIndex);
+        } else if (keep) {
+            const innerContent = result.slice(
+                block.ifDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                `\n>>> [INCLUDED] if ${conditionSummary} <<<\n${innerContent.trim()}\n>>> [END] <<<\n` +
+                result.slice(block.endifDirective.endIndex);
+        } else {
+            const innerContent = result.slice(
+                block.ifDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                `\n>>> [EXCLUDED] if ${conditionSummary} <<<\n${innerContent.trim()}\n>>> [END] <<<\n` +
+                result.slice(block.endifDirective.endIndex);
+        }
+    }
+
+    return result;
+}
+
+/** Format condition attributes into a readable string like `tool="cursor" scope="project"` */
+function formatConditionAttributes(attributes: Record<string, string>): string {
+    return Object.entries(attributes)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(" ");
 }

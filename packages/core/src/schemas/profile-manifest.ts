@@ -1,71 +1,18 @@
 import { z } from "zod";
+import { KEBAB_CASE_REGEX, SEMVER_REGEX } from "./constants.js";
 import { weightSchema } from "./source-manifest.js";
 
 /**
- * Merge strategy types for file merging
+ * Merge strategy types for content merging.
+ *
+ * Baton 1.0 supports only "concat" (join with \n\n, default) and "replace" (last wins).
  */
-export const mergeStrategySchema = z.enum([
-    "replace",
-    "deep",
-    "append",
-    "prepend",
-    "skip",
-    "prompt",
-    "directory",
-    "import",
-]);
+export const mergeStrategySchema = z.enum(["concat", "replace"]);
 
 /**
  * Scope for configuration items
  */
 export const scopeSchema = z.enum(["project", "global"]);
-
-/**
- * Skill item in profile manifest
- */
-export const skillItemSchema = z.object({
-    name: z.string(),
-    scope: scopeSchema.optional(),
-});
-
-/**
- * Rules in profile manifest - can be either an array or an object
- */
-const rulesSchema = z.union([
-    // Array format: universal rules
-    z.array(z.string()),
-    // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
-    z.record(z.string(), z.array(z.string()).optional()),
-]);
-
-/**
- * Agents in profile manifest - can be either an array or an object
- */
-const agentsSchema = z.union([
-    // Array format: universal agents
-    z.array(z.string()),
-    // Object format: keys are "universal" or any AI tool key (e.g., "claude-code", "cursor")
-    z.record(z.string(), z.array(z.string()).optional()),
-]);
-
-/**
- * Memory file configuration item
- *
- * Convention: Use "MEMORY.md" as source for generic memory that will be
- * automatically transformed to target-specific filenames (CLAUDE.md, AGENTS.md, etc.)
- *
- * Or use explicit filenames (CLAUDE.md, AGENTS.md) for tool-specific memory.
- */
-const memoryItemSchema = z.object({
-    source: z.string(), // e.g., "MEMORY.md", "CLAUDE.md", "AGENTS.md"
-    merge: mergeStrategySchema,
-    scope: scopeSchema.optional(),
-});
-
-/**
- * Memory section in profile manifest - array of memory items
- */
-const memorySectionSchema = z.array(memoryItemSchema).optional();
 
 /**
  * Env-var values in MCP server definitions must use ${VAR} or ${VAR:-default} syntax.
@@ -107,53 +54,26 @@ export type McpServer = z.infer<typeof mcpServerSchema>;
 /**
  * AI section in profile manifest.
  *
- * `tools` is optional — when omitted, the profile inherits `ai.tools` from
- * its source manifest. If neither profile nor source declares tools but the
- * profile has AI content (skills, rules, agents, memory, mcp, commands),
- * all AI tools are targeted (implicit wildcard).
+ * Content (rules, agents, skills, memory, commands) is auto-discovered from
+ * the filesystem — no longer declared in the manifest.
  *
- * Use `["*"]` as an explicit wildcard to target all supported AI tools.
+ * `tools` is optional — when omitted, the profile inherits `ai.tools` from
+ * its source manifest. Use `["*"]` as an explicit wildcard to target all
+ * supported AI tools.
  */
 const aiSectionSchema = z
     .object({
-        tools: z.array(z.string()).optional(), // Optional: inherits from source. Use ["*"] for all tools.
-        skills: z.array(skillItemSchema).optional(),
-        rules: rulesSchema.optional(),
-        agents: agentsSchema.optional(),
-        memory: memorySectionSchema.optional(),
-        commands: z.array(z.string()).optional(),
-        mcp: z.array(mcpServerSchema).optional(),
+        tools: z.array(z.string()).optional(),
     })
     .optional();
 
 /**
- * File configuration item with optional target mapping
+ * Profile manifest schema.
  *
- * Note: Files are deduplicated by target path (last-wins by weight),
- * not merged. Merge strategies only apply to memory items.
+ * Content declarations (ai.rules, ai.agents, ai.skills, ai.memory, ai.commands,
+ * ai.mcp, files, ide) have been removed. Content is auto-discovered from
+ * the filesystem via convention-over-configuration.
  */
-const fileConfigItemSchema = z.object({
-    source: z.string(), // e.g., "biome.json", "company/policy.md"
-    target: z.string().optional(), // Optional target path. If not specified, uses source as target
-});
-
-/**
- * Files section in profile manifest - array of file configurations
- */
-const filesSectionSchema = z.array(fileConfigItemSchema).optional();
-
-/**
- * IDE section in profile manifest
- * Keys are IDE platform identifiers (e.g., vscode, jetbrains, zed, fleet)
- * Values are arrays of filenames to sync for that platform
- */
-const ideSectionSchema = z.record(z.string(), z.array(z.string())).optional();
-
-/**
- * Profile manifest schema
- */
-import { KEBAB_CASE_REGEX, SEMVER_REGEX } from "./constants.js";
-
 export { KEBAB_CASE_REGEX } from "./constants.js";
 
 export const profileManifestSchema = z.object({
@@ -173,8 +93,6 @@ export const profileManifestSchema = z.object({
     weight: weightSchema.optional(),
     scope: scopeSchema.optional(),
     ai: aiSectionSchema,
-    files: filesSectionSchema,
-    ide: ideSectionSchema,
     variables: z.record(z.string(), z.string()).optional(),
     hooks: z
         .object({
@@ -194,5 +112,60 @@ export type ProfileManifest = z.infer<typeof profileManifestSchema>;
  */
 export type MergeStrategy = z.infer<typeof mergeStrategySchema>;
 // Scope type is exported from @baton-dx/ai-tool-paths
-export type SkillItem = z.infer<typeof skillItemSchema>;
-export type MemoryItem = z.infer<typeof memoryItemSchema>;
+
+// --- legacy field detection ---
+
+/** Fields that existed in pre-1.0 manifests but were removed in Baton 1.0. */
+const LEGACY_AI_FIELDS = ["rules", "agents", "skills", "memory", "commands", "mcp"] as const;
+const LEGACY_TOP_LEVEL_FIELDS = ["files", "ide"] as const;
+
+function hasField(obj: Record<string, unknown>, field: string): boolean {
+    return field in obj && obj[field] !== undefined;
+}
+
+function legacyTopLevelError(field: string): string {
+    const what = field === "files" ? "files" : "IDE configs";
+    return (
+        `"${field}" is no longer supported in baton.profile.yaml. ` +
+        `Place ${what} directly in the profile filesystem. ` +
+        `See migration guide: docs/04-creating-profiles.md`
+    );
+}
+
+function legacyAiFieldError(field: string): string {
+    const hint = field === "mcp" ? "MCP servers" : `${field} files`;
+    return (
+        `"ai.${field}" is no longer supported in baton.profile.yaml. ` +
+        `Place ${hint} directly in ai/${field}/ instead. ` +
+        `See migration guide: docs/04-creating-profiles.md`
+    );
+}
+
+/**
+ * Detect legacy manifest fields and return actionable error messages.
+ *
+ * @param rawManifest - The raw (unparsed) manifest object
+ * @returns Array of error messages for any legacy fields found (empty if none)
+ */
+export function detectLegacyFields(rawManifest: unknown): string[] {
+    if (typeof rawManifest !== "object" || rawManifest === null) return [];
+
+    const manifest = rawManifest as Record<string, unknown>;
+    const errors: string[] = [];
+
+    for (const field of LEGACY_TOP_LEVEL_FIELDS) {
+        if (hasField(manifest, field)) errors.push(legacyTopLevelError(field));
+    }
+
+    if (typeof manifest.ai === "object" && manifest.ai !== null) {
+        const ai = manifest.ai as Record<string, unknown>;
+        for (const field of LEGACY_AI_FIELDS) {
+            if (hasField(ai, field)) errors.push(legacyAiFieldError(field));
+        }
+    }
+
+    return errors;
+}
+
+/** @deprecated Use detectLegacyFields instead */
+export const detectV1Fields = detectLegacyFields;

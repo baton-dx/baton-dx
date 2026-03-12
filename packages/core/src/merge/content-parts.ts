@@ -12,20 +12,20 @@ export function normalizeMarkdown(content: string): string {
 /**
  * Merge content parts according to the specified merge strategy.
  *
+ * Baton 1.0 supports two strategies:
+ * - "concat" (default): join all parts with \n\n and normalize whitespace
+ * - "replace": last part wins
+ *
  * @param parts - Non-empty array of content strings to merge
- * @param strategy - Merge strategy: "append", "prepend", "skip", or "replace" (default)
+ * @param strategy - Merge strategy: "concat" or "replace"
  * @returns Merged content string
  */
 export function mergeContentParts(parts: string[], strategy: string): string {
     switch (strategy) {
-        case "append":
-            return normalizeMarkdown(parts.join("\n\n"));
-        case "prepend":
-            return normalizeMarkdown([...parts].reverse().join("\n\n"));
-        case "skip":
-            return parts[0];
-        default:
-            // "replace" — last one wins
+        case "replace":
             return parts[parts.length - 1];
+        default:
+            // "concat" and any unknown strategy: join
+            return normalizeMarkdown(parts.join("\n\n"));
     }
 }

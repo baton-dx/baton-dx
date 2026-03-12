@@ -85,40 +85,6 @@ export function renderProfileTree(roots: ProfileTreeNode[]): string {
 }
 
 /**
- * Returns all transitively inherited parent profiles for the given selected names.
- * Only returns profiles that are NOT in the selected set.
- *
- * Used to show a post-selection note: "These profiles will also be synced via inheritance."
- */
-export function getInheritedProfiles(
-    selectedNames: string[],
-    allProfiles: SourceProfileInfo[],
-): string[] {
-    const selectedSet = new Set(selectedNames);
-    const inherited = new Set<string>();
-    const nameToProfile = new Map<string, SourceProfileInfo>();
-
-    for (const profile of allProfiles) {
-        nameToProfile.set(profile.name, profile);
-    }
-
-    function collectParents(name: string): void {
-        const profile = nameToProfile.get(name);
-        const parentName = profile?.extends;
-        if (parentName && !selectedSet.has(parentName) && !inherited.has(parentName)) {
-            inherited.add(parentName);
-            collectParents(parentName);
-        }
-    }
-
-    for (const selectedName of selectedNames) {
-        collectParents(selectedName);
-    }
-
-    return [...inherited];
-}
-
-/**
  * Creates options for p.multiselect / p.select with hierarchical indentation.
  *
  * Example labels:

@@ -1,3 +1,10 @@
+import {
+    evaluateAsyncCondition,
+    evaluateSyncCondition,
+    getRegisteredKeys,
+    isAsyncCondition,
+} from "./conditions/index.js";
+import { evaluateExpressionCondition } from "./expression/index.js";
 import type { ConditionalBlock, DirectiveContext, ParsedDirective } from "./types.js";
 
 /** Maximum nesting depth for conditional blocks */
@@ -23,6 +30,9 @@ export function matchConditionalPairs(
     const matched: ConditionalBlock[] = [];
     const unmatchedEndifs: ParsedDirective[] = [];
 
+    // Track else directives per stack depth
+    const elseByDepth = new Map<number, ParsedDirective>();
+
     for (const d of directives) {
         if (d.type === "if") {
             const depth = stack.length;
@@ -33,14 +43,28 @@ export function matchConditionalPairs(
                 continue;
             }
             stack.push({ directive: d, depth });
+        } else if (d.type === "else") {
+            // Attach to the current innermost if block
+            if (stack.length > 0) {
+                const currentDepth = stack.length - 1;
+                if (elseByDepth.has(currentDepth)) {
+                    onWarning?.(`Duplicate baton:else at index ${d.startIndex}`);
+                } else {
+                    elseByDepth.set(currentDepth, d);
+                }
+            } else {
+                onWarning?.(`Unmatched baton:else at index ${d.startIndex}`);
+            }
         } else if (d.type === "endif") {
             const top = stack.pop();
             if (top) {
                 matched.push({
                     ifDirective: top.directive,
+                    elseDirective: elseByDepth.get(top.depth),
                     endifDirective: d,
                     depth: top.depth,
                 });
+                elseByDepth.delete(top.depth);
             } else {
                 unmatchedEndifs.push(d);
                 onWarning?.(`Unmatched baton:endif at index ${d.startIndex}`);
@@ -64,59 +88,47 @@ export function matchConditionalPairs(
 }
 
 /**
- * Evaluate a single condition against the directive context.
+ * Evaluate conditions against the directive context using AND-composition.
  *
- * Only the FIRST recognized condition attribute is used.
- * Multiple condition attributes produce a warning.
+ * ALL recognized condition attributes must pass for the result to be true.
+ * OR logic is available within a single attribute via comma-separated values.
+ * Supports both sync and async conditions via the condition registry.
  *
  * @returns true if the content should be KEPT, false if it should be REMOVED
  */
-export function evaluateCondition(
+export async function evaluateCondition(
     attributes: Record<string, string>,
     context: DirectiveContext,
     onWarning?: (message: string) => void,
-): boolean {
-    const conditionKeys = ["tool", "not-tool", "ide", "not-ide", "scope", "type"];
-    const found = conditionKeys.filter((k) => k in attributes);
+): Promise<boolean> {
+    // Expression-based condition takes precedence
+    if ("condition" in attributes) {
+        const registeredKeys = getRegisteredKeys();
+        const otherKeys = registeredKeys.filter((k) => k in attributes);
+        if (otherKeys.length > 0) {
+            onWarning?.(`condition attribute present; ${otherKeys.join(", ")} will be ignored`);
+        }
+        return evaluateExpressionCondition(attributes.condition, context, onWarning);
+    }
+
+    const registeredKeys = getRegisteredKeys();
+    const found = registeredKeys.filter((k) => k in attributes);
 
     if (found.length === 0) {
         onWarning?.("baton:if has no recognized condition attribute");
         return true; // fail-open
     }
 
-    if (found.length > 1) {
-        onWarning?.(
-            `baton:if has multiple condition attributes (${found.join(", ")}), using first: ${found[0]}`,
-        );
+    // AND-composition: ALL conditions must pass
+    for (const key of found) {
+        let result: boolean | undefined;
+        if (isAsyncCondition(key)) {
+            result = await evaluateAsyncCondition(key, attributes[key], context);
+        } else {
+            result = evaluateSyncCondition(key, attributes[key], context);
+        }
+        if (result === false) return false;
     }
 
-    const key = found[0];
-    const value = attributes[key];
-    const values = value
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
-
-    switch (key) {
-        case "tool":
-            return values.includes(context.currentTool);
-
-        case "not-tool":
-            return !values.includes(context.currentTool);
-
-        case "ide":
-            return values.some((v) => context.detectedIdes.includes(v));
-
-        case "not-ide":
-            return !values.some((v) => context.detectedIdes.includes(v));
-
-        case "scope":
-            return values.includes(context.scope);
-
-        case "type":
-            return values.includes(context.contentType);
-
-        default:
-            return true;
-    }
+    return true;
 }

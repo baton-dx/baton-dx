@@ -23,7 +23,7 @@ variables:                       # optional: template variables
 overrides:                       # optional: override merge strategies
   files:
     .gitignore:
-      merge: skip
+      merge: replace
 
 extras:                          # optional: additional metadata
   scripts:
@@ -45,126 +45,77 @@ extras:                          # optional: additional metadata
 
 ## Profile Manifest — `baton.profile.yaml`
 
-Defines a profile's contents. Lives in a profile directory within a source repo.
+Declares identity and options. Content is auto-discovered from the profile's directory structure — no explicit declarations needed.
 
 ```yaml
 name: frontend
 version: 1.0.0
 description: Frontend development standards
 
-extends:
-  - ../base
+extends: ../base
 
 weight: 10
+scope: project
 
 ai:
   tools: [claude-code, cursor, windsurf]
-  skills:
-    - name: code-review
-      scope: project
-  rules:
-    - name: coding-style
-      scope: project
-  agents:
-    - name: reviewer
-      scope: project
-  memory:
-    - source: MEMORY.md
-      merge: append
-  commands:
-    - name: review
-      scope: project
-  mcp:
-    - name: filesystem
-      transport: stdio
-      command: npx
-      args: ["-y", "@modelcontextprotocol/server-filesystem"]
-      env:
-        ROOT_DIR: "${HOME}"
-      scope: project
-
-files:
-  - source: files/.editorconfig
-    target: .editorconfig
-    merge: replace
-  - source: files/biome.json
-    target: biome.json
-    merge: deep
-
-ide:
-  vscode:
-    settings: ide/vscode/settings.json
-    extensions: ide/vscode/extensions.json
 
 variables:
   project_type: frontend
 
 hooks:
-  pre-sync: scripts/pre-sync.sh
-  post-sync: scripts/post-sync.sh
+  pre-sync:
+    - echo "Starting sync..."
+  post-sync:
+    - npm install
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | yes | Profile name (kebab-case) |
-| `version` | string | yes | Semver version (major.minor.patch) |
-| `description` | string | no | Human-readable description |
-| `extends` | string[] | no | Parent profiles to inherit from |
-| `weight` | number | no | Priority (-1 to Infinity, default 0). Higher = applied later |
-| `ai.tools` | string[] | no | AI tools this profile supports |
-| `ai.skills` | array | no | Skill directories to place |
-| `ai.rules` | array | no | Rule files to place |
-| `ai.agents` | array | no | Agent files to place |
-| `ai.memory` | array | no | Memory files to place |
-| `ai.commands` | array | no | Command files to place |
-| `ai.mcp` | array | no | MCP server definitions (placed into each tool's native config) |
-| `files` | array | no | General files to place |
-| `ide` | object | no | IDE-specific settings |
-| `variables` | object | no | Default variable values |
-| `hooks` | object | no | Lifecycle hooks |
+| Field         | Type     | Required | Description                                                      |
+| ------------- | -------- | -------- | ---------------------------------------------------------------- |
+| `name`        | string   | yes      | Profile name (kebab-case)                                        |
+| `version`     | string   | no       | Semver version                                                   |
+| `description` | string   | no       | Human-readable description                                       |
+| `extends`     | string   | no       | Sibling profile to inherit from (e.g. `../base`)                 |
+| `weight`      | number   | no       | Priority (-1 to Infinity, default 0). Higher = applied later     |
+| `scope`       | string   | no       | Default scope for all content (`project` or `global`)            |
+| `ai.tools`    | string[] | no       | AI tools this profile targets (default: all detected)            |
+| `variables`   | object   | no       | Default variable values for template substitution                |
+| `hooks`       | object   | no       | Lifecycle hooks (`pre-sync`, `post-sync`)                        |
 
-### Skill Item
+Content is auto-discovered from:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Skill directory name |
-| `scope` | `"project"` \| `"global"` | Where to place the skill |
+| Directory        | What Baton discovers                           |
+| ---------------- | ---------------------------------------------- |
+| `ai/memory/`     | `MEMORY.md` — memory file                      |
+| `ai/rules/`      | `*.md` — rule files                            |
+| `ai/agents/`     | `*.md` — agent files with frontmatter           |
+| `ai/skills/`     | `*/SKILL.md` — skill directories               |
+| `ai/commands/`   | `*.md` — command files                         |
+| `ai/mcp/`        | `*.yaml` — MCP server definitions              |
+| `files/`         | `**/*` — files placed in consumer project root |
+| `ide/{platform}/`| `**/*` — IDE-specific files                    |
 
-### Rule Item
+Files whose name starts with `_` are excluded (draft convention).
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Rule file name (without extension) |
-| `scope` | `"project"` \| `"global"` | Where to place the rule |
+### Frontmatter Keys (stripped at sync time)
 
-### Memory Item
+| Key     | Values                | Supported in                          |
+| ------- | --------------------- | ------------------------------------- |
+| `merge` | `concat` \| `replace` | `ai/memory/MEMORY.md`, `files/**`    |
+| `scope` | `project` \| `global` | any content file                     |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `source` | string | Source file path (relative to profile) |
-| `merge` | string | Merge strategy (typically `append` or `replace`) |
+### MCP Server File (`ai/mcp/*.yaml`)
 
-### File Item
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `source` | string | Source file path (relative to profile) |
-| `target` | string | Target path in project |
-| `merge` | string | Merge strategy |
-
-### MCP Server Item
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Server name (kebab-case). Used as config key. |
-| `transport` | `"stdio"` \| `"http"` \| `"sse"` | Connection type |
-| `command` | string | Executable (required for `stdio`) |
-| `args` | string[] | Command arguments |
-| `env` | object | Env vars. Values must be `${VAR}` or `${VAR:-default}` syntax. |
-| `url` | string | Server URL (required for `http`/`sse`) |
-| `headers` | object | HTTP headers (for `http`/`sse`) |
-| `scope` | `"project"` \| `"global"` | Placement scope. Defaults to `project`. |
-| `tools` | string[] | Restrict to specific tool keys. Omit for all installed tools. |
+| Field       | Type     | Required | Description                                                        |
+| ----------- | -------- | -------- | ------------------------------------------------------------------ |
+| `transport` | string   | yes      | `stdio`, `http`, or `sse`                                          |
+| `command`   | string   | no       | Executable (required for `stdio`)                                  |
+| `args`      | string[] | no       | Command arguments                                                  |
+| `env`       | object   | no       | Env vars. Values must be `${VAR}` or `${VAR:-default}` syntax.    |
+| `url`       | string   | no       | Server URL (required for `http`/`sse`)                             |
+| `headers`   | object   | no       | HTTP headers (for `http`/`sse`)                                    |
+| `scope`     | string   | no       | `project` or `global`. Defaults to `project`.                     |
+| `tools`     | string[] | no       | Restrict to specific tool keys. Omit for all installed tools.     |
 
 ---
 
@@ -178,13 +129,7 @@ version: 1.0.0
 description: Team DX standards
 repository: github:my-org/dx-configs
 
-profiles:
-  - name: frontend
-    path: profiles/frontend
-    description: Frontend development
-  - name: backend
-    path: profiles/backend
-    description: Backend API development
+# Profiles are auto-discovered from the profiles/ directory.
 
 metadata:
   author: ACME Corp
@@ -197,11 +142,9 @@ metadata:
 | `version` | string | yes | Semver version |
 | `description` | string | no | Human-readable description |
 | `repository` | string | no | Repository URL |
-| `profiles` | array | no | List of profiles in this source |
-| `profiles[].name` | string | yes | Profile name |
-| `profiles[].path` | string | yes | Path to profile directory |
-| `profiles[].description` | string | no | Profile description |
 | `metadata` | object | no | Additional metadata |
+
+Profiles are auto-discovered: any subdirectory under `profiles/` that contains a valid `baton.profile.yaml` is automatically included. No explicit `profiles:` list is needed.
 
 ---
 

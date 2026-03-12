@@ -1,85 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { sourceManifestSchema, sourceProfileEntrySchema, weightSchema } from "./source-manifest.js";
+import { detectLegacySourceFields, sourceManifestSchema, weightSchema } from "./source-manifest.js";
 
-describe("sourceProfileEntrySchema", () => {
-    it("validates valid profile entry", () => {
-        const valid = {
-            name: "frontend",
-            path: "profiles/frontend",
-            description: "Frontend profile",
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result).toEqual(valid);
+describe("source manifest schema", () => {
+    it("accepts manifest without profiles field", () => {
+        const result = sourceManifestSchema.safeParse({
+            name: "test-source",
+            version: "1.0.0",
+        });
+        expect(result.success).toBe(true);
     });
 
-    it("validates profile entry without description", () => {
-        const valid = {
-            name: "backend",
-            path: "profiles/backend",
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result).toEqual(valid);
-    });
-
-    it("rejects profile entry without name", () => {
-        const invalid = {
-            path: "profiles/default",
-        };
-
-        expect(() => sourceProfileEntrySchema.parse(invalid)).toThrow();
-    });
-
-    it("rejects profile entry without path", () => {
-        const invalid = {
-            name: "default",
-        };
-
-        expect(() => sourceProfileEntrySchema.parse(invalid)).toThrow();
-    });
-
-    it("validates profile entry with weight", () => {
-        const valid = {
-            name: "high-priority",
-            path: "profiles/high-priority",
-            weight: 10,
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result.weight).toBe(10);
-    });
-
-    it("validates profile entry without weight (optional)", () => {
-        const valid = {
-            name: "default",
-            path: "profiles/default",
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result.weight).toBeUndefined();
-    });
-
-    it("validates profile entry with weight -1 (lock)", () => {
-        const valid = {
-            name: "locked",
-            path: "profiles/locked",
-            weight: -1,
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result.weight).toBe(-1);
-    });
-
-    it("validates profile entry with weight 0 (default)", () => {
-        const valid = {
-            name: "default",
-            path: "profiles/default",
-            weight: 0,
-        };
-
-        const result = sourceProfileEntrySchema.parse(valid);
-        expect(result.weight).toBe(0);
+    it("strips unknown fields including profiles", () => {
+        const result = sourceManifestSchema.safeParse({
+            name: "test-source",
+            version: "1.0.0",
+            profiles: [{ name: "default", path: "profiles/default" }],
+        });
+        // Zod strips unknown keys by default
+        expect(result.success).toBe(true);
+        expect((result.data as Record<string, unknown>).profiles).toBeUndefined();
     });
 });
 
@@ -129,7 +68,7 @@ describe("sourceManifestSchema", () => {
         expect(result).toEqual(minimal);
     });
 
-    it("validates full source manifest with all fields", () => {
+    it("validates full source manifest with all fields (no profiles)", () => {
         const full = {
             name: "team-configs",
             version: "2.3.1",
@@ -141,17 +80,6 @@ describe("sourceManifestSchema", () => {
             ide: {
                 platforms: ["vscode", "jetbrains"],
             },
-            profiles: [
-                {
-                    name: "default",
-                    path: "profiles/default",
-                    description: "Default profile",
-                },
-                {
-                    name: "frontend",
-                    path: "profiles/frontend",
-                },
-            ],
             metadata: {
                 created: "2024",
                 team: "engineering",
@@ -227,17 +155,6 @@ describe("sourceManifestSchema", () => {
         }
     });
 
-    it("validates empty profiles array", () => {
-        const emptyProfiles = {
-            name: "empty",
-            version: "1.0.0",
-            profiles: [],
-        };
-
-        const result = sourceManifestSchema.parse(emptyProfiles);
-        expect(result).toEqual(emptyProfiles);
-    });
-
     it("validates empty metadata object", () => {
         const emptyMetadata = {
             name: "test",
@@ -247,21 +164,6 @@ describe("sourceManifestSchema", () => {
 
         const result = sourceManifestSchema.parse(emptyMetadata);
         expect(result).toEqual(emptyMetadata);
-    });
-
-    it("rejects profiles with invalid profile entries", () => {
-        const invalid = {
-            name: "test",
-            version: "1.0.0",
-            profiles: [
-                {
-                    // Missing name and path
-                    description: "Invalid",
-                },
-            ],
-        };
-
-        expect(() => sourceManifestSchema.parse(invalid)).toThrow();
     });
 
     it("validates source manifest with ai.tools", () => {
@@ -443,5 +345,22 @@ describe("sourceManifestSchema", () => {
             name: "test",
             version: "1.0.0",
         });
+    });
+});
+
+describe("detectLegacySourceFields", () => {
+    it("returns empty array for valid manifest", () => {
+        expect(detectLegacySourceFields({ name: "test", version: "1.0.0" })).toEqual([]);
+    });
+
+    it("detects profiles field", () => {
+        const errors = detectLegacySourceFields({
+            name: "test",
+            version: "1.0.0",
+            profiles: [{ name: "default", path: "profiles/default" }],
+        });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("profiles");
+        expect(errors[0]).toContain("auto-discovered");
     });
 });

@@ -77,6 +77,18 @@ export {
     type DirectiveOptions,
     processDirectives,
 } from "./directives/index.js";
+export { computePlacementTarget } from "./directives/placement.js";
+export type { FilePlacement } from "./directives/types.js";
+// Export filesystem discovery (convention-over-configuration)
+export {
+    type AssembledContent,
+    assembleContentFromDiscovery,
+    type CommandEntry,
+    type DiscoveryInput,
+    type DiscoveryProfileMeta,
+    discoverProfile,
+    type ProfileDiscoveryResult,
+} from "./discovery/index.js";
 // Export all error classes
 export {
     AIToolAdapterNotFoundError,
@@ -91,6 +103,13 @@ export {
     SourceParseError,
     VersionNotFoundError,
 } from "./errors.js";
+// Export frontmatter parser
+export {
+    BATON_OWNED_KEYS,
+    type BatonOwnedKey,
+    type ParsedFrontmatter as BatonParsedFrontmatter,
+    parseFrontmatter as parseBatonFrontmatter,
+} from "./frontmatter/index.js";
 // Export IDE detection
 export {
     clearIdeCache,
@@ -142,56 +161,30 @@ export type { SharedSettingsResult } from "./mcp/shared-settings.js";
 export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
 // Export MCP writer utilities
 export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
-// Export agent merge logic
-export {
-    type AgentEntry,
-    type MergeAgentsResult,
-    mergeAgents,
-    mergeAgentsWithWarnings,
-} from "./merge/agents.js";
+// Export agent types
+export type { AgentEntry } from "./merge/agents.js";
 // Export content parts merge
-export { mergeContentParts, normalizeMarkdown } from "./merge/content-parts.js";
+export {
+    mergeContentParts,
+    normalizeMarkdown,
+} from "./merge/content-parts.js";
 // Export MCP merge logic
 export {
     type MergeMcpResult,
     mergeMcp,
     mergeMcpWithWarnings,
 } from "./merge/mcp.js";
-// Export memory merge logic
-export {
-    type MemoryContribution,
-    type MemoryEntry,
-    type MergeMemoryResult,
-    mergeMemory,
-    mergeMemoryWithWarnings,
+// Export memory types
+export type {
+    MemoryContribution,
+    MemoryEntry,
 } from "./merge/memory.js";
-// Export rule merge logic
-export {
-    type MergeRulesResult,
-    mergeRules,
-    mergeRulesWithWarnings,
-    type RuleEntry,
-} from "./merge/rules.js";
+// Export rule types
+export type { RuleEntry } from "./merge/rules.js";
 // Export scope resolution
 export { resolveScope } from "./merge/scope-resolution.js";
-// Export skill merge logic
-export {
-    type MergedSkillItem,
-    type MergeSkillsResult,
-    mergeSkills,
-    mergeSkillsWithWarnings,
-} from "./merge/skills.js";
-// Export merge strategies
-export {
-    mergeAppend,
-    mergeDeep,
-    mergeDirectory,
-    mergeImport,
-    mergePrepend,
-    mergePrompt,
-    mergeReplace,
-    mergeSkip,
-} from "./merge/strategies.js";
+// Export skill types
+export type { MergedSkillItem } from "./merge/skills.js";
 // Export weight-based profile sorting
 export {
     getProfileWeight,
@@ -240,10 +233,11 @@ export { lockfileSchema } from "./schemas/lockfile.js";
 export type {
     McpServer,
     McpTransport,
-    MemoryItem,
 } from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
 export {
+    detectLegacyFields,
+    detectV1Fields,
     KEBAB_CASE_REGEX,
     mcpServerSchema,
     profileManifestSchema,
@@ -251,6 +245,7 @@ export {
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
 export {
+    detectLegacySourceFields,
     sourceManifestSchema,
     weightSchema,
 } from "./schemas/source-manifest.js";

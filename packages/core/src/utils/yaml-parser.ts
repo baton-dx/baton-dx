@@ -10,7 +10,7 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 import type { LockFile } from "../schemas/lockfile.js";
 import { lockfileSchema } from "../schemas/lockfile.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
-import { profileManifestSchema } from "../schemas/profile-manifest.js";
+import { detectLegacyFields, profileManifestSchema } from "../schemas/profile-manifest.js";
 import type { ProjectManifest } from "../schemas/project-manifest.js";
 import { projectManifestSchema } from "../schemas/project-manifest.js";
 
@@ -59,13 +59,23 @@ export async function loadProfileManifest(filePath: string): Promise<ProfileMani
     try {
         const content = await readFile(filePath, "utf-8");
         const raw = parse(content);
-        if (raw && typeof raw === "object" && "tools" in raw && !raw.ai?.tools) {
-            console.warn(
-                `Warning: "${filePath}" has top-level "tools:" — this is ignored. Move it under "ai:" section:\n\nai:\n  tools:\n    - ...\n`,
-            );
+        if (raw && typeof raw === "object") {
+            // Detect legacy manifest fields and emit clear error
+            const legacyErrors = detectLegacyFields(raw);
+            if (legacyErrors.length > 0) {
+                throw new ManifestValidationError(
+                    `Profile manifest "${filePath}" uses pre-1.0 fields:\n  - ${legacyErrors.join("\n  - ")}`,
+                );
+            }
+            if ("tools" in raw && !raw.ai?.tools) {
+                console.warn(
+                    `Warning: "${filePath}" has top-level "tools:" — this is ignored. Move it under "ai:" section:\n\nai:\n  tools:\n    - ...\n`,
+                );
+            }
         }
-    } catch {
-        // Ignore pre-validation errors — loadAndValidateYaml handles them properly
+    } catch (error) {
+        // Re-throw ManifestValidationError (from legacy detection), ignore parse errors
+        if (error instanceof ManifestValidationError) throw error;
     }
     return loadAndValidateYaml(filePath, profileManifestSchema, "profile manifest");
 }

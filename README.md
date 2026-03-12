@@ -82,13 +82,39 @@ baton sync
 
 ## Features
 
-- **Unified AI Configuration** — One manifest for 14 AI coding tools
-- **MCP Server Distribution** — Define MCP servers once, placed into each tool's native config format
+- **Convention over Configuration** — Drop files into `ai/rules/`, `ai/agents/`, `ai/skills/` and Baton discovers them automatically
+- **Unified AI Configuration** — One profile for 14 AI coding tools
+- **MCP Server Distribution** — Define MCP servers once in `ai/mcp/*.yaml`, placed into each tool's native config format
 - **Profile Inheritance** — Compose profiles with `extends` for layered configuration
 - **Directives** — Conditional content and file inclusion with `baton:if` and `baton:include`
+
+### Directives — Smart Composition
+
+Baton profiles use directives to compose content dynamically based on the target project and tool:
+
+```markdown
+<!-- baton:if has="typescript" -->
+## TypeScript Standards
+<!-- baton:include src="fragments/typescript.md" -->
+<!-- baton:endif -->
+
+<!-- baton:if tool="claude-code" -->
+Use @file to reference project files.
+<!-- baton:else -->
+Reference files by relative path.
+<!-- baton:endif -->
+
+<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and has('typescript')" -->
+TypeScript-aware AI tool detected.
+<!-- baton:endif -->
+
+<!-- baton:include src="@project/PROJECT.md" -->
+```
+
+Conditions: `tool`, `ide`, `scope`, `type`, `file`, `var`, `has` — with AND/OR composition and expression syntax.
+Include modes: `inline`, `link`, `reference` — with `@project/` for project-relative resolution.
 - **Smart Sync** — Transform and place files in the correct format for each tool
 - **Version Control** — Lockfile-based reproducibility with SHA-256 integrity
-- **Merge Strategies** — replace, deep, append, prepend, skip, prompt, directory, import
 - **Auto-Detection** — Automatically detect installed AI tools and IDEs
 - **Scaffold Templates** — Bootstrap source repositories with `baton source create`
 
@@ -126,6 +152,7 @@ Baton's own configurations are published as [`baton-dx-source`](https://github.c
 - [AI Tools Reference](docs/08-ai-tools-reference.md) — All 14 supported AI tools
 - [IDE Platforms](docs/09-ide-platforms-reference.md) — Supported IDE platforms
 - [Merge Strategies](docs/10-merge-strategies.md) — Deep dive into merge strategies
+- [Migration Guide](docs/MIGRATION-1.0.md) — upgrading from 0.x
 
 ## Built with AI, Verified by Humans
 

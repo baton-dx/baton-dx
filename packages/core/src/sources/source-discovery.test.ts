@@ -62,13 +62,6 @@ version: "1.2.3"
 description: "Team configuration repository"
 repository: "https://github.com/org/my-configs"
 
-profiles:
-  - name: "default"
-    path: "profiles/default"
-    description: "Default profile"
-  - name: "frontend"
-    path: "profiles/frontend"
-
 metadata:
   created: "2024"
   team: "engineering"
@@ -82,17 +75,6 @@ metadata:
                 version: "1.2.3",
                 description: "Team configuration repository",
                 repository: "https://github.com/org/my-configs",
-                profiles: [
-                    {
-                        name: "default",
-                        path: "profiles/default",
-                        description: "Default profile",
-                    },
-                    {
-                        name: "frontend",
-                        path: "profiles/frontend",
-                    },
-                ],
                 metadata: {
                     created: "2024",
                     team: "engineering",

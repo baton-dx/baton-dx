@@ -51,7 +51,12 @@ export function mergeMcpWithWarnings(profiles: ResolvedProfile[]): MergeMcpResul
     const keyOwner = new Map<string, { profileName: string; weight: number }>();
 
     for (const profile of profiles) {
-        const servers = profile.manifest.ai?.mcp || [];
+        // ai.mcp no longer exists in the schema — MCP servers
+        // are discovered from the filesystem. This cast supports legacy
+        // manifests during migration. Discovery-based MCP assembly is
+        // handled separately.
+        const ai = profile.manifest.ai as Record<string, unknown> | undefined;
+        const servers = (Array.isArray(ai?.mcp) ? ai.mcp : []) as McpServer[];
         const weight = getProfileWeight(profile);
         const locked = isLockedProfile(profile);
 

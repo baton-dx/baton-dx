@@ -87,8 +87,15 @@ jobs:
         run: |
           VERSION=$(jq -r '.version' packages/cli/package.json)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          # Check if this is a prerelease (contains hyphen, e.g. 1.0.0-alpha.1)
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Download tarball and compute SHA256
+        if: steps.version.outputs.is_prerelease == 'false'
         id: sha
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -103,6 +110,7 @@ jobs:
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
 
       - name: Update Formula
+        if: steps.version.outputs.is_prerelease == 'false'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           SHA256: ${{ steps.sha.outputs.sha256 }}
@@ -111,6 +119,7 @@ jobs:
           sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" Formula/baton-dx.rb
 
       - name: Create Homebrew PR
+        if: steps.version.outputs.is_prerelease == 'false'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

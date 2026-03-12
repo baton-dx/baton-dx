@@ -1,9 +1,9 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveInclude } from "./include.js";
-import type { ParsedDirective } from "./types.js";
+import type { FilePlacement, ParsedDirective } from "./types.js";
 
 function makeInclude(attrs: Record<string, string>): ParsedDirective {
     return { type: "include", attributes: attrs, startIndex: 0, endIndex: 10, raw: "" };
@@ -98,10 +98,10 @@ describe("resolveInclude", () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    it("missing file without optional → warning + not-found comment", async () => {
+    it("missing file without optional → warning + empty string", async () => {
         const warn = vi.fn();
         const result = await resolveInclude(makeInclude({ src: "missing.md" }), projectRoot, warn);
-        expect(result).toContain("file not found");
+        expect(result).toBe("");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
     });
 
@@ -113,7 +113,7 @@ describe("resolveInclude", () => {
             warn,
         );
         expect(result).toBe("");
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining("traverse outside project root"));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("traverse outside root"));
     });
 
     it("rejects absolute paths", async () => {
@@ -152,5 +152,244 @@ describe("resolveInclude", () => {
         const result = await resolveInclude(makeInclude({}), projectRoot, warn);
         expect(result).toBe("");
         expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing required src"));
+    });
+
+    describe("dual-root resolution", () => {
+        let profileRoot: string;
+
+        beforeEach(async () => {
+            profileRoot = join(tmpdir(), `baton-include-profile-${Date.now()}`);
+            await mkdir(join(profileRoot, "fragments"), { recursive: true });
+        });
+
+        afterEach(async () => {
+            await rm(profileRoot, { recursive: true, force: true });
+        });
+
+        it("resolves relative to profileRoot when available", async () => {
+            await writeFile(join(profileRoot, "fragments", "ts.md"), "TypeScript rules");
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/ts.md" }),
+                projectRoot,
+                undefined,
+                profileRoot,
+            );
+            expect(result).toBe("TypeScript rules");
+        });
+
+        it("@project/ prefix resolves relative to projectRoot", async () => {
+            await writeFile(join(projectRoot, "README.md"), "Project readme");
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/README.md" }),
+                projectRoot,
+                undefined,
+                profileRoot,
+            );
+            expect(result).toBe("Project readme");
+        });
+
+        it("profile-relative defaults to optional=false (warns on missing)", async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/missing.md" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
+        });
+
+        it("@project/ defaults to optional=true (silent skip on missing)", async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/NONEXISTENT.md" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('@project/ optional="false" warns on missing', async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/NONEXISTENT.md", optional: "false" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("file not found"));
+        });
+
+        it('profile-relative optional="true" silently skips missing', async () => {
+            const warn = vi.fn();
+            const result = await resolveInclude(
+                makeInclude({ src: "fragments/missing.md", optional: "true" }),
+                projectRoot,
+                warn,
+                profileRoot,
+            );
+            expect(result).toBe("");
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it("falls back to projectRoot when no profileRoot provided", async () => {
+            await writeFile(join(projectRoot, "file.md"), "project file");
+            const result = await resolveInclude(
+                makeInclude({ src: "file.md" }),
+                projectRoot,
+                undefined,
+                undefined,
+            );
+            expect(result).toBe("project file");
+        });
+    });
+
+    describe("placements", () => {
+        it("emits placement for profile-relative link mode", async () => {
+            const profileRoot = await mkdtemp(join(tmpdir(), "profile-"));
+            const fragDir = join(profileRoot, "fragments");
+            await mkdir(fragDir, { recursive: true });
+            await writeFile(join(fragDir, "react.md"), "React rules");
+
+            const placements: FilePlacement[] = [];
+            const directive: ParsedDirective = {
+                type: "include",
+                attributes: { src: "fragments/react.md", mode: "link" },
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
+            };
+
+            const result = await resolveInclude(
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                "my-profile",
+                (p) => placements.push(p),
+            );
+
+            expect(placements).toHaveLength(1);
+            expect(placements[0].sourcePath).toBe(join(fragDir, "react.md"));
+            expect(placements[0].targetRelative).toBe(
+                ".baton/includes/my-profile/fragments/react.md",
+            );
+            expect(result).toContain(".baton/includes/my-profile/fragments/react.md");
+
+            await rm(profileRoot, { recursive: true, force: true });
+        });
+
+        it("does NOT emit placement for @project/ link mode", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+
+            const placements: FilePlacement[] = [];
+            const directive: ParsedDirective = {
+                type: "include",
+                attributes: { src: "@project/README.md", mode: "link" },
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
+            };
+
+            const result = await resolveInclude(
+                directive,
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                (p) => placements.push(p),
+            );
+
+            expect(placements).toHaveLength(0);
+            expect(result).toContain("README.md");
+
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("emits placement for profile-relative reference mode", async () => {
+            const profileRoot = await mkdtemp(join(tmpdir(), "profile-"));
+            await writeFile(join(profileRoot, "api.md"), "API docs");
+
+            const placements: FilePlacement[] = [];
+            const directive: ParsedDirective = {
+                type: "include",
+                attributes: { src: "api.md", mode: "reference" },
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
+            };
+
+            const result = await resolveInclude(
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                "my-profile",
+                (p) => placements.push(p),
+            );
+
+            expect(placements).toHaveLength(1);
+            expect(placements[0].targetRelative).toBe(".baton/includes/my-profile/api.md");
+            expect(result).toContain(".baton/includes/my-profile/api.md");
+
+            await rm(profileRoot, { recursive: true, force: true });
+        });
+
+        it("does NOT emit placement for inline mode", async () => {
+            const profileRoot = await mkdtemp(join(tmpdir(), "profile-"));
+            await writeFile(join(profileRoot, "rules.md"), "Some rules");
+
+            const placements: FilePlacement[] = [];
+            const directive: ParsedDirective = {
+                type: "include",
+                attributes: { src: "rules.md", mode: "inline" },
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
+            };
+
+            await resolveInclude(directive, "/project", undefined, profileRoot, "my-profile", (p) =>
+                placements.push(p),
+            );
+
+            expect(placements).toHaveLength(0);
+
+            await rm(profileRoot, { recursive: true, force: true });
+        });
+
+        it("does NOT emit placement when profileName is not provided", async () => {
+            const profileRoot = await mkdtemp(join(tmpdir(), "profile-"));
+            await writeFile(join(profileRoot, "file.md"), "Content");
+
+            const placements: FilePlacement[] = [];
+            const directive: ParsedDirective = {
+                type: "include",
+                attributes: { src: "file.md", mode: "link" },
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
+            };
+
+            // No profileName → no placement (backward compat)
+            const result = await resolveInclude(
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                undefined,
+                (p) => placements.push(p),
+            );
+
+            expect(placements).toHaveLength(0);
+            // Falls back to original rawSrc path
+            expect(result).toContain("file.md");
+
+            await rm(profileRoot, { recursive: true, force: true });
+        });
     });
 });

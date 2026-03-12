@@ -85,12 +85,10 @@ export async function isSourceRepository(sourceRoot: string): Promise<boolean> {
 }
 
 /**
- * Discovers all profiles in a source repository by scanning the profiles/ directory
+ * Discovers all profiles in a source repository by scanning the profiles/ directory.
  *
- * This function:
- * 1. Scans the profiles/ directory (one level deep)
- * 2. Looks for baton.profile.yaml in each subdirectory
- * 3. Loads manifest metadata (name, version, description) for each profile
+ * This is the canonical method for finding profiles in a source. Profiles are
+ * never declared in baton.source.yaml — they are always auto-discovered.
  *
  * @param sourceRoot - Absolute path to the source repository root
  * @returns Array of SourceProfileInfo objects for all discovered profiles

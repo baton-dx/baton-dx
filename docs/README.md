@@ -19,6 +19,7 @@ Welcome to the Baton documentation. Baton is a CLI package manager for Developer
 - [Configuration Reference](./07-configuration-reference.md) — All config file schemas
 - [AI Tools Reference](./08-ai-tools-reference.md) — All 14 supported AI tools
 - [IDE Platforms Reference](./09-ide-platforms-reference.md) — Supported IDE platforms
+- [Directives](04-creating-profiles.md#directives) — Conditional content and file inclusion
 - [Merge Strategies](./10-merge-strategies.md) — Deep dive into merge strategies
 
 ## Contributing

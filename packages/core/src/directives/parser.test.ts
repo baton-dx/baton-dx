@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDirectives } from "./parser.js";
+import { findCodeBlockRanges, parseDirectives } from "./parser.js";
 
 describe("parseDirectives", () => {
     it("parses baton:include with src only", () => {
@@ -118,5 +118,106 @@ describe("parseDirectives", () => {
     it("parses comma-separated tool values", () => {
         const result = parseDirectives('<!-- baton:if tool="cursor,windsurf" -->');
         expect(result[0].attributes.tool).toBe("cursor,windsurf");
+    });
+
+    it("parses baton:else directive", () => {
+        const result = parseDirectives("<!-- baton:else -->");
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("else");
+        expect(result[0].attributes).toEqual({});
+    });
+
+    it("ignores directives inside fenced code blocks (backticks)", () => {
+        const content = [
+            "Before",
+            "```markdown",
+            '<!-- baton:if tool="claude-code" -->',
+            "Example content",
+            "<!-- baton:endif -->",
+            "```",
+            '<!-- baton:include src="real.md" -->',
+        ].join("\n");
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(1);
+        expect(result[0].type).toBe("include");
+        expect(result[0].attributes.src).toBe("real.md");
+    });
+
+    it("ignores directives inside fenced code blocks (tildes)", () => {
+        const content = ["~~~", '<!-- baton:if tool="cursor" -->', "~~~"].join("\n");
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(0);
+    });
+
+    it("handles unclosed code blocks (extends to end)", () => {
+        const content = ["```", '<!-- baton:include src="inside.md" -->'].join("\n");
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(0);
+    });
+
+    it("processes directives outside code blocks normally", () => {
+        const content = [
+            '<!-- baton:if tool="claude-code" -->',
+            "Real content",
+            "<!-- baton:endif -->",
+            "```",
+            '<!-- baton:if tool="example" -->',
+            "```",
+        ].join("\n");
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(2);
+        expect(result[0].type).toBe("if");
+        expect(result[1].type).toBe("endif");
+    });
+
+    it("handles multiple code blocks", () => {
+        const content = [
+            '<!-- baton:if tool="real" -->',
+            "```",
+            '<!-- baton:if tool="fake1" -->',
+            "```",
+            '<!-- baton:include src="real.md" -->',
+            "~~~",
+            '<!-- baton:if tool="fake2" -->',
+            "~~~",
+        ].join("\n");
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(2);
+        expect(result[0].type).toBe("if");
+        expect(result[1].type).toBe("include");
+    });
+
+    it("requires matching fence characters to close", () => {
+        const content = [
+            "```",
+            '<!-- baton:if tool="inside" -->',
+            "~~~",
+            '<!-- baton:if tool="still-inside" -->',
+            "```",
+        ].join("\n");
+        // ~~~ doesn't close a ``` block, so both directives are inside
+        const result = parseDirectives(content);
+        expect(result).toHaveLength(0);
+    });
+});
+
+describe("findCodeBlockRanges", () => {
+    it("finds a simple code block", () => {
+        const content = "before\n```\ncode\n```\nafter";
+        const ranges = findCodeBlockRanges(content);
+        expect(ranges).toHaveLength(1);
+        expect(content.slice(ranges[0][0], ranges[0][1])).toBe("```\ncode\n```\n");
+    });
+
+    it("returns empty for no code blocks", () => {
+        expect(findCodeBlockRanges("just text")).toEqual([]);
+    });
+
+    it("handles unclosed code block", () => {
+        const content = "```\ncode";
+        const ranges = findCodeBlockRanges(content);
+        expect(ranges).toHaveLength(1);
+        expect(ranges[0][0]).toBe(0);
+        expect(ranges[0][1]).toBe(content.length);
     });
 });

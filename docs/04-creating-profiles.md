@@ -8,17 +8,24 @@ A **profile** is a self-contained bundle of AI tool configurations, file placeme
 
 A profile answers the question: "What should a developer's AI tooling and project config look like for this kind of work?" It bundles:
 
-- **AI configurations** -- skills, rules, agents, memory, commands
-- **File placements** -- static config files like `.editorconfig`, `biome.json`, `.prettierrc`
-- **IDE settings** -- editor-specific settings, extensions, and workspace configuration
+- **AI configurations** — skills, rules, agents, memory, commands, MCP servers
+- **File placements** — static config files like `.editorconfig`, `biome.json`, `.prettierrc`
+- **IDE settings** — editor-specific settings, extensions, and workspace configuration
 
-Profiles are declared inside a source repository's `baton.source.yaml` and each profile has its own directory containing a `baton.profile.yaml` manifest.
+Baton uses **convention over configuration**: you drop files into the right directories and they are automatically discovered at sync time. The manifest is minimal — you only declare things that can't be inferred from the filesystem.
 
 ---
 
 ## Profile Manifest (`baton.profile.yaml`)
 
-The profile manifest is the central configuration file for a profile. It declares what the profile provides and how it should be applied.
+The manifest declares identity and options. Content is auto-discovered from the directory structure.
+
+### Minimal Example
+
+```yaml
+name: frontend
+version: 1.0.0
+```
 
 ### Full Example
 
@@ -26,202 +33,127 @@ The profile manifest is the central configuration file for a profile. It declare
 name: frontend
 version: 1.0.0
 description: Frontend development standards
-extends:
-  - ../base
+extends: ../base
 weight: 10
+scope: project
 ai:
   tools: [claude-code, cursor, windsurf]
-  skills:
-    - name: code-review
-      scope: project
-    - name: refactor
-      scope: project
-  rules:
-    - name: coding-style
-      scope: project
-  memory:
-    - source: MEMORY.md
-      merge: append
-  agents:
-    - name: reviewer
-      scope: project
-  mcp:
-    - name: filesystem
-      transport: stdio
-      command: npx
-      args: ["-y", "@modelcontextprotocol/server-filesystem"]
-      env:
-        ROOT_DIR: "${HOME}"
-      scope: project
-    - name: github
-      transport: http
-      url: https://api.githubcopilot.com/mcp/
-      scope: global
-files:
-  - source: files/.editorconfig
-    target: .editorconfig
-    merge: replace
-  - source: files/biome.json
-    target: biome.json
-    merge: deep
-ide:
-  vscode:
-    settings: ide/vscode/settings.json
-    extensions: ide/vscode/extensions.json
 variables:
   project_type: frontend
   framework: react
+hooks:
+  pre-sync:
+    - echo "Starting sync..."
+  post-sync:
+    - npm install
 ```
 
 ### Field Reference
 
-| Field         | Type     | Required | Default | Description                                                      |
-| ------------- | -------- | -------- | ------- | ---------------------------------------------------------------- |
-| `name`        | string   | yes      | --      | Unique identifier for the profile within its source.             |
-| `version`     | string   | no       | --      | Semver version of the profile.                                   |
-| `description` | string   | no       | --      | Human-readable description.                                      |
-| `extends`     | string[] | no       | `[]`    | Paths to parent profiles for inheritance.                        |
-| `weight`      | number   | no       | `0`     | Priority ordering for multi-profile layering (-1 to infinity).   |
-| `ai`          | object   | no       | --      | AI tool configuration block.                                     |
-| `files`       | array    | no       | `[]`    | File placement declarations.                                     |
-| `ide`         | object   | no       | --      | IDE-specific settings.                                           |
-| `variables`   | object   | no       | `{}`    | Key-value pairs for template substitution.                       |
-| `hooks`       | object   | no       | --      | Lifecycle hooks (pre-sync, post-sync).                           |
+| Field         | Type    | Required | Default | Description                                                      |
+| ------------- | ------- | -------- | ------- | ---------------------------------------------------------------- |
+| `name`        | string  | yes      | —       | Unique identifier for the profile within its source.             |
+| `version`     | string  | no       | —       | Semver version of the profile.                                   |
+| `description` | string  | no       | —       | Human-readable description.                                      |
+| `extends`     | string  | no       | —       | Sibling profile name to inherit from (e.g. `../base`).           |
+| `weight`      | number  | no       | `0`     | Priority ordering for multi-profile layering (-1 to infinity).   |
+| `scope`       | string  | no       | —       | Default scope for all content (`project` or `global`).           |
+| `ai.tools`    | string[]| no       | all     | AI tools this profile targets.                                   |
+| `variables`   | object  | no       | `{}`    | Key-value pairs for template substitution.                       |
+| `hooks`       | object  | no       | —       | Lifecycle hooks (pre-sync, post-sync).                           |
+
+Everything else — skills, rules, agents, memory, commands, files, IDE settings — is discovered automatically from the directory layout.
 
 ---
 
 ## Directory Structure
 
-Every profile follows a consistent directory layout:
+Content is organized into conventional directories. Baton discovers everything at sync time — no manifest declarations needed.
 
 ```
 frontend/
 ├── baton.profile.yaml
 ├── ai/
+│   ├── memory/
+│   │   └── MEMORY.md          # single memory file for the profile
+│   ├── rules/
+│   │   ├── coding-style.md    # rule for all targeted tools
+│   │   └── testing.md
+│   ├── agents/
+│   │   └── reviewer.md        # agent with YAML frontmatter
 │   ├── skills/
 │   │   ├── code-review/
 │   │   │   └── SKILL.md
 │   │   └── refactor/
 │   │       └── SKILL.md
-│   ├── rules/
-│   │   ├── coding-style.md          # universal rule
-│   │   ├── testing.md               # universal rule
-│   │   └── cursor/                   # tool-specific rules
-│   │       └── react-patterns.md
-│   ├── agents/
-│   │   └── reviewer.md
-│   ├── memory/
-│   │   └── MEMORY.md
-│   └── commands/
-│       └── deploy.md
+│   ├── commands/
+│   │   └── deploy.md
+│   └── mcp/
+│       └── filesystem.yaml    # MCP server definition
 ├── files/
 │   ├── .editorconfig
-│   ├── biome.json
-│   └── .prettierrc
+│   └── biome.json
 └── ide/
     └── vscode/
         ├── settings.json
         └── extensions.json
 ```
 
-### Rules: Universal vs. Tool-Specific
+### Content Directory Reference
 
-Rules placed directly in `ai/rules/` are **universal** -- they are applied to all targeted AI tools. Rules placed in a subdirectory named after a tool (e.g. `ai/rules/cursor/`) are **tool-specific** and only applied when that tool is a target.
+| Directory        | What Baton discovers                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| `ai/memory/`     | `MEMORY.md` — one memory file per profile                           |
+| `ai/rules/`      | `*.md` — flat rule files, placed for all targeted tools             |
+| `ai/agents/`     | `*.md` — agent files with YAML frontmatter                          |
+| `ai/skills/`     | `*/SKILL.md` — skill directories                                    |
+| `ai/commands/`   | `*.md` — command files                                              |
+| `ai/mcp/`        | `*.yaml` — MCP server configuration files                          |
+| `files/`         | `**/*` — arbitrary files placed in the project root                 |
+| `ide/{platform}/`| `**/*` — IDE-specific files (e.g. `ide/vscode/settings.json`)      |
 
-```
-ai/rules/
-├── coding-style.md            # applied to all tools
-├── testing.md                 # applied to all tools
-├── cursor/
-│   └── react-patterns.md     # only applied to Cursor
-└── claude-code/
-    └── project-context.md    # only applied to Claude Code
-```
+Files whose name starts with `_` are excluded. This is the convention for drafts and disabled content — rename `_wip-rule.md` to `wip-rule.md` when ready.
 
 ---
 
-## AI Configuration
+## Content File Conventions
 
-The `ai` block in `baton.profile.yaml` defines what AI configurations the profile provides and which tools they target.
+### Memory (`ai/memory/MEMORY.md`)
 
-### Supported Tools
+A single Markdown file that provides persistent context across AI sessions. By default it is concatenated with memory from other installed profiles. Use the `merge: replace` frontmatter key to overwrite instead:
 
-Baton supports 14 AI tools:
+```markdown
+---
+merge: replace
+---
 
-`claude-code` | `cursor` | `windsurf` | `antigravity` | `codex` | `github-copilot` | `opencode` | `amp` | `kiro` | `zed` | `cline` | `roo` | `junie` | `trae`
+# Project Context
 
-### `ai.tools`
-
-The `tools` array declares which AI tools this profile targets. When syncing, Baton only writes configurations for the tools that match the project's `ai.targets`.
-
-```yaml
-ai:
-  tools: [claude-code, cursor, windsurf]
+This project uses React 19 with TypeScript strict mode.
 ```
 
-### Skills
+### Rules (`ai/rules/*.md`)
 
-Skills are directories containing a `SKILL.md` file. They represent reusable capabilities that an AI tool can invoke.
+Flat Markdown files. Each file becomes a rule placed for all targeted AI tools.
 
-```yaml
-ai:
-  skills:
-    - name: code-review
-      scope: project
-    - name: refactor
-      scope: project
+```markdown
+# Coding Style
+
+- Use TypeScript strict mode
+- Prefer named exports over default exports
+- Write JSDoc for public APIs
 ```
 
-| Field   | Type   | Description                                              |
-| ------- | ------ | -------------------------------------------------------- |
-| `name`  | string | Skill name. Must match a directory under `ai/skills/`.   |
-| `scope` | string | Where the skill is available (`project` or `global`).    |
+Use `baton:if` directives to include tool-specific sections within a single rule file rather than creating separate files per tool.
 
-Each skill directory must contain a `SKILL.md`:
+### Agents (`ai/agents/*.md`)
 
-```
-ai/skills/code-review/
-└── SKILL.md
-```
-
-The `SKILL.md` file contains the skill's instructions in Markdown format.
-
-### Rules
-
-Rules are Markdown files that provide instructions and guidelines to AI tools.
-
-```yaml
-ai:
-  rules:
-    - name: coding-style
-      scope: project
-    - name: testing
-      scope: project
-```
-
-| Field   | Type   | Description                                          |
-| ------- | ------ | ---------------------------------------------------- |
-| `name`  | string | Rule name. Must match a `.md` file under `ai/rules/`.|
-| `scope` | string | Where the rule is applied (`project` or `global`).   |
-
-### Agents
-
-Agents are Markdown files with YAML frontmatter that define specialized AI personas.
-
-```yaml
-ai:
-  agents:
-    - name: reviewer
-      scope: project
-```
-
-Example agent file (`ai/agents/reviewer.md`):
+Markdown files with YAML frontmatter. The frontmatter defines the agent's metadata; the body is the agent's system prompt.
 
 ```markdown
 ---
 name: reviewer
 description: Code review specialist
-tools: [claude-code, cursor]
 ---
 
 You are a code review specialist. Focus on:
@@ -231,175 +163,350 @@ You are a code review specialist. Focus on:
 - Test coverage
 ```
 
-### Memory
+### Skills (`ai/skills/*/SKILL.md`)
 
-Memory files provide persistent context that AI tools can reference across sessions.
+Each skill is a directory containing a `SKILL.md` file. The directory name is the skill name.
 
-```yaml
-ai:
-  memory:
-    - source: MEMORY.md
-      merge: append
+```
+ai/skills/
+├── code-review/
+│   └── SKILL.md
+└── refactor/
+    └── SKILL.md
 ```
 
-| Field    | Type   | Description                                                    |
-| -------- | ------ | -------------------------------------------------------------- |
-| `source` | string | Path to the memory file relative to the profile's `ai/memory/`.|
-| `merge`  | string | Merge strategy when combining with existing memory.            |
+### Commands (`ai/commands/*.md`)
 
-### Commands
+Markdown files that define executable slash-commands for AI tools that support them (Claude Code, Cursor, etc.).
 
-Commands are Markdown files that define executable actions for AI tools.
+### MCP Servers (`ai/mcp/*.yaml`)
 
-```yaml
-ai:
-  commands:
-    - name: deploy
-      scope: project
-```
-
-### MCP Servers
-
-MCP (Model Context Protocol) servers extend AI tools with external capabilities. Define them once in your profile — Baton places them into each tool's native config format automatically.
+YAML files that define MCP server configurations. Each file declares one server. The filename (without extension) is the server name.
 
 ```yaml
-ai:
-  mcp:
-    - name: filesystem
-      transport: stdio
-      command: npx
-      args: ["-y", "@modelcontextprotocol/server-filesystem"]
-      env:
-        ROOT_DIR: "${HOME}"
-      scope: project
-    - name: github-mcp
-      transport: http
-      url: https://api.githubcopilot.com/mcp/
-      scope: global
-    - name: internal-api
-      transport: stdio
-      command: node
-      args: ["./scripts/mcp-server.js"]
-      tools: [claude-code, cursor]   # only these tools get this server
-      scope: project
+# ai/mcp/filesystem.yaml
+transport: stdio
+command: npx
+args: ["-y", "@modelcontextprotocol/server-filesystem"]
+env:
+  ROOT_DIR: "${HOME}"
+scope: project
 ```
 
-| Field | Type | Required | Description |
-| ------- | --------- | -------- | ------------------------------------------------------------------- |
-| `name` | string | yes | Unique server name (kebab-case). Used as the key in config files. |
-| `transport` | string | yes | Transport type: `stdio`, `http`, or `sse`. |
-| `command` | string | no | Executable command (required for `stdio` transport). |
-| `args` | string[] | no | Arguments passed to the command. |
-| `env` | object | no | Environment variables. Values must use `${VAR}` or `${VAR:-default}` syntax. |
-| `url` | string | no | Server URL (required for `http` and `sse` transports). |
-| `headers` | object | no | HTTP headers (for `http`/`sse` transports). |
-| `scope` | string | no | `project` or `global`. Defaults to `project`. |
-| `tools` | string[] | no | Limit to specific tool keys. Omit to target all installed tools. |
+| Field       | Type     | Required | Description                                                                   |
+| ----------- | -------- | -------- | ----------------------------------------------------------------------------- |
+| `transport` | string   | yes      | `stdio`, `http`, or `sse`                                                     |
+| `command`   | string   | no       | Executable command (required for `stdio`)                                     |
+| `args`      | string[] | no       | Arguments passed to the command                                               |
+| `env`       | object   | no       | Environment variables. Use `${VAR}` or `${VAR:-default}` syntax.             |
+| `url`       | string   | no       | Server URL (required for `http` and `sse`)                                   |
+| `headers`   | object   | no       | HTTP headers (for `http`/`sse` transports)                                   |
+| `scope`     | string   | no       | `project` or `global`. Defaults to `project`.                                |
+| `tools`     | string[] | no       | Restrict to specific tool keys. Omit to target all installed tools.          |
 
-**Env var syntax:** All env values must use `${VAR}` (or `${VAR:-default}` for fallbacks). Baton transforms these into each tool's native syntax at sync time — for example, `${VAR}` becomes `${env:VAR}` for Windsurf/Roo or is expanded from `process.env` for Zed/Codex.
+### Files (`files/**`)
 
-**Scope behavior:** If a server has `scope: project` but a tool only supports global-scope MCP (e.g. Windsurf, Cline), Baton emits a warning and falls back to global placement.
+Any file under `files/` is placed into the project root, preserving the relative path. `files/biome.json` → `biome.json` in the project.
+
+Use the `merge` frontmatter key in a sidecar `.baton.yaml` file, or use the default behavior: `concat` for text files, `replace` for binary files.
+
+### IDE Settings (`ide/{platform}/**`)
+
+Files under `ide/vscode/` are placed into the project's `.vscode/` directory.
+
+```
+ide/
+└── vscode/
+    ├── settings.json      # → .vscode/settings.json
+    └── extensions.json    # → .vscode/extensions.json
+```
 
 ---
 
-## File Placements
+## Frontmatter Keys
 
-The `files` array declares static files that should be copied into consumer projects.
+Baton reserves two frontmatter keys in content files. They are stripped at sync time and never appear in the placed output.
 
-```yaml
-files:
-  - source: files/.editorconfig
-    target: .editorconfig
-    merge: replace
-  - source: files/biome.json
-    target: biome.json
-    merge: deep
-  - source: files/.gitignore
-    target: .gitignore
-    merge: append
-```
+| Key     | Values                | Where supported                       | Description                           |
+| ------- | --------------------- | ------------------------------------- | ------------------------------------- |
+| `merge` | `concat` \| `replace` | `ai/memory/MEMORY.md`, `files/**`    | How to merge with existing content.   |
+| `scope` | `project` \| `global` | `ai/rules/*.md`, `ai/agents/*.md`, `ai/commands/*.md`, `ai/skills/*/SKILL.md` | Override the profile-level default scope. |
 
-| Field    | Type   | Required | Description                                                |
-| -------- | ------ | -------- | ---------------------------------------------------------- |
-| `source` | string | yes      | Path to the file relative to the profile directory.        |
-| `target` | string | yes      | Destination path relative to the consumer project root.    |
-| `merge`  | string | no       | Merge strategy. Defaults to `replace`.                     |
+**`merge: concat`** (default) — content is appended to existing content with a separator.
+**`merge: replace`** — existing content is completely replaced.
 
-### Merge Strategies
-
-| Strategy    | Description                                                        |
-| ----------- | ------------------------------------------------------------------ |
-| `replace`   | Overwrite the target file entirely.                                |
-| `deep`      | Deep-merge JSON/YAML objects (profile values take precedence).     |
-| `append`    | Append profile content to the end of the existing file.            |
-| `prepend`   | Prepend profile content to the beginning of the existing file.     |
-| `skip`      | Do nothing if the target file already exists.                      |
-| `prompt`    | Ask the user what to do during sync.                               |
-| `directory` | Copy an entire directory.                                          |
-| `import`    | Import and process the file through Baton's template engine.       |
+**`scope: project`** — placed in the project directory.
+**`scope: global`** — placed in the home directory (global AI tool config).
 
 ---
 
-## IDE Settings
+## Directives
 
-The `ide` block declares editor-specific configurations.
+Directives are HTML comments with a `baton:` prefix that Baton processes at sync time. They let you conditionally include content or pull in external files — all without breaking Markdown rendering.
 
-```yaml
-ide:
-  vscode:
-    settings: ide/vscode/settings.json
-    extensions: ide/vscode/extensions.json
+Directives work in **all content types**: skills, rules, agents, memory, and commands.
+
+### Conditional Content (`baton:if`)
+
+Show or hide content based on the current tool, IDE, scope, or content type. This is the primary mechanism for per-tool targeting — no separate files needed.
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+Claude-specific instructions here.
+<!-- baton:endif -->
+
+<!-- baton:if not-tool="cursor" -->
+This appears for every tool except Cursor.
+<!-- baton:endif -->
+
+<!-- baton:if ide="vscode" -->
+VS Code tips here.
+<!-- baton:endif -->
+
+<!-- baton:if scope="project" -->
+Project-scoped content only.
+<!-- baton:endif -->
+
+<!-- baton:if type="memory" -->
+Only when placed as memory content.
+<!-- baton:endif -->
 ```
 
-Currently supported IDE targets:
+#### Else Branches
 
-| IDE      | Key        | Description            |
-| -------- | ---------- | ---------------------- |
-| VS Code  | `vscode`   | Settings & extensions  |
+Use `baton:else` for fallback content when a condition is false:
 
-Each IDE entry can include:
+```markdown
+<!-- baton:if tool="claude-code" -->
+Use @file to reference project files.
+<!-- baton:else -->
+Reference files by relative path.
+<!-- baton:endif -->
+```
 
-| Field        | Type   | Description                                      |
-| ------------ | ------ | ------------------------------------------------ |
-| `settings`   | string | Path to the settings file relative to the profile.|
-| `extensions` | string | Path to the extensions file relative to the profile.|
+The if-branch is kept when the condition matches; otherwise the else-branch is kept. Only one `baton:else` is allowed per `baton:if` block.
+
+#### OR and AND Composition
+
+**OR within an attribute** — comma-separated values match any:
+
+```markdown
+<!-- baton:if tool="cursor,windsurf" -->
+Web IDE content.
+<!-- baton:endif -->
+```
+
+**AND across attributes** — all attributes must match:
+
+```markdown
+<!-- baton:if tool="claude-code" scope="project" -->
+Claude Code project-only content.
+<!-- baton:endif -->
+```
+
+#### Nesting
+
+Conditionals can be nested (up to 5 levels):
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+<!-- baton:if scope="project" -->
+Claude Code project-specific content.
+<!-- baton:endif -->
+<!-- baton:endif -->
+```
+
+Nesting also works inside else branches:
+
+```markdown
+<!-- baton:if tool="cursor" -->
+Cursor instructions.
+<!-- baton:else -->
+<!-- baton:if scope="project" -->
+Project fallback for non-Cursor tools.
+<!-- baton:endif -->
+<!-- baton:endif -->
+```
+
+**Fail-open behavior:** If a `baton:if` has no matching `baton:endif`, the content is kept and a warning is emitted. This prevents accidental data loss from typos.
+
+| Attribute    | Description                                                          |
+| ------------ | -------------------------------------------------------------------- |
+| `tool`       | Match a specific AI tool key (e.g. `claude-code`, `cursor`)         |
+| `not-tool`   | Match all tools *except* this one                                    |
+| `ide`        | Match a specific IDE platform (e.g. `vscode`)                       |
+| `scope`      | Match placement scope: `project` or `global`                        |
+| `type`       | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
+| `file`       | Match when a file exists in the target project (e.g. `file="tsconfig.json"`) |
+| `not-file`   | Match when a file does *not* exist in the target project             |
+| `var`        | Match when a variable is defined (e.g. `var="framework"`)           |
+| `not-var`    | Match when a variable is *not* defined                               |
+| `has`        | Match a project trait detected by Baton (e.g. `has="typescript"`, `has="react"`) |
+| `not-has`    | Match when a trait is *not* detected                                 |
+| `condition`  | Expression-based condition (see below)                               |
+
+#### Expression-Based Conditions
+
+For complex conditions, use the `condition` attribute with a readable expression language:
+
+```markdown
+<!-- baton:if condition="tool == 'claude-code'" -->
+<!-- baton:if condition="tool != 'cursor'" -->
+<!-- baton:if condition="tool == 'cursor' or tool == 'windsurf'" -->
+<!-- baton:if condition="scope == 'project' and type == 'memory'" -->
+<!-- baton:if condition="has('typescript') and not has('prettier')" -->
+<!-- baton:if condition="file('biome.json') or file('biome.jsonc')" -->
+<!-- baton:if condition="var('lang') == 'typescript'" -->
+<!-- baton:if condition="var('lang')" -->
+<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and scope == 'project'" -->
+```
+
+Expression conditions support:
+
+| Element | Syntax | Description |
+|---------|--------|-------------|
+| Properties | `tool`, `scope`, `type`, `ide` | Compare with `==` or `!=` |
+| Functions | `has('key')`, `file('path')`, `var('name')` | Lookup checks, return boolean |
+| Function + compare | `var('name') == 'value'` | Check function result against value |
+| AND | `and` or `&&` | Both sides must be true |
+| OR | `or` or `\|\|` | Either side must be true |
+| NOT | `not` or `!` | Negates the following expression |
+| Grouping | `(...)` | Override default precedence |
+
+**Operator precedence:** `not` > `and` > `or` (standard). Use parentheses to override.
+
+**String values** use single quotes inside the double-quoted attribute: `condition="tool == 'claude-code'"`.
+
+Expression conditions also work with `baton:else`:
+
+```markdown
+<!-- baton:if condition="tool == 'claude-code' or tool == 'cursor'" -->
+Use AI-native file references.
+<!-- baton:else -->
+Use standard file paths.
+<!-- baton:endif -->
+```
+
+When `condition` is present alongside old-style attributes (e.g. `tool="..."`), the `condition` takes precedence and a warning is emitted. Old-style attributes remain fully supported.
+
+### File Inclusion (`baton:include`)
+
+Include external files by reference or inline their content:
+
+```markdown
+<!-- baton:include src="PROJECT.md" -->
+<!-- baton:include src="docs/api.md" mode="inline" -->
+<!-- baton:include src="docs/api.md" mode="link" -->
+<!-- baton:include src="docs/api.md" mode="link" hint="API Docs: {{file}}" -->
+<!-- baton:include src="docs/api.md" mode="reference" -->
+<!-- baton:include src="docs/OPTIONAL.md" optional="true" -->
+```
+
+| Attribute  | Required | Default  | Description                                                           |
+| ---------- | -------- | -------- | --------------------------------------------------------------------- |
+| `src`      | yes      | —        | Path relative to project root                                        |
+| `mode`     | no       | `inline` | How to include the file (see below)                                  |
+| `hint`     | no       | —        | Template for `link`/`reference` output. Use `{{file}}` as placeholder. |
+| `optional` | no       | `false`  | `true` = silently skip if the file doesn't exist                     |
+
+#### Resolution Roots
+
+By default, `baton:include` resolves paths relative to the **profile source** directory. Use the `@project/` prefix to resolve relative to the **target project**:
+
+| Prefix | Resolves relative to | `optional` default | Use case |
+|--------|---------------------|-------------------|----------|
+| *(none)* | Profile source | `false` | Fragments bundled with the profile |
+| `@project/` | Target project root | `true` | Project-specific context (e.g., PROJECT.md) |
+
+#### Include Modes
+
+| Mode        | Output (without hint)                       |
+| ----------- | ------------------------------------------- |
+| `inline`    | File content inlined verbatim               |
+| `link`      | `[docs/api.md](docs/api.md)`               |
+| `reference` | `See @docs/api.md for additional context.` |
+
+### Combining Directives
+
+Conditionals and includes work together. Includes inside excluded conditionals are never read:
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+<!-- baton:include src="docs/claude-specific.md" -->
+<!-- baton:endif -->
+
+<!-- baton:if tool="cursor" -->
+<!-- baton:include src="docs/cursor-tips.md" mode="link" hint="See {{file}}" -->
+<!-- baton:endif -->
+```
+
+### Recommended: ROOT + Fragments Pattern
+
+Structure your profile content as a ROOT file that composes fragments via directives:
+
+```
+profile/ai/memory/
+├── MEMORY.md              ← ROOT (listed in baton.profile.yaml)
+└── fragments/
+    ├── typescript.md
+    ├── react-patterns.md
+    └── biome-config.md
+```
+
+The ROOT file uses directives to build the final content dynamically:
+
+```markdown
+# Team Standards
+
+<!-- baton:include src="ai/memory/fragments/typescript.md" -->
+
+<!-- baton:if has="react" -->
+<!-- baton:include src="ai/memory/fragments/react-patterns.md" -->
+<!-- baton:endif -->
+
+<!-- baton:include src="@project/PROJECT.md" -->
+```
+
+This pattern works for memory, skills (SKILL.md + fragments/), and agents.
 
 ---
 
 ## Inheritance
 
-Profiles can extend other profiles using the `extends` field. This allows you to define a base profile with shared configuration and have specialized profiles build on top of it.
+Profiles can extend a sibling profile using the `extends` field. This allows you to define a base profile with shared configuration and have specialized profiles build on top of it.
 
 ```yaml
-extends:
-  - ../base
+# profiles/frontend/baton.profile.yaml
+name: frontend
+extends: ../base
+weight: 10
 ```
 
-The `extends` field accepts an array of relative paths pointing to parent profiles. When a profile extends another:
+The `extends` field accepts a single relative path pointing to a sibling profile directory. When a profile extends another:
 
-1. The parent profile's configurations are loaded first.
-2. The child profile's configurations are layered on top.
-3. Conflicts are resolved in favor of the child profile.
+1. The parent profile's content directories are merged with the child's.
+2. Child content takes precedence when names conflict.
+3. The child's manifest fields override the parent's.
 
 This is useful for creating a hierarchy like:
 
 ```
 profiles/
-├── base/              # shared rules, common files
+├── base/              # shared rules, common memory
 │   └── baton.profile.yaml
-├── frontend/          # extends base, adds frontend-specific config
+├── frontend/          # extends base, adds frontend-specific content
 │   └── baton.profile.yaml
-└── backend/           # extends base, adds backend-specific config
+└── backend/           # extends base, adds backend-specific content
     └── baton.profile.yaml
 ```
 
-> **Real-world example:** Baton's own [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) uses this pattern extensively. A `base` profile (weight 0) contains shared knowledge about Baton's 14 AI tools, merge strategies, and terminology. Three specialized profiles — `maintainer`, `creator`, and `consumer` — each extend `base` and add audience-specific skills, rules, agents, and memory files. This avoids duplicating ~120 lines of shared context across profiles.
+> **Real-world example:** Baton's own [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) uses this pattern. A `base` profile (weight 0) contains shared Baton knowledge. Three specialized profiles — `maintainer`, `creator`, and `consumer` — each extend `base` and add audience-specific content.
 
 ---
 
 ## Weight
 
-The `weight` field controls the priority ordering when multiple profiles are applied to the same project. Profiles with a higher weight take precedence during merge conflicts.
+The `weight` field controls priority when multiple profiles are applied to the same project. Profiles with a higher weight take precedence during merge conflicts.
 
 ```yaml
 weight: 10
@@ -411,8 +518,6 @@ weight: 10
 | `0`   | Default weight. Standard priority.                          |
 | `10`  | Higher priority. Overrides profiles with lower weight.      |
 | `100` | Very high priority. Use for critical, non-negotiable rules. |
-
-When two profiles modify the same file or rule, the profile with the higher weight wins. If weights are equal, profiles are applied in the order they appear in `baton.yaml`.
 
 ---
 
@@ -445,116 +550,6 @@ variables:
 
 ---
 
-## Directives
-
-Directives are HTML comments with a `baton:` prefix that Baton processes at sync time. They let you conditionally include content or pull in external files — all without breaking Markdown rendering.
-
-Directives work in **all content types**: skills, rules, agents, memory, and commands.
-
-### Conditional Content (`baton:if`)
-
-Show or hide content based on the current tool, IDE, scope, or content type:
-
-```markdown
-<!-- baton:if tool="claude-code" -->
-Claude-specific instructions here.
-<!-- baton:endif -->
-
-<!-- baton:if not-tool="cursor" -->
-This appears for every tool except Cursor.
-<!-- baton:endif -->
-
-<!-- baton:if ide="vscode" -->
-VS Code tips here.
-<!-- baton:endif -->
-
-<!-- baton:if scope="project" -->
-Project-scoped content only.
-<!-- baton:endif -->
-
-<!-- baton:if type="memory" -->
-Only when placed as memory content.
-<!-- baton:endif -->
-```
-
-Conditionals can be nested:
-
-```markdown
-<!-- baton:if tool="claude-code" -->
-<!-- baton:if scope="project" -->
-Claude Code project-specific content.
-<!-- baton:endif -->
-<!-- baton:endif -->
-```
-
-**Fail-open behavior:** If a `baton:if` has no matching `baton:endif`, the content is kept and a warning is emitted. This prevents accidental data loss from typos.
-
-| Attribute | Description |
-|-----------|-------------|
-| `tool` | Match a specific AI tool key (e.g. `claude-code`, `cursor`) |
-| `not-tool` | Match all tools *except* this one |
-| `ide` | Match a specific IDE platform (e.g. `vscode`) |
-| `scope` | Match placement scope: `project` or `global` |
-| `type` | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
-
-### File Inclusion (`baton:include`)
-
-Include external files by reference or inline their content:
-
-```markdown
-<!-- baton:include src="PROJECT.md" -->
-<!-- baton:include src="docs/api.md" mode="inline" -->
-<!-- baton:include src="docs/api.md" mode="link" -->
-<!-- baton:include src="docs/api.md" mode="link" hint="API Docs: {{file}}" -->
-<!-- baton:include src="docs/api.md" mode="reference" -->
-<!-- baton:include src="docs/api.md" mode="reference" hint="Read {{file}} for details" -->
-<!-- baton:include src="docs/OPTIONAL.md" optional="true" -->
-```
-
-| Attribute | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `src` | yes | — | Path relative to project root |
-| `mode` | no | `inline` | How to include the file (see below) |
-| `hint` | no | — | Template for `link`/`reference` output. Use `{{file}}` for the rendered reference. Ignored for `inline`. |
-| `optional` | no | `false` | `true` = silently skip if the file doesn't exist |
-
-#### Include Modes
-
-| Mode | Output (without hint) | Output (with `hint="See {{file}} for details"`) |
-|------|----------------------|--------------------------------------------------|
-| `inline` | File content inlined verbatim | *(hint ignored — full content is inlined)* |
-| `link` | `[docs/api.md](docs/api.md)` | `See [docs/api.md](docs/api.md) for details` |
-| `reference` | `See @docs/api.md for additional context.` | `See @docs/api.md for details` |
-
-**Default mode is `inline`** — the file's content replaces the directive. This is the most common use case and requires no `mode` attribute.
-
-**`link` mode** produces a standard Markdown link. This works across all AI tools since every tool understands Markdown links.
-
-**`reference` mode** produces an `@file` mention. This is natively understood by Claude Code (which resolves `@file` references), but **other tools treat it as plain text**. Use `link` mode if you need cross-tool compatibility.
-
-#### Security
-
-- `src` must be a relative path (no absolute paths, no `../` traversal)
-- Binary files are rejected
-- Files larger than 1 MB are skipped
-- The resolved path must stay within the project root
-
-### Combining Directives
-
-Conditionals and includes work together. Includes inside excluded conditionals are never read:
-
-```markdown
-<!-- baton:if tool="claude-code" -->
-<!-- baton:include src="docs/claude-specific.md" -->
-<!-- baton:endif -->
-
-<!-- baton:if tool="cursor" -->
-<!-- baton:include src="docs/cursor-tips.md" mode="link" hint="See {{file}}" -->
-<!-- baton:endif -->
-```
-
----
-
 ## Hooks
 
 Hooks allow you to run commands at specific points during the sync lifecycle.
@@ -578,7 +573,75 @@ Each hook is an array of shell commands that run sequentially. If any command fa
 
 ---
 
+## Migration: From Pre-1.0 Manifest-Based to 1.0 Convention-Based
+
+If you have an existing profile using pre-1.0 manifest-based declarations, here is how to migrate.
+
+### Before (pre-1.0 — explicit declarations)
+
+```yaml
+# baton.profile.yaml
+name: frontend
+version: 0.9.0
+ai:
+  tools: [claude-code, cursor]
+  skills:
+    - name: code-review
+      scope: project
+  rules:
+    - name: coding-style
+      scope: project
+  agents:
+    - name: reviewer
+  memory:
+    - source: MEMORY.md
+      merge: append
+  commands:
+    - name: deploy
+files:
+  - source: files/biome.json
+    target: biome.json
+    merge: replace
+ide:
+  vscode:
+    settings: ide/vscode/settings.json
+```
+
+### After (1.0 — convention-based)
+
+```yaml
+# baton.profile.yaml — just identity and options
+name: frontend
+version: 1.0.0
+ai:
+  tools: [claude-code, cursor]
+```
+
+The directory structure is identical — no files need to move. Baton 1.0 discovers them automatically. Remove the `ai.skills`, `ai.rules`, `ai.memory`, `ai.commands`, `ai.agents`, `files`, and `ide` blocks from the manifest. Also remove any `merge: append`, `merge: deep`, or other legacy merge strategy references — only `concat` (default) and `replace` are supported.
+
+To set a non-default merge strategy on your memory file, add frontmatter to `ai/memory/MEMORY.md`:
+
+```markdown
+---
+merge: replace
+---
+
+# Memory content here
+```
+
+To set a non-default scope on a rule, add frontmatter to the rule file:
+
+```markdown
+---
+scope: global
+---
+
+# Rule content here
+```
+
+---
+
 ## Next Steps
 
-- [Using Profiles](./05-using-profiles.md) -- learn how to consume profiles in your projects.
-- [Creating Sources](./03-creating-sources.md) -- learn how to package profiles into distributable sources.
+- [Using Profiles](./05-using-profiles.md) — learn how to consume profiles in your projects.
+- [Creating Sources](./03-creating-sources.md) — learn how to package profiles into distributable sources.
