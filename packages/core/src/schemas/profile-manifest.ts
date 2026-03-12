@@ -113,56 +113,59 @@ export type ProfileManifest = z.infer<typeof profileManifestSchema>;
 export type MergeStrategy = z.infer<typeof mergeStrategySchema>;
 // Scope type is exported from @baton-dx/ai-tool-paths
 
-// --- v1 field detection ---
+// --- legacy field detection ---
 
-/** Fields that were valid in v1 manifests but removed in v2. */
-const V1_AI_FIELDS = ["rules", "agents", "skills", "memory", "commands", "mcp"] as const;
-const V1_TOP_LEVEL_FIELDS = ["files", "ide"] as const;
+/** Fields that existed in pre-1.0 manifests but were removed in Baton 1.0. */
+const LEGACY_AI_FIELDS = ["rules", "agents", "skills", "memory", "commands", "mcp"] as const;
+const LEGACY_TOP_LEVEL_FIELDS = ["files", "ide"] as const;
 
 function hasField(obj: Record<string, unknown>, field: string): boolean {
     return field in obj && obj[field] !== undefined;
 }
 
-function v1TopLevelError(field: string): string {
+function legacyTopLevelError(field: string): string {
     const what = field === "files" ? "files" : "IDE configs";
     return (
-        `"${field}" is no longer supported in baton.profile.yaml v2. ` +
+        `"${field}" is no longer supported in baton.profile.yaml. ` +
         `Place ${what} directly in the profile filesystem. ` +
         `See migration guide: docs/04-creating-profiles.md`
     );
 }
 
-function v1AiFieldError(field: string): string {
+function legacyAiFieldError(field: string): string {
     const hint = field === "mcp" ? "MCP servers" : `${field} files`;
     return (
-        `"ai.${field}" is no longer supported in baton.profile.yaml v2. ` +
+        `"ai.${field}" is no longer supported in baton.profile.yaml. ` +
         `Place ${hint} directly in ai/${field}/ instead. ` +
         `See migration guide: docs/04-creating-profiles.md`
     );
 }
 
 /**
- * Detect v1 manifest fields and return actionable error messages.
+ * Detect legacy manifest fields and return actionable error messages.
  *
  * @param rawManifest - The raw (unparsed) manifest object
- * @returns Array of error messages for any v1 fields found (empty if none)
+ * @returns Array of error messages for any legacy fields found (empty if none)
  */
-export function detectV1Fields(rawManifest: unknown): string[] {
+export function detectLegacyFields(rawManifest: unknown): string[] {
     if (typeof rawManifest !== "object" || rawManifest === null) return [];
 
     const manifest = rawManifest as Record<string, unknown>;
     const errors: string[] = [];
 
-    for (const field of V1_TOP_LEVEL_FIELDS) {
-        if (hasField(manifest, field)) errors.push(v1TopLevelError(field));
+    for (const field of LEGACY_TOP_LEVEL_FIELDS) {
+        if (hasField(manifest, field)) errors.push(legacyTopLevelError(field));
     }
 
     if (typeof manifest.ai === "object" && manifest.ai !== null) {
         const ai = manifest.ai as Record<string, unknown>;
-        for (const field of V1_AI_FIELDS) {
-            if (hasField(ai, field)) errors.push(v1AiFieldError(field));
+        for (const field of LEGACY_AI_FIELDS) {
+            if (hasField(ai, field)) errors.push(legacyAiFieldError(field));
         }
     }
 
     return errors;
 }
+
+/** @deprecated Use detectLegacyFields instead */
+export const detectV1Fields = detectLegacyFields;

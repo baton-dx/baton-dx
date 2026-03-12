@@ -236,6 +236,7 @@ export type {
 } from "./schemas/profile-manifest.js";
 // Export schemas (only those used externally)
 export {
+    detectLegacyFields,
     detectV1Fields,
     KEBAB_CASE_REGEX,
     mcpServerSchema,

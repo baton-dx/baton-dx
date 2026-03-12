@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-    detectV1Fields,
+    detectLegacyFields,
     mergeStrategySchema,
     profileManifestSchema,
     scopeSchema,
 } from "./profile-manifest.js";
 
-describe("Schema Validation - Profile Manifest (v2)", () => {
+describe("Schema Validation - Profile Manifest", () => {
     describe("Valid manifests", () => {
         it("validates minimal profile manifest", () => {
             const result = profileManifestSchema.safeParse({
@@ -146,7 +146,7 @@ describe("Schema Validation - Profile Manifest (v2)", () => {
         });
     });
 
-    describe("v2 schema rejects v1 content fields", () => {
+    describe("schema rejects legacy content fields", () => {
         it("ignores (strips) unknown ai fields via Zod", () => {
             // Zod by default strips unknown keys, so v1 fields in ai.* just get ignored
             const result = profileManifestSchema.safeParse({
@@ -316,7 +316,7 @@ describe("Schema Validation - Profile Manifest (v2)", () => {
             expect(scopeSchema.safeParse("invalid").success).toBe(false);
         });
 
-        it("validates merge strategy schema with v2 strategies only", () => {
+        it("validates merge strategy schema with supported strategies only", () => {
             expect(mergeStrategySchema.safeParse("concat").success).toBe(true);
             expect(mergeStrategySchema.safeParse("replace").success).toBe(true);
         });
@@ -338,39 +338,39 @@ describe("Schema Validation - Profile Manifest (v2)", () => {
     });
 });
 
-describe("detectV1Fields", () => {
-    it("returns empty array for v2 manifest", () => {
-        expect(detectV1Fields({ name: "test", version: "1.0.0", ai: { tools: ["*"] } })).toEqual(
-            [],
-        );
+describe("detectLegacyFields", () => {
+    it("returns empty array for valid manifest", () => {
+        expect(
+            detectLegacyFields({ name: "test", version: "1.0.0", ai: { tools: ["*"] } }),
+        ).toEqual([]);
     });
 
     it("returns empty array for null/non-object", () => {
-        expect(detectV1Fields(null)).toEqual([]);
-        expect(detectV1Fields("string")).toEqual([]);
+        expect(detectLegacyFields(null)).toEqual([]);
+        expect(detectLegacyFields("string")).toEqual([]);
     });
 
     it("detects ai.rules", () => {
-        const errors = detectV1Fields({ ai: { rules: ["rule1"] } });
+        const errors = detectLegacyFields({ ai: { rules: ["rule1"] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain("ai.rules");
         expect(errors[0]).toContain("no longer supported");
     });
 
     it("detects ai.agents", () => {
-        const errors = detectV1Fields({ ai: { agents: ["agent1"] } });
+        const errors = detectLegacyFields({ ai: { agents: ["agent1"] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain("ai.agents");
     });
 
     it("detects ai.skills", () => {
-        const errors = detectV1Fields({ ai: { skills: [{ name: "deploy" }] } });
+        const errors = detectLegacyFields({ ai: { skills: [{ name: "deploy" }] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain("ai.skills");
     });
 
     it("detects ai.memory", () => {
-        const errors = detectV1Fields({
+        const errors = detectLegacyFields({
             ai: { memory: [{ source: "MEMORY.md", merge: "append" }] },
         });
         expect(errors).toHaveLength(1);
@@ -378,39 +378,39 @@ describe("detectV1Fields", () => {
     });
 
     it("detects ai.commands", () => {
-        const errors = detectV1Fields({ ai: { commands: ["build"] } });
+        const errors = detectLegacyFields({ ai: { commands: ["build"] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain("ai.commands");
     });
 
     it("detects ai.mcp", () => {
-        const errors = detectV1Fields({ ai: { mcp: [{ name: "server" }] } });
+        const errors = detectLegacyFields({ ai: { mcp: [{ name: "server" }] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain("ai.mcp");
     });
 
     it("detects top-level files", () => {
-        const errors = detectV1Fields({ files: [{ source: "biome.json" }] });
+        const errors = detectLegacyFields({ files: [{ source: "biome.json" }] });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain('"files"');
     });
 
     it("detects top-level ide", () => {
-        const errors = detectV1Fields({ ide: { vscode: ["settings.json"] } });
+        const errors = detectLegacyFields({ ide: { vscode: ["settings.json"] } });
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain('"ide"');
     });
 
-    it("detects multiple v1 fields at once", () => {
-        const errors = detectV1Fields({
+    it("detects multiple legacy fields at once", () => {
+        const errors = detectLegacyFields({
             ai: { rules: ["r1"], memory: [{ source: "MEMORY.md", merge: "append" }] },
             files: [{ source: "f" }],
         });
         expect(errors).toHaveLength(3);
     });
 
-    it("does not flag ai.tools (still valid in v2)", () => {
-        const errors = detectV1Fields({ ai: { tools: ["claude-code"] } });
+    it("does not flag ai.tools (still valid)", () => {
+        const errors = detectLegacyFields({ ai: { tools: ["claude-code"] } });
         expect(errors).toEqual([]);
     });
 });

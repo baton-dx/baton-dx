@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
 import { parse as parseYaml } from "yaml";
 import {
-    detectV1Fields,
+    detectLegacyFields,
     mcpServerSchema,
     profileManifestSchema,
 } from "../schemas/profile-manifest.js";
@@ -274,10 +274,10 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
         // is now auto-discovered from the filesystem. Manifest no longer
         // declares these sections, so file-existence checks are no longer needed.
 
-        // ── Check 6a: Detect v1 manifest fields ────────────────────────
+        // ── Check 6a: Detect legacy manifest fields ────────────────────
         // rawProfileManifest is non-null here (we parsed it successfully above)
-        const v1FieldErrors = detectV1Fields(rawProfileManifest);
-        for (const msg of v1FieldErrors) {
+        const legacyErrors = detectLegacyFields(rawProfileManifest);
+        for (const msg of legacyErrors) {
             issues.push({
                 severity: "error",
                 message: msg,
