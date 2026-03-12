@@ -161,17 +161,12 @@ export type { SharedSettingsResult } from "./mcp/shared-settings.js";
 export { readModifyWriteSharedSettings } from "./mcp/shared-settings.js";
 // Export MCP writer utilities
 export { writeMcpJson, writeMcpJsonc, writeMcpToml } from "./mcp/writer.js";
-// Export agent merge logic
-export {
-    type AgentEntry,
-    type MergeAgentsResult,
-    mergeAgentEntries,
-} from "./merge/agents.js";
+// Export agent types
+export type { AgentEntry } from "./merge/agents.js";
 // Export content parts merge
 export {
     mergeContentParts,
     normalizeMarkdown,
-    normalizeMergeStrategy,
 } from "./merge/content-parts.js";
 // Export MCP merge logic
 export {
@@ -179,28 +174,17 @@ export {
     mergeMcp,
     mergeMcpWithWarnings,
 } from "./merge/mcp.js";
-// Export memory merge logic
+// Export memory types
 export type {
     MemoryContribution,
     MemoryEntry,
-    MergeMemoryResult,
 } from "./merge/memory.js";
-// Export rule merge logic
-export {
-    type MergeRulesResult,
-    mergeRuleEntries,
-    type RuleEntry,
-} from "./merge/rules.js";
+// Export rule types
+export type { RuleEntry } from "./merge/rules.js";
 // Export scope resolution
 export { resolveScope } from "./merge/scope-resolution.js";
-// Export skill merge logic
-export {
-    type MergedSkillItem,
-    type MergeSkillsResult,
-    mergeSkillEntries,
-} from "./merge/skills.js";
-// Export merge strategies (v2: only replace — concat lives in content-parts)
-export { mergeReplace } from "./merge/strategies.js";
+// Export skill types
+export type { MergedSkillItem } from "./merge/skills.js";
 // Export weight-based profile sorting
 export {
     getProfileWeight,

@@ -20,11 +20,3 @@ export interface MemoryEntry {
     scope: Scope; // Resolved scope for placement
     contributions: MemoryContribution[]; // all profiles, in merge order (base first)
 }
-
-/**
- * Result of merging memory files
- */
-export interface MergeMemoryResult {
-    entries: MemoryEntry[];
-    warnings: string[];
-}

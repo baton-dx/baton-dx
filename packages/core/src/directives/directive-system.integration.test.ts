@@ -1051,43 +1051,6 @@ describe("Phase 2.3 — Merge strategy simplification", () => {
         expect(result).not.toContain("Low weight");
     });
 
-    it("legacy 'append' maps to concat", () => {
-        const result = mergeContentParts(["A", "B"], "append");
-        expect(result).toContain("A");
-        expect(result).toContain("B");
-    });
-
-    it("legacy 'prepend' maps to concat", () => {
-        const result = mergeContentParts(["A", "B"], "prepend");
-        expect(result).toContain("A");
-        expect(result).toContain("B");
-    });
-
-    it("legacy 'deep' maps to replace", () => {
-        const result = mergeContentParts(["A", "B"], "deep");
-        expect(result).toBe("B");
-    });
-
-    it("legacy 'skip' maps to replace", () => {
-        const result = mergeContentParts(["A", "B"], "skip");
-        expect(result).toBe("B");
-    });
-
-    it("legacy 'prompt' maps to replace", () => {
-        const result = mergeContentParts(["A", "B"], "prompt");
-        expect(result).toBe("B");
-    });
-
-    it("legacy 'directory' maps to replace", () => {
-        const result = mergeContentParts(["A", "B"], "directory");
-        expect(result).toBe("B");
-    });
-
-    it("legacy 'import' maps to replace", () => {
-        const result = mergeContentParts(["A", "B"], "import");
-        expect(result).toBe("B");
-    });
-
     it("unknown strategy falls back to concat", () => {
         const result = mergeContentParts(["A", "B"], "nonexistent");
         expect(result).toContain("A");

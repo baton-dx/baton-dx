@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { mergeContentParts, normalizeMergeStrategy, normalizeMarkdown } from "./content-parts";
+import { describe, expect, it } from "vitest";
+import { mergeContentParts, normalizeMarkdown } from "./content-parts";
 
 describe("normalizeMarkdown", () => {
     it("should collapse 3+ consecutive newlines to exactly 2", () => {
@@ -45,37 +45,6 @@ describe("normalizeMarkdown", () => {
     });
 });
 
-describe("normalizeMergeStrategy", () => {
-    it("maps append to concat with warning", () => {
-        const warn = vi.fn();
-        expect(normalizeMergeStrategy("append", warn)).toBe("concat");
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining("deprecated"));
-    });
-
-    it("maps prepend to concat with warning", () => {
-        const warn = vi.fn();
-        expect(normalizeMergeStrategy("prepend", warn)).toBe("concat");
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining("deprecated"));
-    });
-
-    it("maps skip to replace with warning", () => {
-        const warn = vi.fn();
-        expect(normalizeMergeStrategy("skip", warn)).toBe("replace");
-    });
-
-    it("passes through concat unchanged", () => {
-        const warn = vi.fn();
-        expect(normalizeMergeStrategy("concat", warn)).toBe("concat");
-        expect(warn).not.toHaveBeenCalled();
-    });
-
-    it("passes through replace unchanged", () => {
-        const warn = vi.fn();
-        expect(normalizeMergeStrategy("replace", warn)).toBe("replace");
-        expect(warn).not.toHaveBeenCalled();
-    });
-});
-
 describe("mergeContentParts", () => {
     it("concat strategy joins parts in order", () => {
         const parts = ["content A\n", "content B\n"];
@@ -91,28 +60,6 @@ describe("mergeContentParts", () => {
     it("replace strategy returns last part", () => {
         const parts = ["first", "second"];
         expect(mergeContentParts(parts, "replace")).toBe("second");
-    });
-
-    it("legacy append maps to concat", () => {
-        const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "append");
-
-        expect(result).toContain("content A");
-        expect(result).toContain("content B");
-        expect(result.indexOf("content A")).toBeLessThan(result.indexOf("content B"));
-    });
-
-    it("legacy prepend maps to concat", () => {
-        const parts = ["content A\n", "content B\n"];
-        const result = mergeContentParts(parts, "prepend");
-
-        expect(result).toContain("content A");
-        expect(result).toContain("content B");
-    });
-
-    it("legacy skip maps to replace", () => {
-        const parts = ["first", "second"];
-        expect(mergeContentParts(parts, "skip")).toBe("second");
     });
 
     it("unknown strategy falls back to concat", () => {
