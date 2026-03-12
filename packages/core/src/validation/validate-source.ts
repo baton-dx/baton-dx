@@ -147,7 +147,7 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
         return buildReport(issues, profilesChecked);
     }
 
-    // ── Check 0a: Detect legacy source manifest fields ─────────────────
+    // ── Check 1a: Detect legacy source manifest fields ─────────────────
     const legacySourceErrors = detectLegacySourceFields(rawSourceManifest);
     for (const msg of legacySourceErrors) {
         issues.push({
@@ -216,6 +216,8 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
             const content = await readFile(profileManifestPath, "utf-8");
             rawProfileManifest = parseYaml(content);
         } catch {
+            // Defensive: auto-discovery already gates on baton.profile.yaml existing, but the
+            // file could be deleted between discovery and this read (e.g. concurrent modification).
             issues.push({
                 severity: "error",
                 message: `Profile manifest (baton.profile.yaml) not found in ${profile.path}`,
