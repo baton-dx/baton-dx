@@ -56,8 +56,10 @@ export async function processDirectives(
         }
     }
 
-    // Phase 3: Cleanup — remove any remaining baton:* HTML comments
-    result = result.replace(BATON_COMMENT_CLEANUP, "");
+    // Phase 3: Cleanup — remove any remaining baton:* HTML comments (skip in explain mode)
+    if (!options.explain) {
+        result = result.replace(BATON_COMMENT_CLEANUP, "");
+    }
 
     return result;
 }
@@ -72,6 +74,10 @@ export async function processDirectives(
 async function resolveConditionals(content: string, options: DirectiveOptions): Promise<string> {
     const { context, onWarning } = options;
     let result = content;
+
+    if (options.explain) {
+        return annotateConditionals(result, options);
+    }
 
     // We need to iterate because after removing a block, positions shift
     // and we need to re-parse. matchConditionalPairs returns innermost-first,
@@ -129,4 +135,75 @@ async function resolveConditionals(content: string, options: DirectiveOptions): 
     }
 
     return result;
+}
+
+/**
+ * Annotate conditional blocks with evaluation results instead of stripping them.
+ * Replaces baton:if/else/endif comments with readable markers showing what was
+ * included or excluded and why.
+ */
+async function annotateConditionals(content: string, options: DirectiveOptions): Promise<string> {
+    const { context, onWarning } = options;
+    let result = content;
+
+    let safetyLimit = 100;
+    while (safetyLimit-- > 0) {
+        const directives = parseDirectives(result);
+        const { matched } = matchConditionalPairs(directives, onWarning);
+
+        if (matched.length === 0) break;
+
+        const block = matched[0];
+        const keep = await evaluateCondition(block.ifDirective.attributes, context, onWarning);
+
+        // Build a readable condition summary from the attributes
+        const conditionSummary = formatConditionAttributes(block.ifDirective.attributes);
+
+        if (block.elseDirective) {
+            const ifContent = result.slice(
+                block.ifDirective.endIndex,
+                block.elseDirective.startIndex,
+            );
+            const elseContent = result.slice(
+                block.elseDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+
+            const annotated = keep
+                ? `\n>>> [INCLUDED] if ${conditionSummary} <<<\n${ifContent.trim()}\n>>> [EXCLUDED] else <<<\n${elseContent.trim()}\n>>> [END] <<<\n`
+                : `\n>>> [EXCLUDED] if ${conditionSummary} <<<\n${ifContent.trim()}\n>>> [INCLUDED] else <<<\n${elseContent.trim()}\n>>> [END] <<<\n`;
+
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                annotated +
+                result.slice(block.endifDirective.endIndex);
+        } else if (keep) {
+            const innerContent = result.slice(
+                block.ifDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                `\n>>> [INCLUDED] if ${conditionSummary} <<<\n${innerContent.trim()}\n>>> [END] <<<\n` +
+                result.slice(block.endifDirective.endIndex);
+        } else {
+            const innerContent = result.slice(
+                block.ifDirective.endIndex,
+                block.endifDirective.startIndex,
+            );
+            result =
+                result.slice(0, block.ifDirective.startIndex) +
+                `\n>>> [EXCLUDED] if ${conditionSummary} <<<\n${innerContent.trim()}\n>>> [END] <<<\n` +
+                result.slice(block.endifDirective.endIndex);
+        }
+    }
+
+    return result;
+}
+
+/** Format condition attributes into a readable string like `tool="cursor" scope="project"` */
+function formatConditionAttributes(attributes: Record<string, string>): string {
+    return Object.entries(attributes)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(" ");
 }

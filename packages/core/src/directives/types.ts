@@ -44,7 +44,7 @@ export interface DirectiveOptions {
     onWarning?: (message: string) => void;
     /** Callback emitted when a profile-relative link/reference include needs file placement */
     onPlacement?: (placement: FilePlacement) => void;
-    /** When true, annotate output with [INCLUDED]/[EXCLUDED] markers for preview/explain mode */
+    /** When true, annotate conditional blocks with evaluation results instead of stripping them */
     explain?: boolean;
 }
 

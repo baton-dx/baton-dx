@@ -104,10 +104,14 @@ Use @file to reference project files.
 Reference files by relative path.
 <!-- baton:endif -->
 
+<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and has('typescript')" -->
+TypeScript-aware AI tool detected.
+<!-- baton:endif -->
+
 <!-- baton:include src="@project/PROJECT.md" -->
 ```
 
-Conditions: `tool`, `ide`, `scope`, `type`, `file`, `var`, `has` (with AND/OR composition).
+Conditions: `tool`, `ide`, `scope`, `type`, `file`, `var`, `has` — with AND/OR composition and expression syntax.
 Include modes: `inline`, `link`, `reference` — with `@project/` for project-relative resolution.
 - **Smart Sync** — Transform and place files in the correct format for each tool
 - **Version Control** — Lockfile-based reproducibility with SHA-256 integrity

@@ -263,6 +263,240 @@ describe("processDirectives", () => {
     });
 });
 
+describe("processDirectives — expression conditions", () => {
+    let projectRoot: string;
+
+    beforeEach(async () => {
+        projectRoot = join(tmpdir(), `baton-expr-test-${Date.now()}`);
+        await mkdir(projectRoot, { recursive: true });
+    });
+
+    afterEach(async () => {
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it("condition attribute — simple match", async () => {
+        const content = [
+            "Before",
+            "<!-- baton:if condition=\"tool == 'claude-code'\" -->",
+            "Claude only",
+            "<!-- baton:endif -->",
+            "After",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).toContain("Claude only");
+        expect(result).toContain("Before");
+        expect(result).toContain("After");
+    });
+
+    it("condition attribute — no match", async () => {
+        const content = [
+            "<!-- baton:if condition=\"tool == 'cursor'\" -->",
+            "Cursor only",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).not.toContain("Cursor only");
+    });
+
+    it("condition with OR", async () => {
+        const content = [
+            "<!-- baton:if condition=\"tool == 'cursor' or tool == 'claude-code'\" -->",
+            "Multi-tool",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).toContain("Multi-tool");
+    });
+
+    it("condition with AND", async () => {
+        const content = [
+            "<!-- baton:if condition=\"tool == 'claude-code' and scope == 'project'\" -->",
+            "Both match",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).toContain("Both match");
+    });
+
+    it("condition with NOT", async () => {
+        const content = [
+            "<!-- baton:if condition=\"not tool == 'cursor'\" -->",
+            "Not cursor",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).toContain("Not cursor");
+    });
+
+    it("condition with grouped expression", async () => {
+        const content = [
+            "<!-- baton:if condition=\"(tool == 'claude-code' or tool == 'cursor') and scope == 'project'\" -->",
+            "Grouped",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions());
+        expect(result).toContain("Grouped");
+    });
+
+    it("condition with has() function", async () => {
+        await writeFile(join(projectRoot, "tsconfig.json"), "{}");
+        const content = [
+            "<!-- baton:if condition=\"has('typescript')\" -->",
+            "TypeScript project",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).toContain("TypeScript project");
+    });
+
+    it("condition with file() function", async () => {
+        await writeFile(join(projectRoot, "biome.json"), "{}");
+        const content = [
+            "<!-- baton:if condition=\"file('biome.json') or file('biome.jsonc')\" -->",
+            "Biome configured",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).toContain("Biome configured");
+    });
+
+    it("condition with var() function", async () => {
+        const content = [
+            "<!-- baton:if condition=\"var('lang') == 'typescript'\" -->",
+            "TS var",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(
+            content,
+            makeOptions({ variables: { lang: "typescript" } }),
+        );
+        expect(result).toContain("TS var");
+    });
+
+    it("condition with else — keeps else branch on false", async () => {
+        const content = [
+            "<!-- baton:if condition=\"tool == 'cursor'\" -->",
+            "Cursor branch",
+            "<!-- baton:else -->",
+            "Fallback branch",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).not.toContain("Cursor branch");
+        expect(result).toContain("Fallback branch");
+    });
+
+    it("condition with else — keeps if branch on true", async () => {
+        const content = [
+            "<!-- baton:if condition=\"tool == 'claude-code'\" -->",
+            "Claude branch",
+            "<!-- baton:else -->",
+            "Fallback branch",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }));
+        expect(result).toContain("Claude branch");
+        expect(result).not.toContain("Fallback branch");
+    });
+
+    it("warns when condition mixed with old-style attributes", async () => {
+        const warn = vi.fn();
+        const content = [
+            '<!-- baton:if condition="tool == \'claude-code\'" tool="cursor" -->',
+            "Content",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeOptions({ projectRoot }, warn));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("condition attribute present"));
+        // condition takes precedence
+        expect(result).toContain("Content");
+    });
+});
+
+describe("processDirectives — explain mode", () => {
+    function makeExplainOptions(
+        contextOverrides: Partial<DirectiveContext> = {},
+    ): DirectiveOptions {
+        return { context: makeContext(contextOverrides), explain: true };
+    }
+
+    it("annotates included conditional block", async () => {
+        const content = [
+            "Before",
+            '<!-- baton:if tool="claude-code" -->',
+            "Claude content",
+            "<!-- baton:endif -->",
+            "After",
+        ].join("\n");
+        const result = await processDirectives(content, makeExplainOptions());
+        expect(result).toContain("[INCLUDED]");
+        expect(result).toContain('tool="claude-code"');
+        expect(result).toContain("Claude content");
+        expect(result).toContain("[END]");
+        expect(result).toContain("Before");
+        expect(result).toContain("After");
+    });
+
+    it("annotates excluded conditional block", async () => {
+        const content = [
+            "Before",
+            '<!-- baton:if tool="cursor" -->',
+            "Cursor content",
+            "<!-- baton:endif -->",
+            "After",
+        ].join("\n");
+        const result = await processDirectives(
+            content,
+            makeExplainOptions({ currentTool: "claude-code" }),
+        );
+        expect(result).toContain("[EXCLUDED]");
+        expect(result).toContain('tool="cursor"');
+        expect(result).toContain("Cursor content");
+        expect(result).toContain("[END]");
+    });
+
+    it("annotates if/else/endif — condition true", async () => {
+        const content = [
+            '<!-- baton:if tool="claude-code" -->',
+            "Claude branch",
+            "<!-- baton:else -->",
+            "Other branch",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(content, makeExplainOptions());
+        expect(result).toContain("[INCLUDED] if");
+        expect(result).toContain("Claude branch");
+        expect(result).toContain("[EXCLUDED] else");
+        expect(result).toContain("Other branch");
+    });
+
+    it("annotates if/else/endif — condition false", async () => {
+        const content = [
+            '<!-- baton:if tool="cursor" -->',
+            "Cursor branch",
+            "<!-- baton:else -->",
+            "Other branch",
+            "<!-- baton:endif -->",
+        ].join("\n");
+        const result = await processDirectives(
+            content,
+            makeExplainOptions({ currentTool: "claude-code" }),
+        );
+        expect(result).toContain("[EXCLUDED] if");
+        expect(result).toContain("Cursor branch");
+        expect(result).toContain("[INCLUDED] else");
+        expect(result).toContain("Other branch");
+    });
+
+    it("preserves baton:include comments in explain mode", async () => {
+        const content = 'No conditionals <!-- baton:include src="missing.md" optional="true" -->';
+        const result = await processDirectives(content, makeExplainOptions());
+        // Include directives still resolve (not just annotated), but cleanup is skipped
+        expect(result).toContain("No conditionals");
+    });
+});
+
 describe("processDirectives — placements", () => {
     it("collects placements from link includes via onPlacement", async () => {
         const { mkdtemp } = await import("node:fs/promises");

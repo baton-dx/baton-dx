@@ -3,8 +3,8 @@ import {
     evaluateSyncCondition,
     getRegisteredKeys,
     isAsyncCondition,
-    isRegisteredCondition,
 } from "./conditions/index.js";
+import { evaluateExpressionCondition } from "./expression/index.js";
 import type { ConditionalBlock, DirectiveContext, ParsedDirective } from "./types.js";
 
 /** Maximum nesting depth for conditional blocks */
@@ -101,6 +101,16 @@ export async function evaluateCondition(
     context: DirectiveContext,
     onWarning?: (message: string) => void,
 ): Promise<boolean> {
+    // Expression-based condition takes precedence
+    if ("condition" in attributes) {
+        const registeredKeys = getRegisteredKeys();
+        const otherKeys = registeredKeys.filter((k) => k in attributes);
+        if (otherKeys.length > 0) {
+            onWarning?.(`condition attribute present; ${otherKeys.join(", ")} will be ignored`);
+        }
+        return evaluateExpressionCondition(attributes.condition, context, onWarning);
+    }
+
     const registeredKeys = getRegisteredKeys();
     const found = registeredKeys.filter((k) => k in attributes);
 

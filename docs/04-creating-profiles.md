@@ -272,7 +272,41 @@ Only when placed as memory content.
 <!-- baton:endif -->
 ```
 
-Conditionals can be nested:
+#### Else Branches
+
+Use `baton:else` for fallback content when a condition is false:
+
+```markdown
+<!-- baton:if tool="claude-code" -->
+Use @file to reference project files.
+<!-- baton:else -->
+Reference files by relative path.
+<!-- baton:endif -->
+```
+
+The if-branch is kept when the condition matches; otherwise the else-branch is kept. Only one `baton:else` is allowed per `baton:if` block.
+
+#### OR and AND Composition
+
+**OR within an attribute** — comma-separated values match any:
+
+```markdown
+<!-- baton:if tool="cursor,windsurf" -->
+Web IDE content.
+<!-- baton:endif -->
+```
+
+**AND across attributes** — all attributes must match:
+
+```markdown
+<!-- baton:if tool="claude-code" scope="project" -->
+Claude Code project-only content.
+<!-- baton:endif -->
+```
+
+#### Nesting
+
+Conditionals can be nested (up to 5 levels):
 
 ```markdown
 <!-- baton:if tool="claude-code" -->
@@ -282,21 +316,78 @@ Claude Code project-specific content.
 <!-- baton:endif -->
 ```
 
+Nesting also works inside else branches:
+
+```markdown
+<!-- baton:if tool="cursor" -->
+Cursor instructions.
+<!-- baton:else -->
+<!-- baton:if scope="project" -->
+Project fallback for non-Cursor tools.
+<!-- baton:endif -->
+<!-- baton:endif -->
+```
+
 **Fail-open behavior:** If a `baton:if` has no matching `baton:endif`, the content is kept and a warning is emitted. This prevents accidental data loss from typos.
 
-| Attribute  | Description                                                          |
-| ---------- | -------------------------------------------------------------------- |
-| `tool`     | Match a specific AI tool key (e.g. `claude-code`, `cursor`)         |
-| `not-tool` | Match all tools *except* this one                                    |
-| `ide`      | Match a specific IDE platform (e.g. `vscode`)                       |
-| `scope`    | Match placement scope: `project` or `global`                        |
-| `type`     | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
-| `file`     | Match when a file exists in the target project (e.g. `file="tsconfig.json"`) |
-| `not-file` | Match when a file does *not* exist in the target project             |
-| `var`      | Match when a variable is defined (e.g. `var="framework"`)           |
-| `not-var`  | Match when a variable is *not* defined                               |
-| `has`      | Match a project trait detected by Baton (e.g. `has="typescript"`, `has="react"`) |
-| `not-has`  | Match when a trait is *not* detected                                 |
+| Attribute    | Description                                                          |
+| ------------ | -------------------------------------------------------------------- |
+| `tool`       | Match a specific AI tool key (e.g. `claude-code`, `cursor`)         |
+| `not-tool`   | Match all tools *except* this one                                    |
+| `ide`        | Match a specific IDE platform (e.g. `vscode`)                       |
+| `scope`      | Match placement scope: `project` or `global`                        |
+| `type`       | Match content type: `memory`, `rules`, `agents`, `skills`, `commands` |
+| `file`       | Match when a file exists in the target project (e.g. `file="tsconfig.json"`) |
+| `not-file`   | Match when a file does *not* exist in the target project             |
+| `var`        | Match when a variable is defined (e.g. `var="framework"`)           |
+| `not-var`    | Match when a variable is *not* defined                               |
+| `has`        | Match a project trait detected by Baton (e.g. `has="typescript"`, `has="react"`) |
+| `not-has`    | Match when a trait is *not* detected                                 |
+| `condition`  | Expression-based condition (see below)                               |
+
+#### Expression-Based Conditions
+
+For complex conditions, use the `condition` attribute with a readable expression language:
+
+```markdown
+<!-- baton:if condition="tool == 'claude-code'" -->
+<!-- baton:if condition="tool != 'cursor'" -->
+<!-- baton:if condition="tool == 'cursor' or tool == 'windsurf'" -->
+<!-- baton:if condition="scope == 'project' and type == 'memory'" -->
+<!-- baton:if condition="has('typescript') and not has('prettier')" -->
+<!-- baton:if condition="file('biome.json') or file('biome.jsonc')" -->
+<!-- baton:if condition="var('lang') == 'typescript'" -->
+<!-- baton:if condition="var('lang')" -->
+<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and scope == 'project'" -->
+```
+
+Expression conditions support:
+
+| Element | Syntax | Description |
+|---------|--------|-------------|
+| Properties | `tool`, `scope`, `type`, `ide` | Compare with `==` or `!=` |
+| Functions | `has('key')`, `file('path')`, `var('name')` | Lookup checks, return boolean |
+| Function + compare | `var('name') == 'value'` | Check function result against value |
+| AND | `and` or `&&` | Both sides must be true |
+| OR | `or` or `\|\|` | Either side must be true |
+| NOT | `not` or `!` | Negates the following expression |
+| Grouping | `(...)` | Override default precedence |
+
+**Operator precedence:** `not` > `and` > `or` (standard). Use parentheses to override.
+
+**String values** use single quotes inside the double-quoted attribute: `condition="tool == 'claude-code'"`.
+
+Expression conditions also work with `baton:else`:
+
+```markdown
+<!-- baton:if condition="tool == 'claude-code' or tool == 'cursor'" -->
+Use AI-native file references.
+<!-- baton:else -->
+Use standard file paths.
+<!-- baton:endif -->
+```
+
+When `condition` is present alongside old-style attributes (e.g. `tool="..."`), the `condition` takes precedence and a warning is emitted. Old-style attributes remain fully supported.
 
 ### File Inclusion (`baton:include`)
 
