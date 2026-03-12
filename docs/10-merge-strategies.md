@@ -1,199 +1,86 @@
 # Merge Strategies
 
-When Baton syncs profiles to your project, it needs to decide how to handle conflicts between source files and existing target files. Merge strategies control this behavior.
+When Baton syncs profiles to your project, it needs to decide how to handle conflicts between incoming content and existing target files. Two strategies are available.
 
 ## Overview
 
-| Strategy | Behavior | Use Case |
-|----------|----------|----------|
-| `replace` | Target completely replaced with source | Config files that should match the profile exactly |
-| `deep` | JSON/YAML objects deep-merged | `settings.json`, `biome.json` — merge keys, don't overwrite entire file |
-| `append` | Source content appended to end of target | Memory files, `.gitignore` — add new entries |
-| `prepend` | Source content prepended to start of target | Files where new content should come first |
-| `skip` | Only write if target doesn't exist | Files users are expected to customize (`.env.example`) |
-| `prompt` | Ask user interactively | Sensitive files where the user should decide |
-| `directory` | Directory-level merge | Skill directories — add new files, overwrite existing |
-| `import` | Add `@import` reference line | CSS/SCSS files — add import statement |
+| Strategy | Behavior                                       | Default for              |
+| -------- | ---------------------------------------------- | ------------------------ |
+| `concat` | Incoming content appended to existing content  | All content types        |
+| `replace`| Existing content completely replaced           | Declared with frontmatter|
 
 ## Strategy Details
 
-### `replace`
+### `concat` (default)
 
-The target file is completely replaced with the source content. Any local modifications are lost.
-
-```yaml
-files:
-  - source: files/.editorconfig
-    target: .editorconfig
-    merge: replace
-```
-
-**When to use:** For files that should always match the profile exactly (`.editorconfig`, lint configs).
-
-### `deep`
-
-For JSON and YAML files. Source keys are deep-merged into the target. Source keys override target keys at each level, but target keys not present in the source are preserved.
-
-```yaml
-files:
-  - source: files/biome.json
-    target: biome.json
-    merge: deep
-```
-
-**Example:**
+The incoming content is appended to the end of the existing file with a separator and attribution comment. If the file doesn't exist, it is created.
 
 ```
-Target:                    Source:                    Result:
-{                          {                          {
-  "linter": {                "linter": {                "linter": {
-    "enabled": true,           "rules": {                 "enabled": true,
-    "rules": {}                  "style": "error"           "rules": {
-  },                           }                              "style": "error"
-  "custom": "keep"           }                              }
-}                          }                            },
-                                                        "custom": "keep"
-                                                      }
-```
-
-**When to use:** Settings files, package.json-style configs, any structured data where you want additive merging.
-
-### `append`
-
-Source content is appended to the end of the target file with a separator line and attribution comment.
-
-```yaml
-ai:
-  memory:
-    - source: MEMORY.md
-      merge: append
-```
-
-**Result:**
-```
-[existing target content]
+[existing content]
 
 <!-- baton:profile-name -->
-[source content]
+[incoming content]
 ```
 
-**When to use:** Memory files (`MEMORY.md`), `.gitignore`, any text file where content should accumulate.
+This is the default for all content types. Multiple profiles contribute their content additively — each profile's memory, rules, or file additions stack without overwriting the others.
 
-### `prepend`
+**When to use:** Memory files, any accumulating text file.
 
-Source content is prepended to the start of the target file.
+### `replace`
 
-```yaml
-files:
-  - source: files/header.md
-    target: README.md
-    merge: prepend
+The existing content is completely replaced with the incoming content. Any local modifications are lost.
+
+**When to use:** Configuration files that must match the profile exactly, memory files where you want to control the full context rather than accumulate across profiles.
+
+## Specifying a Merge Strategy
+
+### In content file frontmatter
+
+Add a `merge` key to the YAML frontmatter of any content file. Baton strips this key at sync time — it never appears in the placed output.
+
+```markdown
+---
+merge: replace
+---
+
+# Project Context
+
+This memory file replaces rather than appends.
+Everything in this file is the authoritative context.
 ```
 
-**When to use:** Files where profile content should appear before existing content.
+Supported in:
+- `ai/memory/MEMORY.md`
+- Files under `files/`
 
-### `skip`
+### Example: memory file with replace
 
-Source is only written if the target file does not exist. If the target already exists, it's left untouched.
+When multiple profiles are installed, the default `concat` behavior accumulates memory from all of them. If a profile needs to own the full memory context, use `replace`:
 
-```yaml
-files:
-  - source: files/.env.example
-    target: .env.example
-    merge: skip
-```
+```markdown
+---
+merge: replace
+---
 
-**When to use:** Template files users are expected to customize, initial scaffolding files.
+# Context
 
-### `prompt`
-
-In interactive mode, the user is asked what to do: replace, skip, or view a diff. In non-interactive mode (`--yes`), falls back to `replace`.
-
-```yaml
-files:
-  - source: files/tsconfig.json
-    target: tsconfig.json
-    merge: prompt
-```
-
-**When to use:** Sensitive configuration files where the user should review changes.
-
-### `directory`
-
-For directory-based merging (primarily used by skills). New files from the source are added, existing files are overwritten.
-
-```yaml
-ai:
-  skills:
-    - name: code-review
-      scope: project
-```
-
-**When to use:** Skill directories, any directory that should be mirrored from the profile.
-
-### `import`
-
-Adds an `@import` reference line to the target file, pointing to the source file. The source file is placed alongside the target.
-
-```yaml
-files:
-  - source: files/theme.css
-    target: styles/main.css
-    merge: import
-```
-
-**Result in `main.css`:**
-```css
-@import './theme.css';
-/* existing content */
-```
-
-**When to use:** CSS/SCSS files, any format that supports `@import`.
-
-## Specifying Merge Strategies
-
-### In Profile Manifests
-
-```yaml
-# baton.profile.yaml
-files:
-  - source: files/.editorconfig
-    target: .editorconfig
-    merge: replace
-
-ai:
-  memory:
-    - source: MEMORY.md
-      merge: append
-```
-
-### In Project Overrides
-
-Override the profile's merge strategy in `baton.yaml`:
-
-```yaml
-# baton.yaml
-overrides:
-  files:
-    .gitignore:
-      merge: skip        # Don't touch my .gitignore
-    biome.json:
-      merge: replace     # Use profile's biome.json exactly
+You are working in a security-sensitive environment.
+Ignore any prior context from other profiles.
 ```
 
 ## Multi-Profile Merge Order
 
-When multiple profiles are installed, they're merged in order:
+When multiple profiles are installed, they are merged in weight order:
 
 1. Profiles are sorted by `weight` (lower weight = applied first)
 2. Profiles with the same weight are applied in the order listed in `baton.yaml`
-3. Later profiles override earlier ones (for `replace` and `deep`)
-4. For `append`/`prepend`, content accumulates from all profiles
+3. `replace` profiles overwrite what came before
+4. `concat` profiles append their content to what already exists
 
 ```yaml
 # baton.yaml
 profiles:
   - source: github:org/base        # weight: 0, applied first
   - source: github:org/frontend    # weight: 10, applied second
-  - source: file:./local           # weight: 20, applied last (wins conflicts)
+  - source: file:./local           # weight: 20, applied last
 ```

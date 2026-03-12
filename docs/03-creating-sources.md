@@ -101,18 +101,20 @@ my-team-configs/
 │   ├── frontend/
 │   │   ├── baton.profile.yaml
 │   │   ├── ai/
-│   │   │   ├── skills/
-│   │   │   │   └── code-review/
-│   │   │   │       └── SKILL.md
+│   │   │   ├── memory/
+│   │   │   │   └── MEMORY.md
 │   │   │   ├── rules/
 │   │   │   │   ├── coding-style.md
 │   │   │   │   └── testing.md
 │   │   │   ├── agents/
 │   │   │   │   └── reviewer.md
-│   │   │   ├── memory/
-│   │   │   │   └── MEMORY.md
-│   │   │   └── commands/
-│   │   │       └── deploy.md
+│   │   │   ├── skills/
+│   │   │   │   └── code-review/
+│   │   │   │       └── SKILL.md
+│   │   │   ├── commands/
+│   │   │   │   └── deploy.md
+│   │   │   └── mcp/
+│   │   │       └── filesystem.yaml
 │   │   ├── files/
 │   │   │   ├── .editorconfig
 │   │   │   └── biome.json
@@ -123,11 +125,12 @@ my-team-configs/
 │   └── backend/
 │       ├── baton.profile.yaml
 │       ├── ai/
-│       │   ├── skills/
+│       │   ├── memory/
 │       │   ├── rules/
 │       │   ├── agents/
-│       │   ├── memory/
-│       │   └── commands/
+│       │   ├── skills/
+│       │   ├── commands/
+│       │   └── mcp/
 │       ├── files/
 │       └── ide/
 └── README.md
@@ -138,13 +141,14 @@ my-team-configs/
 | Directory         | Purpose                                                              |
 | ----------------- | -------------------------------------------------------------------- |
 | `profiles/`       | Contains all profile directories.                                    |
-| `ai/skills/`      | Skill directories, each containing a `SKILL.md`.                    |
-| `ai/rules/`       | Rule files (`.md`). Can include universal and tool-specific rules.  |
-| `ai/agents/`      | Agent definitions (`.md` with frontmatter).                         |
-| `ai/memory/`      | Memory files (`MEMORY.md`) for persistent context.                  |
-| `ai/commands/`    | Command definitions (`.md`).                                        |
-| `files/`          | Static files to be placed in consumer projects.                      |
-| `ide/`            | IDE-specific settings (VS Code, JetBrains, etc.).                   |
+| `ai/memory/`      | `MEMORY.md` — one memory file per profile.                          |
+| `ai/rules/`       | `*.md` — rule files applied to all targeted AI tools.               |
+| `ai/agents/`      | `*.md` — agent definitions with YAML frontmatter.                   |
+| `ai/skills/`      | `*/SKILL.md` — skill directories.                                    |
+| `ai/commands/`    | `*.md` — command definitions.                                        |
+| `ai/mcp/`         | `*.yaml` — MCP server configurations.                               |
+| `files/`          | Arbitrary files placed in consumer project root.                     |
+| `ide/`            | IDE-specific settings (e.g. `ide/vscode/`).                         |
 
 ---
 
@@ -157,7 +161,7 @@ To add a new profile to an existing source:
 1. Create the profile directory:
 
    ```bash
-   mkdir -p profiles/my-new-profile/ai/{skills,rules,agents,memory,commands}
+   mkdir -p profiles/my-new-profile/ai/{memory,rules,agents,skills,commands,mcp}
    mkdir -p profiles/my-new-profile/{files,ide}
    ```
 
