@@ -1,7 +1,5 @@
 # @baton-dx/agent-paths
 
-## 1.0.0-alpha.0
-
 ## 0.16.1
 
 ## 0.16.0
