@@ -7,7 +7,7 @@ import {
     mcpServerSchema,
     profileManifestSchema,
 } from "../schemas/profile-manifest.js";
-import { sourceManifestSchema } from "../schemas/source-manifest.js";
+import { detectLegacySourceFields, sourceManifestSchema } from "../schemas/source-manifest.js";
 import type { ValidationIssue, ValidationReport } from "./types.js";
 
 /**
@@ -147,6 +147,20 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
         return buildReport(issues, profilesChecked);
     }
 
+    // ── Check 0a: Detect legacy source manifest fields ─────────────────
+    const legacySourceErrors = detectLegacySourceFields(rawSourceManifest);
+    for (const msg of legacySourceErrors) {
+        issues.push({
+            severity: "error",
+            message: msg,
+            path: "baton.source.yaml",
+            context: "source-manifest",
+        });
+    }
+    if (legacySourceErrors.length > 0) {
+        return buildReport(issues, profilesChecked);
+    }
+
     // ── Check 2: Source manifest is schema-valid ───────────────────────
     const sourceResult = sourceManifestSchema.safeParse(rawSourceManifest);
     if (!sourceResult.success) {
@@ -180,36 +194,19 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
     }
 
     // ── Determine profiles to check ────────────────────────────────────
-    // If profiles are explicitly declared, use those. Otherwise auto-discover.
+    // Profiles are always auto-discovered from the profiles/ directory.
     interface ProfileEntry {
         name: string;
         path: string;
     }
 
-    let declaredProfiles: ProfileEntry[] | undefined;
-
-    if (sourceManifest.profiles && sourceManifest.profiles.length > 0) {
-        declaredProfiles = sourceManifest.profiles;
-    }
-
-    const profilesToCheck: ProfileEntry[] =
-        declaredProfiles ?? (await discoverProfiles(sourceRoot));
+    const profilesToCheck: ProfileEntry[] = await discoverProfiles(sourceRoot);
 
     // Collect validated profiles for cross-profile checks (extends loop, weight conflicts)
     const validatedProfiles: Array<{ name: string; extends?: string; weight: number }> = [];
 
-    // ── Check 3: Declared profile directories exist ────────────────────
     for (const profile of profilesToCheck) {
         const profileDir = join(sourceRoot, profile.path);
-        if (!(await pathExists(profileDir))) {
-            issues.push({
-                severity: "error",
-                message: `Declared profile directory does not exist: ${profile.path}`,
-                path: profile.path,
-                context: `profile:${profile.name}`,
-            });
-            continue;
-        }
 
         // ── Check 4: Profile manifest is schema-valid ──────────────────
         const profileManifestPath = join(profileDir, "baton.profile.yaml");
@@ -399,22 +396,6 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
                 issues.push({
                     severity: "warning",
                     message: `Sibling profiles [${names.join(", ")}] share parent ${parentLabel} and weight ${weight} — last-installed wins`,
-                    context: "source-manifest",
-                });
-            }
-        }
-    }
-
-    // ── Check 15: Orphaned profiles ──────────────────────────────────
-    if (declaredProfiles) {
-        const declaredPaths = new Set(declaredProfiles.map((p) => p.path));
-        const diskProfiles = await discoverProfiles(sourceRoot);
-        for (const diskProfile of diskProfiles) {
-            if (!declaredPaths.has(diskProfile.path)) {
-                issues.push({
-                    severity: "warning",
-                    message: `Orphaned profile on disk not declared in source manifest: ${diskProfile.path}`,
-                    path: diskProfile.path,
                     context: "source-manifest",
                 });
             }

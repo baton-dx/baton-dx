@@ -123,18 +123,28 @@ describe("validateSource", () => {
         expect(report.summary.warnings).toBe(0);
     });
 
-    // ── Check 3: Declared profile directories exist ──────────────────
-    it("reports error when declared profile directory does not exist", async () => {
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "missing", path: "profiles/missing" }],
-        });
+    // ── Check 0a: Legacy source fields ──────────────────────────────
+    it("reports error when source manifest contains legacy 'profiles' field", async () => {
+        await writeFile(
+            join(TEST_DIR, "baton.source.yaml"),
+            [
+                'name: "test-source"',
+                'version: "1.0.0"',
+                "profiles:",
+                '  - name: "default"',
+                '    path: "profiles/default"',
+            ].join("\n"),
+        );
 
         const report = await validateSource(TEST_DIR);
 
         expect(report.valid).toBe(false);
         expect(
             report.issues.some(
-                (i) => i.severity === "error" && i.message.includes("does not exist"),
+                (i) =>
+                    i.severity === "error" &&
+                    i.context === "source-manifest" &&
+                    i.message.includes('"profiles" is no longer supported'),
             ),
         ).toBe(true);
     });
@@ -161,9 +171,7 @@ describe("validateSource", () => {
         await mkdir(profileDir, { recursive: true });
         // Write invalid profile manifest (missing version)
         await writeFile(join(profileDir, "baton.profile.yaml"), 'name: "bad-profile"\n');
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "bad", path: "profiles/bad" }],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -184,9 +192,7 @@ describe("validateSource", () => {
             name: "child",
             extends: "base",
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "child", path: "profiles/child" }],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -210,12 +216,7 @@ describe("validateSource", () => {
             extends: "base",
         });
 
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "base", path: "profiles/base" },
-                { name: "child", path: "profiles/child" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -235,9 +236,7 @@ describe("validateSource", () => {
             join(skillDir, "SKILL.md"),
             "Use {{project_name}} and {{undefined_var}} here.",
         );
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -261,15 +260,14 @@ describe("validateSource", () => {
         await writeProfileManifest(profileDir, {
             variables: { project_name: "my-app", framework: "react" },
         });
-        const docsDir = join(profileDir, "ai", "rules", "universal");
-        await mkdir(docsDir, { recursive: true });
+        // Use flat rules files (not subdirectories) to avoid Check 6b warning
+        const rulesDir = join(profileDir, "ai", "rules");
+        await mkdir(rulesDir, { recursive: true });
         await writeFile(
-            join(docsDir, "rule1.md"),
+            join(rulesDir, "rule1.md"),
             "Project: {{project_name}}, Framework: {{framework}}",
         );
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -277,30 +275,6 @@ describe("validateSource", () => {
         expect(report.issues.filter((i) => i.message.includes("Undefined variable"))).toHaveLength(
             0,
         );
-    });
-
-    // ── Check 15: Orphaned profiles ─────────────────────────────────
-    it("warns about orphaned profiles on disk", async () => {
-        // Create two profiles on disk
-        await writeProfileManifest(join(TEST_DIR, "profiles", "declared"), {
-            name: "declared",
-        });
-        await writeProfileManifest(join(TEST_DIR, "profiles", "orphaned"), {
-            name: "orphaned",
-        });
-        // Only declare one in the source manifest
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "declared", path: "profiles/declared" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("Orphaned profile"),
-            ),
-        ).toBe(true);
     });
 
     // ── Profile count in summary ────────────────────────────────────
@@ -311,12 +285,7 @@ describe("validateSource", () => {
         await writeProfileManifest(join(TEST_DIR, "profiles", "beta"), {
             name: "beta",
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "alpha", path: "profiles/alpha" },
-                { name: "beta", path: "profiles/beta" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -325,14 +294,10 @@ describe("validateSource", () => {
 
     // ── Fully valid complex source ──────────────────────────────────
     it("passes for a fully valid complex source", async () => {
-        // Source manifest with explicit profiles
+        // Source manifest — profiles are auto-discovered
         await writeSourceManifest(TEST_DIR, {
             description: "Complex valid source",
             ai: { tools: ["claude-code", "cursor"] },
-            profiles: [
-                { name: "base", path: "profiles/base" },
-                { name: "frontend", path: "profiles/frontend" },
-            ],
         });
 
         // ── Base profile (content auto-discovered from filesystem) ─────
@@ -405,12 +370,7 @@ describe("validateSource", () => {
         await writeProfileManifest(profileA, { name: "a", extends: "b" });
         const profileB = join(TEST_DIR, "profiles", "b");
         await writeProfileManifest(profileB, { name: "b", extends: "a" });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "a", path: "profiles/a" },
-                { name: "b", path: "profiles/b" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -426,13 +386,7 @@ describe("validateSource", () => {
         await writeProfileManifest(join(TEST_DIR, "profiles", "a"), { name: "a", extends: "b" });
         await writeProfileManifest(join(TEST_DIR, "profiles", "b"), { name: "b", extends: "c" });
         await writeProfileManifest(join(TEST_DIR, "profiles", "c"), { name: "c", extends: "a" });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "a", path: "profiles/a" },
-                { name: "b", path: "profiles/b" },
-                { name: "c", path: "profiles/c" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -450,12 +404,7 @@ describe("validateSource", () => {
             name: "child",
             extends: "base",
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "base", path: "profiles/base" },
-                { name: "child", path: "profiles/child" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -475,13 +424,7 @@ describe("validateSource", () => {
             extends: "base",
             weight: 10,
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "base", path: "profiles/base" },
-                { name: "react", path: "profiles/react" },
-                { name: "vue", path: "profiles/vue" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -500,12 +443,7 @@ describe("validateSource", () => {
         await writeProfileManifest(join(TEST_DIR, "profiles", "standalone-b"), {
             name: "standalone-b",
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "standalone-a", path: "profiles/standalone-a" },
-                { name: "standalone-b", path: "profiles/standalone-b" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
@@ -532,37 +470,10 @@ describe("validateSource", () => {
             extends: "base",
             weight: 20,
         });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [
-                { name: "base", path: "profiles/base" },
-                { name: "react", path: "profiles/react" },
-                { name: "vue", path: "profiles/vue" },
-            ],
-        });
+        await writeSourceManifest(TEST_DIR);
 
         const report = await validateSource(TEST_DIR);
 
         expect(report.issues.some((i) => i.message.includes("last-installed wins"))).toBe(false);
-    });
-
-    // ── Missing profile manifest file ───────────────────────────────
-    it("reports error when profile directory exists but baton.profile.yaml is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "empty");
-        await mkdir(profileDir, { recursive: true });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "empty", path: "profiles/empty" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(false);
-        expect(
-            report.issues.some(
-                (i) =>
-                    i.severity === "error" &&
-                    i.message.includes("baton.profile.yaml") &&
-                    i.message.includes("not found"),
-            ),
-        ).toBe(true);
     });
 });

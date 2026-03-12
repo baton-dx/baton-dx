@@ -19,9 +19,6 @@ describe("source validate (integration)", () => {
             join(testDir, "baton.source.yaml"),
             `name: "my-source"
 version: "1.0.0"
-profiles:
-  - name: "default"
-    path: "profiles/default"
 `,
         );
         await mkdir(join(testDir, "profiles", "default", "ai", "memory"), { recursive: true });
@@ -29,10 +26,6 @@ profiles:
             join(testDir, "profiles", "default", "baton.profile.yaml"),
             `name: "default"
 version: "1.0.0"
-ai:
-  memory:
-    - source: "MEMORY.md"
-      merge: "append"
 `,
         );
         await writeFile(
@@ -48,6 +41,7 @@ ai:
     });
 
     it("validates a complex source with multiple issues", async () => {
+        // Legacy 'profiles' field in source manifest triggers error (Check 0a)
         await writeFile(
             join(testDir, "baton.source.yaml"),
             `name: "my-source"
@@ -68,16 +62,11 @@ profiles:
             join(testDir, "profiles", "default", "baton.profile.yaml"),
             `name: "default"
 version: "1.0.0"
-ai:
-  skills:
-    - name: "nonexistent-skill"
-      scope: "project"
 `,
         );
 
         const report = await validateSource(testDir);
         expect(report.valid).toBe(false);
         expect(report.summary.errors).toBeGreaterThanOrEqual(1);
-        expect(report.summary.warnings).toBeGreaterThanOrEqual(1);
     });
 });
