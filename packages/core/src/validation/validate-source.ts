@@ -2,7 +2,11 @@ import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
 import { parse as parseYaml } from "yaml";
-import { profileManifestSchema } from "../schemas/profile-manifest.js";
+import {
+    detectV1Fields,
+    mcpServerSchema,
+    profileManifestSchema,
+} from "../schemas/profile-manifest.js";
 import { sourceManifestSchema } from "../schemas/source-manifest.js";
 import type { ValidationIssue, ValidationReport } from "./types.js";
 
@@ -47,6 +51,71 @@ function extractVariableReferences(content: string): string[] {
     const varRegex = /\{\{(\w+)\}\}/g;
     const matches = content.matchAll(varRegex);
     return Array.from(matches, (m) => m[1]);
+}
+
+/**
+ * Check whether a directory has v1-style subdirectory structure (e.g. ai/rules/universal/).
+ * In v2, rules and agents are flat files directly under ai/rules/ and ai/agents/.
+ *
+ * Returns true if any subdirectory is found that suggests v1 layout.
+ */
+async function hasV1SubdirectoryLayout(dir: string): Promise<boolean> {
+    try {
+        const entries = await readdir(dir, { withFileTypes: true });
+        return entries.some((e) => e.isDirectory());
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Validate all MCP YAML files under ai/mcp/ against the mcpServerSchema.
+ * Returns ValidationIssues for any files that fail schema validation.
+ */
+async function validateMcpYamlFiles(
+    profileDir: string,
+    _profilePath: string,
+    ctx: string,
+    sourceRoot: string,
+): Promise<ValidationIssue[]> {
+    const issues: ValidationIssue[] = [];
+    const mcpDir = join(profileDir, "ai", "mcp");
+
+    try {
+        const entries = await readdir(mcpDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isFile() || !entry.name.endsWith(".yaml")) continue;
+            const filePath = join(mcpDir, entry.name);
+            const relPath = relative(sourceRoot, filePath);
+
+            try {
+                const raw = await readFile(filePath, "utf-8");
+                const parsed = parseYaml(raw);
+                const result = mcpServerSchema.safeParse(parsed);
+                if (!result.success) {
+                    for (const issue of result.error.issues) {
+                        issues.push({
+                            severity: "error",
+                            message: `MCP server config schema error in ${relPath}: ${issue.message} (at ${issue.path.join(".")})`,
+                            path: relPath,
+                            context: ctx,
+                        });
+                    }
+                }
+            } catch {
+                issues.push({
+                    severity: "error",
+                    message: `MCP server config ${relPath} contains invalid YAML`,
+                    path: relPath,
+                    context: ctx,
+                });
+            }
+        }
+    } catch {
+        // ai/mcp/ directory doesn't exist — that's fine
+    }
+
+    return issues;
 }
 
 /**
@@ -204,6 +273,46 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
         // Content (skills, rules, agents, memory, commands, files, IDE)
         // is now auto-discovered from the filesystem. Manifest no longer
         // declares these sections, so file-existence checks are no longer needed.
+
+        // ── Check 6a: Detect v1 manifest fields ────────────────────────
+        // rawProfileManifest is non-null here (we parsed it successfully above)
+        const v1FieldErrors = detectV1Fields(rawProfileManifest);
+        for (const msg of v1FieldErrors) {
+            issues.push({
+                severity: "error",
+                message: msg,
+                path: join(profile.path, "baton.profile.yaml"),
+                context: ctx,
+            });
+        }
+
+        // ── Check 6b: Detect v1 subdirectory layout in ai/rules/ ───────
+        // In v2, rules are flat .md files directly under ai/rules/.
+        // A subdirectory (e.g. ai/rules/universal/ or ai/rules/cursor/) indicates v1 layout.
+        const rulesDir = join(profileDir, "ai", "rules");
+        if (await hasV1SubdirectoryLayout(rulesDir)) {
+            issues.push({
+                severity: "warning",
+                message: `ai/rules/ contains subdirectories (e.g. universal/, cursor/). In v2, rules are flat .md files directly under ai/rules/. Move files to ai/rules/<name>.md and remove subdirectories.`,
+                path: join(profile.path, "ai", "rules"),
+                context: ctx,
+            });
+        }
+
+        // ── Check 6c: Detect v1 subdirectory layout in ai/agents/ ──────
+        const agentsDir = join(profileDir, "ai", "agents");
+        if (await hasV1SubdirectoryLayout(agentsDir)) {
+            issues.push({
+                severity: "warning",
+                message: `ai/agents/ contains subdirectories. In v2, agents are flat .md files directly under ai/agents/. Move files to ai/agents/<name>.md and remove subdirectories.`,
+                path: join(profile.path, "ai", "agents"),
+                context: ctx,
+            });
+        }
+
+        // ── Check 6d: Validate MCP YAML files ──────────────────────────
+        const mcpIssues = await validateMcpYamlFiles(profileDir, profile.path, ctx, sourceRoot);
+        issues.push(...mcpIssues);
 
         // ── Check 13: Extends references are resolvable ────────────────
         if (profileManifest.extends) {

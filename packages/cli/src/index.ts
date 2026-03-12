@@ -11,6 +11,7 @@ import { diffCommand } from "./commands/diff.js";
 import { idesCommand } from "./commands/ides/index.js";
 import { initCommand } from "./commands/init.js";
 import { manageCommand } from "./commands/manage.js";
+import { previewCommand } from "./commands/preview.js";
 import { profileCommand } from "./commands/profile/index.js";
 import { selfUpdateCommand } from "./commands/self-update.js";
 import { sourceCommand } from "./commands/source/index.js";
@@ -59,6 +60,7 @@ const main = defineCommand({
         update: updateCommand,
         diff: diffCommand,
         manage: manageCommand,
+        preview: previewCommand,
         config: configCommand,
         auth: authCommand,
         source: sourceCommand,
@@ -89,6 +91,7 @@ const main = defineCommand({
             console.log("  update     (deprecated) Use 'baton sync' instead");
             console.log("  diff       Compare local files with remote source versions");
             console.log("  manage     Interactive project management wizard");
+            console.log("  preview    Preview processed output for a specific AI tool");
             console.log("  config     Show dashboard overview or configure settings");
             console.log("");
             console.log("Resource commands:");
