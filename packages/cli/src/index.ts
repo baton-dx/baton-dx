@@ -16,7 +16,6 @@ import { profileCommand } from "./commands/profile/index.js";
 import { selfUpdateCommand } from "./commands/self-update.js";
 import { sourceCommand } from "./commands/source/index.js";
 import { syncCommand } from "./commands/sync.js";
-import { updateCommand } from "./commands/update.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let packageJson: { version?: string } = {};
@@ -57,7 +56,6 @@ const main = defineCommand({
         init: initCommand,
         apply: applyCommand,
         sync: syncCommand,
-        update: updateCommand,
         diff: diffCommand,
         preview: previewCommand,
         manage: manageCommand,
@@ -88,7 +86,6 @@ const main = defineCommand({
             console.log("  init       Initialize Baton in your project");
             console.log("  apply      Apply locked configurations (deterministic, reproducible)");
             console.log("  sync       Fetch latest versions, sync, and update lockfile");
-            console.log("  update     (deprecated) Use 'baton sync' instead");
             console.log("  diff       Compare local files with remote source versions");
             console.log("  preview    Preview processed output for a specific AI tool");
             console.log("  manage     Interactive project management wizard");
