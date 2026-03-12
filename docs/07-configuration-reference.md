@@ -23,7 +23,7 @@ variables:                       # optional: template variables
 overrides:                       # optional: override merge strategies
   files:
     .gitignore:
-      merge: skip
+      merge: replace
 
 extras:                          # optional: additional metadata
   scripts:
@@ -129,13 +129,7 @@ version: 1.0.0
 description: Team DX standards
 repository: github:my-org/dx-configs
 
-profiles:
-  - name: frontend
-    path: profiles/frontend
-    description: Frontend development
-  - name: backend
-    path: profiles/backend
-    description: Backend API development
+# Profiles are auto-discovered from the profiles/ directory.
 
 metadata:
   author: ACME Corp
@@ -148,11 +142,9 @@ metadata:
 | `version` | string | yes | Semver version |
 | `description` | string | no | Human-readable description |
 | `repository` | string | no | Repository URL |
-| `profiles` | array | no | List of profiles in this source |
-| `profiles[].name` | string | yes | Profile name |
-| `profiles[].path` | string | yes | Path to profile directory |
-| `profiles[].description` | string | no | Profile description |
 | `metadata` | object | no | Additional metadata |
+
+Profiles are auto-discovered: any subdirectory under `profiles/` that contains a valid `baton.profile.yaml` is automatically included. No explicit `profiles:` list is needed.
 
 ---
 

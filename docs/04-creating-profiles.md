@@ -573,16 +573,16 @@ Each hook is an array of shell commands that run sequentially. If any command fa
 
 ---
 
-## Migration: From v1 Manifest-Based to v2 Convention-Based
+## Migration: From Pre-1.0 Manifest-Based to 1.0 Convention-Based
 
-If you have an existing profile using the v1 manifest-based declarations, here is how to migrate.
+If you have an existing profile using pre-1.0 manifest-based declarations, here is how to migrate.
 
-### Before (v1 — explicit declarations)
+### Before (pre-1.0 — explicit declarations)
 
 ```yaml
 # baton.profile.yaml
 name: frontend
-version: 1.0.0
+version: 0.9.0
 ai:
   tools: [claude-code, cursor]
   skills:
@@ -591,9 +591,13 @@ ai:
   rules:
     - name: coding-style
       scope: project
+  agents:
+    - name: reviewer
   memory:
     - source: MEMORY.md
       merge: append
+  commands:
+    - name: deploy
 files:
   - source: files/biome.json
     target: biome.json
@@ -603,7 +607,7 @@ ide:
     settings: ide/vscode/settings.json
 ```
 
-### After (v2 — convention-based)
+### After (1.0 — convention-based)
 
 ```yaml
 # baton.profile.yaml — just identity and options
@@ -613,7 +617,7 @@ ai:
   tools: [claude-code, cursor]
 ```
 
-The directory structure is identical — no files need to move. Baton v2 discovers them automatically. Remove the `ai.skills`, `ai.rules`, `ai.memory`, `ai.commands`, `ai.agents`, `files`, and `ide` blocks from the manifest.
+The directory structure is identical — no files need to move. Baton 1.0 discovers them automatically. Remove the `ai.skills`, `ai.rules`, `ai.memory`, `ai.commands`, `ai.agents`, `files`, and `ide` blocks from the manifest. Also remove any `merge: append`, `merge: deep`, or other legacy merge strategy references — only `concat` (default) and `replace` are supported.
 
 To set a non-default merge strategy on your memory file, add frontmatter to `ai/memory/MEMORY.md`:
 

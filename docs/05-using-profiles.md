@@ -48,7 +48,7 @@ variables:
 overrides:
   files:
     .gitignore:
-      merge: skip
+      merge: replace
 ```
 
 ### Field Reference
@@ -144,8 +144,8 @@ The merge order is: `base` (0) -> `frontend` (10) -> `strict` (100). If `base` a
 | Same file, different weights   | Higher weight wins.                           |
 | Same file, equal weights       | Later profile in `baton.yaml` wins.           |
 | Same rule, different scopes    | Both are applied (different scope targets).   |
-| File with `merge: deep`        | Objects are deep-merged across profiles.      |
-| File with `merge: append`      | Content from all profiles is concatenated.    |
+| File with `merge: concat` (default) | Content from all profiles is concatenated with `\n\n` separator. |
+| File with `merge: replace`     | Last profile (highest weight) completely overwrites. |
 
 ---
 
@@ -307,9 +307,7 @@ Project-level overrides in `baton.yaml` let you customize how specific files or 
 overrides:
   files:
     .gitignore:
-      merge: skip
-    biome.json:
-      merge: deep
+      merge: replace
   rules:
     coding-style:
       scope: global
