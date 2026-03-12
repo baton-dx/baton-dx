@@ -32,9 +32,7 @@ export function normalizeMergeStrategy(
 ): string {
     const mapped = LEGACY_STRATEGY_MAP[strategy];
     if (mapped) {
-        onWarning?.(
-            `Merge strategy "${strategy}" is deprecated, use "${mapped}" instead`,
-        );
+        onWarning?.(`Merge strategy "${strategy}" is deprecated, use "${mapped}" instead`);
         return mapped;
     }
     return strategy;
@@ -42,6 +40,12 @@ export function normalizeMergeStrategy(
 
 /**
  * Merge content parts according to the specified merge strategy.
+ *
+ * v2 supports only two strategies:
+ * - "concat" (default): join all parts with \n\n and normalize whitespace
+ * - "replace": last part wins
+ *
+ * Legacy strategies are accepted with deprecation mapping (see normalizeMergeStrategy).
  *
  * @param parts - Non-empty array of content strings to merge
  * @param strategy - Merge strategy: "concat" (default) or "replace"

@@ -18,12 +18,6 @@ ai:
   tools:
     - claude-code
     - cursor
-  skills:
-    - name: code-review
-      scope: project
-  memory:
-    - source: MEMORY.md
-      merge: replace
 `;
 
         await writeFile(manifestPath, validManifest, "utf-8");

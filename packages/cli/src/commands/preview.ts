@@ -1,15 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import type { AIToolAdapter } from "@baton-dx/core";
 import {
+    assembleContentFromDiscovery,
     type ClonedSource,
-    type DirectiveContext,
-    type MemoryEntry,
-    type MergedSkillItem,
-    type RuleEntry,
-    type RuleFile,
-    type Scope,
     cloneGitSource,
+    type DirectiveContext,
     detectInstalledAITools,
+    discoverProfile,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
@@ -17,18 +15,21 @@ import {
     getGlobalIdePlatforms,
     loadProfileManifest,
     loadProjectManifest,
+    type MemoryEntry,
+    type MergedSkillItem,
     mergeContentParts,
-    mergeMemory,
-    mergeRules,
-    mergeSkills,
     normalizeMarkdown,
     parseFrontmatter,
     parseSource,
     processDirectives,
+    type RuleEntry,
+    type RuleFile,
     resolveAuth,
     resolveNpmSource,
     resolveProfileChain,
     resolveScope,
+    type Scope,
+    sortProfilesByWeight,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -37,11 +38,16 @@ import { buildIntersection } from "../utils/build-intersection.js";
 const VALID_TYPES = ["memory", "rules", "agents", "skills", "commands"] as const;
 type ContentType = (typeof VALID_TYPES)[number];
 
+/** A single rendered output section */
+interface PreviewSection {
+    filePath: string;
+    content: string;
+}
+
 export const previewCommand = defineCommand({
     meta: {
         name: "preview",
-        description:
-            "Preview processed output for a specific AI tool, with directive processing",
+        description: "Preview processed output for a specific AI tool, with directive processing",
     },
     args: {
         tool: {
@@ -51,8 +57,11 @@ export const previewCommand = defineCommand({
         },
         type: {
             type: "string",
-            description:
-                "Filter to a content type: memory, rules, agents, skills, commands",
+            description: "Filter to a content type: memory, rules, agents, skills, commands",
+        },
+        diff: {
+            type: "string",
+            description: "Compare output with another tool (e.g. --diff cursor)",
         },
     },
     async run({ args }) {
@@ -76,7 +85,7 @@ export const previewCommand = defineCommand({
                 process.exit(0);
             }
 
-            // Step 1: Resolve profile chains (identical to diff.ts)
+            // Step 1: Resolve profile chains
             const spinner = p.spinner();
             spinner.start("Resolving profile chain...");
 
@@ -158,26 +167,40 @@ export const previewCommand = defineCommand({
 
             spinner.stop(`Resolved ${allProfiles.length} profile(s)`);
 
-            // Step 2: Merge configurations
-            spinner.start("Merging configurations...");
+            // Step 2: Discover and assemble content using filesystem discovery
+            spinner.start("Discovering and merging configurations...");
 
-            const mergedSkills: MergedSkillItem[] = mergeSkills(allProfiles);
-            const mergedRules: RuleEntry[] = mergeRules(allProfiles);
-            const mergedMemory: MemoryEntry[] = mergeMemory(allProfiles);
+            const weightSortedProfiles = sortProfilesByWeight(allProfiles);
 
-            const commandMap = new Map<string, { profileName: string; scope: Scope }>();
-            for (const profile of allProfiles) {
-                for (const cmd of profile.manifest.ai?.commands || []) {
-                    commandMap.set(cmd, {
-                        profileName: profile.name,
-                        scope: resolveScope(undefined, profile.manifest.scope),
+            const discoveryInputs = [];
+            for (const profile of weightSortedProfiles) {
+                const localPath = profileLocalPaths.get(profile.name);
+                if (!localPath) continue;
+                try {
+                    const discovery = await discoverProfile(localPath);
+                    discoveryInputs.push({
+                        discovery,
+                        meta: {
+                            name: profile.name,
+                            profileScope: profile.manifest.scope,
+                        },
                     });
+                } catch {
+                    // Skip profiles where discovery fails
                 }
             }
 
+            const assembled = assembleContentFromDiscovery(discoveryInputs);
+            const mergedSkills: MergedSkillItem[] = assembled.skills;
+            const mergedRules: RuleEntry[] = assembled.rules;
+            const mergedAgents = assembled.agents;
+            const mergedMemory: MemoryEntry[] = assembled.memory;
+            const mergedCommands = assembled.commands;
+            const sourceFilePaths = assembled.sourceFilePaths;
+
             spinner.stop("Configurations merged");
 
-            // Step 3: Compute tool intersection, find matching adapter
+            // Step 3: Compute tool intersection, find matching adapters
             spinner.start("Computing tool intersection...");
 
             const globalAiTools = await getGlobalAiTools();
@@ -217,9 +240,9 @@ export const previewCommand = defineCommand({
             }
 
             const adapters = getAIToolAdaptersForKeys(syncedAiTools);
-            const adapter = adapters.find((a) => a.key === args.tool);
+            const primaryAdapter = adapters.find((a) => a.key === args.tool);
 
-            if (!adapter) {
+            if (!primaryAdapter) {
                 spinner.stop("Tool not found");
                 p.cancel(
                     `Tool "${args.tool}" not found in synced tools: ${syncedAiTools.join(", ")}`,
@@ -227,231 +250,223 @@ export const previewCommand = defineCommand({
                 process.exit(1);
             }
 
-            spinner.stop(`Previewing for: ${adapter.key}`);
-
-            // Helper to build directive context
-            function makeDirectiveContext(
-                profileDir: string,
-                profileName: string,
-                scope: string,
-                contentType: string,
-            ): DirectiveContext {
-                return {
-                    projectRoot,
-                    profileRoot: profileDir,
-                    profileName,
-                    currentTool: adapter!.key,
-                    detectedTools: syncedAiTools,
-                    detectedIdes: [],
-                    scope,
-                    contentType,
-                };
+            // Validate diff target if provided
+            let diffAdapter: AIToolAdapter | undefined;
+            if (args.diff) {
+                diffAdapter = adapters.find((a) => a.key === args.diff);
+                if (!diffAdapter) {
+                    spinner.stop("Diff tool not found");
+                    p.cancel(
+                        `Diff tool "${args.diff}" not found in synced tools: ${syncedAiTools.join(", ")}`,
+                    );
+                    process.exit(1);
+                }
             }
 
-            // Helper to output a file section
-            function outputSection(filePath: string, content: string): void {
-                console.log(`\x1b[2m--- ${filePath} ---\x1b[0m`);
-                console.log(content);
-            }
+            spinner.stop(
+                diffAdapter
+                    ? `Comparing: ${primaryAdapter.key} vs ${diffAdapter.key}`
+                    : `Previewing for: ${primaryAdapter.key}`,
+            );
 
-            // --- Memory ---
-            if (!typeFilter || typeFilter === "memory") {
-                for (const memoryEntry of mergedMemory) {
-                    const contentParts: string[] = [];
-                    for (const contribution of memoryEntry.contributions) {
-                        const profileDir = profileLocalPaths.get(contribution.profileName);
-                        if (!profileDir) continue;
-                        const memoryFilePath = resolve(
-                            profileDir,
-                            "ai",
-                            "memory",
-                            memoryEntry.filename,
+            // Collect preview output for a given adapter
+            async function collectPreview(adapter: AIToolAdapter): Promise<PreviewSection[]> {
+                const sections: PreviewSection[] = [];
+
+                function makeDirectiveContext(
+                    scope: string,
+                    contentType: string,
+                ): DirectiveContext {
+                    return {
+                        projectRoot,
+                        currentTool: adapter.key,
+                        detectedTools: syncedAiTools,
+                        detectedIdes: [],
+                        scope,
+                        contentType,
+                    };
+                }
+
+                // --- Memory ---
+                if (!typeFilter || typeFilter === "memory") {
+                    for (const memoryEntry of mergedMemory) {
+                        const contentParts: string[] = [];
+                        for (const contribution of memoryEntry.contributions) {
+                            const profileDir = profileLocalPaths.get(contribution.profileName);
+                            if (!profileDir) continue;
+                            const memoryFilePath = resolve(
+                                profileDir,
+                                "ai",
+                                "memory",
+                                memoryEntry.filename,
+                            );
+                            let rawContent: string;
+                            try {
+                                rawContent = await readFile(memoryFilePath, "utf-8");
+                            } catch {
+                                continue;
+                            }
+
+                            const processed = await processDirectives(rawContent, {
+                                context: makeDirectiveContext(memoryEntry.scope, "memory"),
+                            });
+                            contentParts.push(processed);
+                        }
+                        if (contentParts.length === 0) continue;
+
+                        const mergedContent = mergeContentParts(
+                            contentParts,
+                            memoryEntry.mergeStrategy,
                         );
+                        const transformed = adapter.transformMemory({
+                            filename: memoryEntry.filename,
+                            content: mergedContent,
+                        });
+                        const targetPath = adapter.getPath(
+                            "memory",
+                            memoryEntry.scope,
+                            transformed.filename,
+                        );
+                        sections.push({
+                            filePath: targetPath,
+                            content: normalizeMarkdown(transformed.content),
+                        });
+                    }
+                }
+
+                // --- Rules ---
+                if (!typeFilter || typeFilter === "rules") {
+                    const ruleAccumulator = new Map<string, string[]>();
+
+                    for (const ruleEntry of mergedRules) {
+                        const profileDir = profileLocalPaths.get(ruleEntry.profileName);
+                        if (!profileDir) continue;
+
+                        // Use sourceFilePaths from discovery to get the actual file location
+                        const sourceFilePath = sourceFilePaths.get(`rules/${ruleEntry.name}`);
+                        const ruleSourcePath =
+                            sourceFilePath ??
+                            resolve(profileDir, "ai", "rules", `${ruleEntry.name}.md`);
+
                         let rawContent: string;
                         try {
-                            rawContent = await readFile(memoryFilePath, "utf-8");
+                            rawContent = await readFile(ruleSourcePath, "utf-8");
                         } catch {
                             continue;
                         }
 
                         const processed = await processDirectives(rawContent, {
-                            context: makeDirectiveContext(
-                                profileDir,
-                                contribution.profileName,
-                                memoryEntry.scope,
-                                "memory",
-                            ),
+                            context: makeDirectiveContext(ruleEntry.scope, "rules"),
                         });
-                        contentParts.push(processed);
-                    }
-                    if (contentParts.length === 0) continue;
 
-                    const mergedContent = mergeContentParts(
-                        contentParts,
-                        memoryEntry.mergeStrategy,
-                    );
-                    const transformed = adapter.transformMemory({
-                        filename: memoryEntry.filename,
-                        content: mergedContent,
-                    });
-                    const targetPath = adapter.getPath(
-                        "memory",
-                        memoryEntry.scope,
-                        transformed.filename,
-                    );
-                    outputSection(targetPath, normalizeMarkdown(transformed.content));
-                }
-            }
+                        const parsed = parseFrontmatter(processed);
+                        const ruleFile: RuleFile = {
+                            name: ruleEntry.name,
+                            content: processed,
+                            frontmatter:
+                                Object.keys(parsed.data).length > 0
+                                    ? (parsed.data as RuleFile["frontmatter"])
+                                    : undefined,
+                        };
 
-            // --- Rules ---
-            if (!typeFilter || typeFilter === "rules") {
-                const ruleAccumulator = new Map<string, string[]>();
-
-                for (const ruleEntry of mergedRules) {
-                    const isUniversal = ruleEntry.agents.length === 0;
-                    const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
-                    if (!isUniversal && !isForThisAdapter) continue;
-
-                    const profileDir = profileLocalPaths.get(ruleEntry.profileName);
-                    if (!profileDir) continue;
-
-                    const ruleSubdir = isUniversal ? "universal" : ruleEntry.agents[0];
-                    const ruleSourcePath = resolve(
-                        profileDir,
-                        "ai",
-                        "rules",
-                        ruleSubdir,
-                        `${ruleEntry.name}.md`,
-                    );
-
-                    let rawContent: string;
-                    try {
-                        rawContent = await readFile(ruleSourcePath, "utf-8");
-                    } catch {
-                        continue;
-                    }
-
-                    const processed = await processDirectives(rawContent, {
-                        context: makeDirectiveContext(
-                            profileDir,
-                            ruleEntry.profileName,
-                            ruleEntry.scope,
+                        const transformed = adapter.transformRule(ruleFile);
+                        const targetPath = adapter.getPath(
                             "rules",
-                        ),
-                    });
-
-                    const parsed = parseFrontmatter(processed);
-                    const ruleFile: RuleFile = {
-                        name: ruleEntry.name,
-                        content: processed,
-                        frontmatter:
-                            Object.keys(parsed.data).length > 0
-                                ? (parsed.data as RuleFile["frontmatter"])
-                                : undefined,
-                    };
-
-                    const transformed = adapter.transformRule(ruleFile);
-                    const targetPath = adapter.getPath("rules", ruleEntry.scope, ruleEntry.name);
-
-                    const existing = ruleAccumulator.get(targetPath);
-                    if (existing) {
-                        existing.push(transformed.content);
-                    } else {
-                        ruleAccumulator.set(targetPath, [transformed.content]);
-                    }
-                }
-
-                for (const [targetPath, parts] of ruleAccumulator) {
-                    outputSection(targetPath, normalizeMarkdown(parts.join("\n\n")));
-                }
-            }
-
-            // --- Skills ---
-            if (!typeFilter || typeFilter === "skills") {
-                for (const skillItem of mergedSkills) {
-                    const profileDir = profileLocalPaths.get(skillItem.profileName);
-                    if (!profileDir) continue;
-                    const skillSourceDir = resolve(profileDir, "ai", "skills", skillItem.name);
-                    const targetSkillPath = adapter.getPath(
-                        "skills",
-                        skillItem.scope,
-                        skillItem.name,
-                    );
-
-                    // Read SKILL.md from skill directory
-                    const skillFilePath = resolve(skillSourceDir, "SKILL.md");
-                    let rawContent: string;
-                    try {
-                        rawContent = await readFile(skillFilePath, "utf-8");
-                    } catch {
-                        continue;
-                    }
-
-                    const processed = await processDirectives(rawContent, {
-                        context: makeDirectiveContext(
-                            profileDir,
-                            skillItem.profileName,
-                            skillItem.scope,
-                            "skills",
-                        ),
-                    });
-
-                    outputSection(`${targetSkillPath}/SKILL.md`, processed);
-                }
-            }
-
-            // --- Commands ---
-            if (!typeFilter || typeFilter === "commands") {
-                for (const [commandName, { profileName, scope }] of commandMap) {
-                    const profileDir = profileLocalPaths.get(profileName);
-                    if (!profileDir) continue;
-
-                    const commandSourcePath = resolve(
-                        profileDir,
-                        "ai",
-                        "commands",
-                        `${commandName}.md`,
-                    );
-                    let rawContent: string;
-                    try {
-                        rawContent = await readFile(commandSourcePath, "utf-8");
-                    } catch {
-                        continue;
-                    }
-
-                    const processed = await processDirectives(rawContent, {
-                        context: makeDirectiveContext(
-                            profileDir,
-                            profileName,
-                            scope,
-                            "commands",
-                        ),
-                    });
-
-                    const targetPath = adapter.getPath("commands", scope, commandName);
-                    outputSection(targetPath, processed);
-                }
-            }
-
-            // --- Agents ---
-            if (!typeFilter || typeFilter === "agents") {
-                for (const profile of allProfiles) {
-                    const profileDir = profileLocalPaths.get(profile.name);
-                    if (!profileDir) continue;
-
-                    const agentsRaw = profile.manifest.ai?.agents;
-                    const agentNames: string[] = Array.isArray(agentsRaw)
-                        ? agentsRaw
-                        : agentsRaw
-                          ? Object.values(agentsRaw).flat().filter((n): n is string => typeof n === "string")
-                          : [];
-                    for (const agentName of agentNames) {
-                        const agentSourcePath = resolve(
-                            profileDir,
-                            "ai",
-                            "agents",
-                            `${agentName}.md`,
+                            ruleEntry.scope,
+                            ruleEntry.name,
                         );
+
+                        const existing = ruleAccumulator.get(targetPath);
+                        if (existing) {
+                            existing.push(transformed.content);
+                        } else {
+                            ruleAccumulator.set(targetPath, [transformed.content]);
+                        }
+                    }
+
+                    for (const [targetPath, parts] of ruleAccumulator) {
+                        sections.push({
+                            filePath: targetPath,
+                            content: normalizeMarkdown(parts.join("\n\n")),
+                        });
+                    }
+                }
+
+                // --- Skills ---
+                if (!typeFilter || typeFilter === "skills") {
+                    for (const skillItem of mergedSkills) {
+                        const profileDir = profileLocalPaths.get(skillItem.profileName);
+                        if (!profileDir) continue;
+
+                        const sourceSkillPath = sourceFilePaths.get(`skills/${skillItem.name}`);
+                        const skillSourceDir =
+                            sourceSkillPath ?? resolve(profileDir, "ai", "skills", skillItem.name);
+                        const targetSkillPath = adapter.getPath(
+                            "skills",
+                            skillItem.scope,
+                            skillItem.name,
+                        );
+
+                        const skillFilePath = resolve(skillSourceDir, "SKILL.md");
+                        let rawContent: string;
+                        try {
+                            rawContent = await readFile(skillFilePath, "utf-8");
+                        } catch {
+                            continue;
+                        }
+
+                        const processed = await processDirectives(rawContent, {
+                            context: makeDirectiveContext(skillItem.scope, "skills"),
+                        });
+
+                        sections.push({
+                            filePath: `${targetSkillPath}/SKILL.md`,
+                            content: processed,
+                        });
+                    }
+                }
+
+                // --- Commands ---
+                if (!typeFilter || typeFilter === "commands") {
+                    for (const cmdEntry of mergedCommands) {
+                        const profileDir = profileLocalPaths.get(cmdEntry.profileName);
+                        if (!profileDir) continue;
+
+                        const sourceCommandPath = sourceFilePaths.get(`commands/${cmdEntry.name}`);
+                        const commandSourcePath =
+                            sourceCommandPath ??
+                            resolve(profileDir, "ai", "commands", `${cmdEntry.name}.md`);
+
+                        let rawContent: string;
+                        try {
+                            rawContent = await readFile(commandSourcePath, "utf-8");
+                        } catch {
+                            continue;
+                        }
+
+                        const processed = await processDirectives(rawContent, {
+                            context: makeDirectiveContext(cmdEntry.scope, "commands"),
+                        });
+
+                        const targetPath = adapter.getPath(
+                            "commands",
+                            cmdEntry.scope,
+                            cmdEntry.name,
+                        );
+                        sections.push({ filePath: targetPath, content: processed });
+                    }
+                }
+
+                // --- Agents ---
+                if (!typeFilter || typeFilter === "agents") {
+                    for (const agentEntry of mergedAgents) {
+                        const profileDir = profileLocalPaths.get(agentEntry.profileName);
+                        if (!profileDir) continue;
+
+                        const sourceAgentPath = sourceFilePaths.get(`agents/${agentEntry.name}`);
+                        const agentSourcePath =
+                            sourceAgentPath ??
+                            resolve(profileDir, "ai", "agents", `${agentEntry.name}.md`);
                         let rawContent: string;
                         try {
                             rawContent = await readFile(agentSourcePath, "utf-8");
@@ -459,19 +474,75 @@ export const previewCommand = defineCommand({
                             continue;
                         }
 
-                        const scope = resolveScope(undefined, profile.manifest.scope);
+                        const scope: Scope = resolveScope(agentEntry.scope, undefined);
                         const processed = await processDirectives(rawContent, {
-                            context: makeDirectiveContext(
-                                profileDir,
-                                profile.name,
-                                scope,
-                                "agents",
-                            ),
+                            context: makeDirectiveContext(scope, "agents"),
                         });
 
-                        const targetPath = adapter.getPath("agents", scope, agentName);
-                        outputSection(targetPath, processed);
+                        const targetPath = adapter.getPath("agents", scope, agentEntry.name);
+                        sections.push({ filePath: targetPath, content: processed });
                     }
+                }
+
+                return sections;
+            }
+
+            // Collect primary tool output
+            const primarySections = await collectPreview(primaryAdapter);
+
+            if (diffAdapter) {
+                // Diff mode: collect second tool output and compare
+                const diffSections = await collectPreview(diffAdapter);
+
+                const primaryMap = new Map(primarySections.map((s) => [s.filePath, s.content]));
+                const diffMap = new Map(diffSections.map((s) => [s.filePath, s.content]));
+                const allPaths = new Set([...primaryMap.keys(), ...diffMap.keys()]);
+
+                let hasDifferences = false;
+
+                for (const filePath of [...allPaths].sort()) {
+                    const primaryContent = primaryMap.get(filePath);
+                    const diffContent = diffMap.get(filePath);
+
+                    if (primaryContent === diffContent) continue;
+
+                    hasDifferences = true;
+
+                    // Show a simple side-by-side label for files that differ
+                    const onlyInPrimary = primaryContent !== undefined && diffContent === undefined;
+                    const onlyInDiff = primaryContent === undefined && diffContent !== undefined;
+
+                    if (onlyInPrimary) {
+                        console.log(
+                            `\x1b[33m--- only in ${primaryAdapter.key}: ${filePath} ---\x1b[0m`,
+                        );
+                        console.log(primaryContent);
+                    } else if (onlyInDiff) {
+                        console.log(
+                            `\x1b[33m--- only in ${diffAdapter.key}: ${filePath} ---\x1b[0m`,
+                        );
+                        console.log(diffContent);
+                    } else {
+                        console.log(
+                            `\x1b[33m--- ${primaryAdapter.key} vs ${diffAdapter.key}: ${filePath} ---\x1b[0m`,
+                        );
+                        console.log(`[${primaryAdapter.key}]`);
+                        console.log(primaryContent);
+                        console.log(`[${diffAdapter.key}]`);
+                        console.log(diffContent);
+                    }
+                }
+
+                if (!hasDifferences) {
+                    p.log.info(
+                        `No differences between ${primaryAdapter.key} and ${diffAdapter.key}`,
+                    );
+                }
+            } else {
+                // Standard mode: print sections
+                for (const section of primarySections) {
+                    console.log(`\x1b[2m--- ${section.filePath} ---\x1b[0m`);
+                    console.log(section.content);
                 }
             }
 

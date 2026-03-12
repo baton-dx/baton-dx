@@ -1,15 +1,13 @@
 import type { Scope } from "@baton-dx/ai-tool-paths";
-import type { ResolvedProfile } from "../inheritance/profile-chain.js";
-import { resolveScope } from "./scope-resolution.js";
-import type { WeightConflictWarning } from "./weight-sort.js";
-import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 
 /**
- * Represents an agent entry that can be tool-specific or universal
+ * Represents an agent entry — always universal in v2.
+ * The `agents` field is kept (always `[]`) for backward compatibility
+ * with the sync pipeline's placement logic.
  */
 export interface AgentEntry {
     name: string; // Agent filename (e.g., "code-reviewer", "test-writer")
-    agents: string[]; // Target agent keys (empty array = universal)
+    agents: string[]; // Always empty in v2 — per-tool targeting uses baton:if directives
     scope: Scope; // Resolved scope for placement
     profileName: string; // Source profile name for file resolution
 }
@@ -19,132 +17,25 @@ export interface AgentEntry {
  */
 export interface MergeAgentsResult {
     agents: AgentEntry[];
-    warnings: WeightConflictWarning[];
+    warnings: string[];
 }
 
 /**
- * Merge agents from multiple profiles in an inheritance chain.
- * Agents are merged additively - all agents from all profiles are collected.
- * Name conflicts: more specific profile wins (later in chain overrides earlier).
+ * Merge/deduplicate agent entries from discovery.
  *
- * Lock behavior: Agents from profiles with weight -1 cannot be overridden.
- * Same-weight warnings: When two profiles with the same weight define the same agent key,
- * a warning is emitted.
+ * In v2, agents come from filesystem discovery (flat arrays of AgentEntry).
+ * Per-tool targeting is handled by baton:if directives in frontmatter,
+ * not by the manifest schema.
  *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Array of unique agent entries with their target tools
+ * Deduplication: last entry wins (entries are expected in weight-sorted order).
+ *
+ * @param entries - Array of agent entries in merge order (base first, overrides last)
+ * @returns Deduplicated array of agent entries
  */
-export function mergeAgents(profiles: ResolvedProfile[]): AgentEntry[] {
-    return mergeAgentsWithWarnings(profiles).agents;
-}
-
-/**
- * Merge agents with detailed conflict warnings.
- *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Agents and any same-weight conflict warnings
- */
-export function mergeAgentsWithWarnings(profiles: ResolvedProfile[]): MergeAgentsResult {
+export function mergeAgentEntries(entries: AgentEntry[]): AgentEntry[] {
     const agentMap = new Map<string, AgentEntry>();
-    const lockedKeys = new Set<string>();
-    const warnings: WeightConflictWarning[] = [];
-
-    // Track which profile set each key for same-weight conflict detection
-    const keyOwner = new Map<string, { profileName: string; weight: number }>();
-
-    for (const profile of profiles) {
-        const agents = profile.manifest.ai?.agents;
-
-        if (!agents) {
-            continue;
-        }
-
-        const weight = getProfileWeight(profile);
-        const locked = isLockedProfile(profile);
-
-        if (Array.isArray(agents)) {
-            for (const agentName of agents) {
-                const key = `universal:${agentName}`;
-
-                if (lockedKeys.has(key)) {
-                    continue;
-                }
-
-                const existing = keyOwner.get(key);
-                if (
-                    existing &&
-                    existing.weight === weight &&
-                    existing.profileName !== profile.name
-                ) {
-                    warnings.push({
-                        key: agentName,
-                        category: "agent",
-                        profileA: existing.profileName,
-                        profileB: profile.name,
-                        weight,
-                    });
-                }
-
-                agentMap.set(key, {
-                    name: agentName,
-                    agents: [],
-                    scope: resolveScope(undefined, profile.manifest.scope),
-                    profileName: profile.name,
-                });
-                keyOwner.set(key, { profileName: profile.name, weight });
-
-                if (locked) {
-                    lockedKeys.add(key);
-                }
-            }
-        } else {
-            for (const [agentKey, agentNames] of Object.entries(agents)) {
-                if (!agentNames) continue;
-
-                for (const agentName of agentNames) {
-                    const isUniversal = agentKey === "universal";
-                    const key = `${agentKey}:${agentName}`;
-
-                    if (lockedKeys.has(key)) {
-                        continue;
-                    }
-
-                    const existing = keyOwner.get(key);
-                    if (
-                        existing &&
-                        existing.weight === weight &&
-                        existing.profileName !== profile.name
-                    ) {
-                        warnings.push({
-                            key: `${agentKey}:${agentName}`,
-                            category: "agent",
-                            profileA: existing.profileName,
-                            profileB: profile.name,
-                            weight,
-                        });
-                    }
-
-                    agentMap.set(key, {
-                        name: agentName,
-                        agents: isUniversal ? [] : [agentKey],
-                        scope: resolveScope(undefined, profile.manifest.scope),
-                        profileName: profile.name,
-                    });
-                    keyOwner.set(key, {
-                        profileName: profile.name,
-                        weight,
-                    });
-
-                    if (locked) {
-                        lockedKeys.add(key);
-                    }
-                }
-            }
-        }
+    for (const entry of entries) {
+        agentMap.set(entry.name, entry);
     }
-
-    return {
-        agents: Array.from(agentMap.values()),
-        warnings,
-    };
+    return Array.from(agentMap.values());
 }

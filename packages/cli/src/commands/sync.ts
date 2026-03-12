@@ -4,8 +4,10 @@ import {
     type AgentEntry,
     type AgentFile,
     type AIToolAdapter,
+    assembleContentFromDiscovery,
     atomicWriteFile,
     type CloneContext,
+    type CommandEntry,
     checkLockfileVersion,
     checkStale,
     cloneGitSource,
@@ -13,28 +15,22 @@ import {
     detectInstalledAITools,
     detectInstalledIdes,
     detectLegacyPaths,
+    discoverProfile,
     FileNotFoundError,
     type FilePlacement,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
-    getIdePlatformTargetDir,
-    getProfileWeight,
-    isKnownIdePlatform,
-    isLockedProfile,
     type LockFileEntry,
     loadProfileManifest,
     loadProjectManifest,
     type MemoryEntry,
     type MergedSkillItem,
-    mergeAgentsWithWarnings,
     mergeContentParts,
     mergeMcpWithWarnings,
-    mergeMemoryWithWarnings,
-    mergeRulesWithWarnings,
-    mergeSkillsWithWarnings,
     normalizeMarkdown,
     type ProjectManifest,
+    parseBatonFrontmatter,
     parseFrontmatter,
     parseSource,
     placeFile,
@@ -48,11 +44,9 @@ import {
     resolveNpmSource,
     resolvePreferences,
     resolveProfileChain,
-    resolveScope,
     resolveVersion,
     type Scope,
     sortProfilesByWeight,
-    type WeightConflictWarning,
     writeMcpJson,
     writeMcpJsonc,
     writeMcpToml,
@@ -368,181 +362,84 @@ export const syncCommand = defineCommand({
             // Stable sort preserves declaration order for same-weight profiles
             const weightSortedProfiles = sortProfilesByWeight(allProfiles);
 
-            // Step 2: Merge configurations
+            // Step 2: Merge configurations via filesystem discovery
             spinner.start("Merging configurations...");
 
-            // Collect all weight conflict warnings across merge operations
-            const allWeightWarnings: WeightConflictWarning[] = [];
+            // --- Discovery path: scan filesystem for content ---
+            if (verbose) {
+                p.log.step("Using filesystem discovery path");
+            }
 
-            const skillsResult = mergeSkillsWithWarnings(weightSortedProfiles);
-            const mergedSkills: MergedSkillItem[] = skillsResult.skills;
-            allWeightWarnings.push(...skillsResult.warnings);
-
-            const rulesResult = mergeRulesWithWarnings(weightSortedProfiles);
-            const mergedRules: RuleEntry[] = rulesResult.rules;
-            allWeightWarnings.push(...rulesResult.warnings);
-
-            const agentsResult = mergeAgentsWithWarnings(weightSortedProfiles);
-            const mergedAgents: AgentEntry[] = agentsResult.agents;
-            allWeightWarnings.push(...agentsResult.warnings);
-
-            const memoryResult = mergeMemoryWithWarnings(weightSortedProfiles);
-            const mergedMemory: MemoryEntry[] = memoryResult.entries;
-            allWeightWarnings.push(...memoryResult.warnings);
-
-            // Collect all commands from all profiles (deduplicated by name, last wins)
-            // Respects weight lock: commands from weight -1 profiles cannot be overridden
-            const commandMap = new Map<string, string>();
-            const lockedCommands = new Set<string>();
-            const commandOwner = new Map<string, { profileName: string; weight: number }>();
-            for (const profile of weightSortedProfiles) {
-                const weight = getProfileWeight(profile);
-                const locked = isLockedProfile(profile);
-                for (const cmd of profile.manifest.ai?.commands || []) {
-                    if (lockedCommands.has(cmd)) continue;
-
-                    const existing = commandOwner.get(cmd);
-                    if (
-                        existing &&
-                        existing.weight === weight &&
-                        existing.profileName !== profile.name
-                    ) {
-                        allWeightWarnings.push({
-                            key: cmd,
-                            category: "command",
-                            profileA: existing.profileName,
-                            profileB: profile.name,
-                            weight,
-                        });
-                    }
-
-                    commandMap.set(cmd, profile.name);
-                    commandOwner.set(cmd, { profileName: profile.name, weight });
-                    if (locked) lockedCommands.add(cmd);
+            // Build a map from profile name to local directory path
+            const earlyLocalPaths = new Map<string, string>();
+            for (const prof of weightSortedProfiles) {
+                if (prof.localPath) {
+                    earlyLocalPaths.set(prof.name, prof.localPath);
                 }
             }
+
+            const discoveryInputs = [];
+            for (const profile of weightSortedProfiles) {
+                const localPath = earlyLocalPaths.get(profile.name);
+                if (!localPath) {
+                    if (verbose) {
+                        p.log.warn(
+                            `Profile "${profile.name}": no local path available — skipping discovery`,
+                        );
+                    }
+                    continue;
+                }
+                try {
+                    const discovery = await discoverProfile(localPath);
+                    discoveryInputs.push({
+                        discovery,
+                        meta: {
+                            name: profile.name,
+                            profileScope: profile.manifest.scope,
+                        },
+                    });
+                    if (discovery.warnings.length > 0 && verbose) {
+                        for (const w of discovery.warnings) {
+                            p.log.info(`  [discovery] ${profile.name}: ${w}`);
+                        }
+                    }
+                } catch (error) {
+                    p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
+                }
+            }
+
+            const assembled = assembleContentFromDiscovery(discoveryInputs);
+            const mergedSkills: MergedSkillItem[] = assembled.skills;
+            const mergedRules: RuleEntry[] = assembled.rules;
+            const mergedAgents: AgentEntry[] = assembled.agents;
+            const mergedMemory: MemoryEntry[] = assembled.memory;
+            const discoveryCommandEntries: CommandEntry[] = assembled.commands;
+            const discoverySourcePaths: Map<string, string> = assembled.sourceFilePaths;
+
+            // Populate commandMap for the placement phase
+            const commandMap = new Map<string, string>();
+            for (const cmd of assembled.commands) {
+                commandMap.set(cmd.name, cmd.profileName);
+            }
+
             const mergedCommandCount = commandMap.size;
 
-            // Collect all files from all profiles (deduplicated by target path, last wins)
-            // Respects weight lock: files from weight -1 profiles cannot be overridden
+            // Files and IDE configs are no longer declared in manifests (v2).
+            // These empty maps keep the placement phase structurally intact.
             const fileMap = new Map<
                 string,
                 { source: string; target: string; profileName: string }
             >();
-            const lockedFiles = new Set<string>();
-            const fileOwner = new Map<string, { profileName: string; weight: number }>();
-            for (const profile of weightSortedProfiles) {
-                const weight = getProfileWeight(profile);
-                const locked = isLockedProfile(profile);
-                for (const fileConfig of profile.manifest.files || []) {
-                    const target = fileConfig.target || fileConfig.source;
-                    if (lockedFiles.has(target)) continue;
-
-                    const existing = fileOwner.get(target);
-                    if (
-                        existing &&
-                        existing.weight === weight &&
-                        existing.profileName !== profile.name
-                    ) {
-                        allWeightWarnings.push({
-                            key: target,
-                            category: "file",
-                            profileA: existing.profileName,
-                            profileB: profile.name,
-                            weight,
-                        });
-                    }
-
-                    fileMap.set(target, {
-                        source: fileConfig.source,
-                        target,
-                        profileName: profile.name,
-                    });
-                    fileOwner.set(target, { profileName: profile.name, weight });
-                    if (locked) lockedFiles.add(target);
-                }
-            }
             const mergedFileCount = fileMap.size;
-
-            // Collect all IDE configs from all profiles (deduplicated by target path, last wins)
-            // Uses central IDE platform registry for key → directory mapping
-            // Respects weight lock: IDE configs from weight -1 profiles cannot be overridden
             const ideMap = new Map<
                 string,
-                {
-                    ideKey: string;
-                    fileName: string;
-                    targetDir: string;
-                    profileName: string;
-                }
+                { ideKey: string; fileName: string; targetDir: string; profileName: string }
             >();
-            const lockedIdeConfigs = new Set<string>();
-            const ideOwner = new Map<string, { profileName: string; weight: number }>();
-            for (const profile of weightSortedProfiles) {
-                if (!profile.manifest.ide) continue;
-                const weight = getProfileWeight(profile);
-                const locked = isLockedProfile(profile);
-                for (const [ideKey, files] of Object.entries(profile.manifest.ide)) {
-                    if (!files) continue;
-                    const targetDir = getIdePlatformTargetDir(ideKey);
-                    if (!targetDir) {
-                        if (!isKnownIdePlatform(ideKey)) {
-                            p.log.warn(
-                                `Unknown IDE platform "${ideKey}" in profile "${profile.name}" — skipping. Register it in the IDE platform registry.`,
-                            );
-                        }
-                        continue;
-                    }
-                    for (const fileName of files) {
-                        const targetPath = `${targetDir}/${fileName}`;
-                        if (lockedIdeConfigs.has(targetPath)) continue;
-
-                        const existing = ideOwner.get(targetPath);
-                        if (
-                            existing &&
-                            existing.weight === weight &&
-                            existing.profileName !== profile.name
-                        ) {
-                            allWeightWarnings.push({
-                                key: targetPath,
-                                category: "ide",
-                                profileA: existing.profileName,
-                                profileB: profile.name,
-                                weight,
-                            });
-                        }
-
-                        ideMap.set(targetPath, {
-                            ideKey,
-                            fileName,
-                            targetDir,
-                            profileName: profile.name,
-                        });
-                        ideOwner.set(targetPath, { profileName: profile.name, weight });
-                        if (locked) lockedIdeConfigs.add(targetPath);
-                    }
-                }
-            }
             const mergedIdeCount = ideMap.size;
 
             spinner.stop(
-                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands, ${mergedFileCount} files, ${mergedIdeCount} IDE configs`,
+                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands`,
             );
-
-            // Emit weight conflict warnings (same weight, conflicting values)
-            if (allWeightWarnings.length > 0) {
-                for (const w of allWeightWarnings) {
-                    if (w.category === "memory") {
-                        p.log.info(
-                            `Memory "${w.key}": profiles "${w.profileA}" and "${w.profileB}" use different merge strategies at weight ${w.weight}. Strategy from "${w.profileB}" wins.`,
-                        );
-                    } else {
-                        p.log.warn(
-                            `Weight conflict: "${w.profileA}" and "${w.profileB}" both define ${w.category} "${w.key}" with weight ${w.weight}. Last declared wins.`,
-                        );
-                    }
-                }
-            }
 
             // Step 3: Determine which AI tools and IDE platforms to sync (intersection-based)
             spinner.start("Computing tool intersection...");
@@ -823,9 +720,13 @@ export const syncCommand = defineCommand({
                                         onWarning: (msg) => {
                                             if (verbose) p.log.info(`  [directive] ${msg}`);
                                         },
-                                        onPlacement: (placement) => pendingPlacements.push(placement),
+                                        onPlacement: (placement) =>
+                                            pendingPlacements.push(placement),
                                     });
-                                    contentParts.push(processed);
+                                    // Strip Baton-owned frontmatter (scope, merge) before placement
+                                    const strippedContent =
+                                        parseBatonFrontmatter(processed).contentStripped;
+                                    contentParts.push(strippedContent);
                                 } catch {
                                     spinner.message(`Warning: Could not read ${memoryFilePath}`);
                                 }
@@ -892,20 +793,28 @@ export const syncCommand = defineCommand({
                     }
                     for (const skillItem of mergedSkills) {
                         try {
-                            const profileDir = profileLocalPaths.get(skillItem.profileName);
-                            if (!profileDir) {
-                                spinner.message(
-                                    `Warning: Could not resolve local path for profile ${skillItem.profileName}`,
-                                );
-                                continue;
-                            }
-
-                            const skillSourceDir = resolve(
-                                profileDir,
-                                "ai",
-                                "skills",
-                                skillItem.name,
+                            // Resolve skill source directory from discovery
+                            const discoveredSkillPath = discoverySourcePaths.get(
+                                `skills/${skillItem.name}`,
                             );
+                            let skillSourceDir: string;
+                            if (discoveredSkillPath) {
+                                skillSourceDir = discoveredSkillPath;
+                            } else {
+                                const profileDir = profileLocalPaths.get(skillItem.profileName);
+                                if (!profileDir) {
+                                    spinner.message(
+                                        `Warning: Could not resolve local path for profile ${skillItem.profileName}`,
+                                    );
+                                    continue;
+                                }
+                                skillSourceDir = resolve(
+                                    profileDir,
+                                    "ai",
+                                    "skills",
+                                    skillItem.name,
+                                );
+                            }
 
                             // Check if skill directory exists
                             try {
@@ -965,21 +874,27 @@ export const syncCommand = defineCommand({
                                 skillItem.profileName,
                             );
                             if (!profileFiles[canonicalKey]) {
+                                // Try SKILL.md (convention-over-config) then index.md (legacy fallback)
+                                let entryContent: string | undefined;
                                 try {
-                                    const entryContent = await readFile(
-                                        resolve(skillSourceDir, "index.md"),
+                                    entryContent = await readFile(
+                                        resolve(skillSourceDir, "SKILL.md"),
                                         "utf-8",
                                     );
-                                    profileFiles[canonicalKey] = {
-                                        content: entryContent,
-                                        type: "skills",
-                                    };
                                 } catch {
-                                    profileFiles[canonicalKey] = {
-                                        content: skillItem.name,
-                                        type: "skills",
-                                    };
+                                    try {
+                                        entryContent = await readFile(
+                                            resolve(skillSourceDir, "index.md"),
+                                            "utf-8",
+                                        );
+                                    } catch {
+                                        // Neither file found
+                                    }
                                 }
+                                profileFiles[canonicalKey] = {
+                                    content: entryContent ?? skillItem.name,
+                                    type: "skills",
+                                };
                             }
 
                             if (verbose) {
@@ -1014,23 +929,28 @@ export const syncCommand = defineCommand({
                             const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
                             if (!isUniversal && !isForThisAdapter) continue;
 
-                            const profileDir = profileLocalPaths.get(ruleEntry.profileName);
-                            if (!profileDir) {
-                                spinner.message(
-                                    `Warning: Could not resolve local path for profile ${ruleEntry.profileName}`,
-                                );
-                                continue;
-                            }
-
-                            // Determine source file path based on rule type
-                            const ruleSubdir = isUniversal ? "universal" : ruleEntry.agents[0];
-                            const ruleSourcePath = resolve(
-                                profileDir,
-                                "ai",
-                                "rules",
-                                ruleSubdir,
-                                `${ruleName}.md`,
+                            // Resolve source file path from discovery
+                            const discoveredRulePath = discoverySourcePaths.get(
+                                `rules/${ruleName}`,
                             );
+                            let ruleSourcePath: string;
+                            if (discoveredRulePath) {
+                                ruleSourcePath = discoveredRulePath;
+                            } else {
+                                const profileDir = profileLocalPaths.get(ruleEntry.profileName);
+                                if (!profileDir) {
+                                    spinner.message(
+                                        `Warning: Could not resolve local path for profile ${ruleEntry.profileName}`,
+                                    );
+                                    continue;
+                                }
+                                ruleSourcePath = resolve(
+                                    profileDir,
+                                    "ai",
+                                    "rules",
+                                    `${ruleName}.md`,
+                                );
+                            }
 
                             // Read rule content
                             let rawContent: string;
@@ -1044,10 +964,11 @@ export const syncCommand = defineCommand({
                             }
 
                             // Process directives per-contribution with profile-relative root
+                            const ruleProfileDir = profileLocalPaths.get(ruleEntry.profileName);
                             rawContent = await processDirectives(rawContent, {
                                 context: {
                                     projectRoot,
-                                    profileRoot: profileDir,
+                                    profileRoot: ruleProfileDir,
                                     profileName: ruleEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
@@ -1061,13 +982,16 @@ export const syncCommand = defineCommand({
                                 onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
-                            // Parse frontmatter
+                            // Parse frontmatter (old parser for adapter data, new parser for stripping)
                             const parsed = parseFrontmatter(rawContent);
+                            const batonParsed = parseBatonFrontmatter(rawContent);
 
-                            // Build canonical RuleFile
+                            // Build canonical RuleFile — use selective-stripped content
+                            // to preserve tool-relevant frontmatter (paths, globs, alwaysApply)
+                            // while removing Baton-owned keys (scope, merge)
                             const ruleFile: RuleFile = {
                                 name: ruleName,
-                                content: rawContent,
+                                content: batonParsed.contentSelectiveStripped,
                                 frontmatter:
                                     Object.keys(parsed.data).length > 0
                                         ? (parsed.data as RuleFile["frontmatter"])
@@ -1125,23 +1049,28 @@ export const syncCommand = defineCommand({
                             const isForThisAdapter = agentEntry.agents.includes(adapter.key);
                             if (!isUniversal && !isForThisAdapter) continue;
 
-                            const profileDir = profileLocalPaths.get(agentEntry.profileName);
-                            if (!profileDir) {
-                                spinner.message(
-                                    `Warning: Could not resolve local path for profile ${agentEntry.profileName}`,
-                                );
-                                continue;
-                            }
-
-                            // Determine source file path based on agent type
-                            const agentSubdir = isUniversal ? "universal" : agentEntry.agents[0];
-                            const agentSourcePath = resolve(
-                                profileDir,
-                                "ai",
-                                "agents",
-                                agentSubdir,
-                                `${agentName}.md`,
+                            // Resolve agent source file path from discovery
+                            const discoveredAgentPath = discoverySourcePaths.get(
+                                `agents/${agentName}`,
                             );
+                            let agentSourcePath: string;
+                            if (discoveredAgentPath) {
+                                agentSourcePath = discoveredAgentPath;
+                            } else {
+                                const profileDir = profileLocalPaths.get(agentEntry.profileName);
+                                if (!profileDir) {
+                                    spinner.message(
+                                        `Warning: Could not resolve local path for profile ${agentEntry.profileName}`,
+                                    );
+                                    continue;
+                                }
+                                agentSourcePath = resolve(
+                                    profileDir,
+                                    "ai",
+                                    "agents",
+                                    `${agentName}.md`,
+                                );
+                            }
 
                             // Read agent content
                             let rawContent: string;
@@ -1155,10 +1084,11 @@ export const syncCommand = defineCommand({
                             }
 
                             // Process directives per-contribution with profile-relative root
+                            const agentProfileDir = profileLocalPaths.get(agentEntry.profileName);
                             rawContent = await processDirectives(rawContent, {
                                 context: {
                                     projectRoot,
-                                    profileRoot: profileDir,
+                                    profileRoot: agentProfileDir,
                                     profileName: agentEntry.profileName,
                                     currentTool: adapter.key,
                                     detectedTools: syncedAiTools,
@@ -1172,17 +1102,20 @@ export const syncCommand = defineCommand({
                                 onPlacement: (placement) => pendingPlacements.push(placement),
                             });
 
-                            // Parse frontmatter
+                            // Parse frontmatter (old parser for adapter data, new parser for stripping)
                             const parsed = parseFrontmatter(rawContent);
+                            const batonParsed = parseBatonFrontmatter(rawContent);
 
                             // Build canonical AgentFile (frontmatter is REQUIRED)
+                            // Use selective-stripped content: removes Baton-owned keys (scope, merge)
+                            // but preserves tool-relevant keys (name, description, etc.)
                             const frontmatter =
                                 Object.keys(parsed.data).length > 0
                                     ? (parsed.data as AgentFile["frontmatter"])
                                     : { name: agentName };
                             const agentFile: AgentFile = {
                                 name: agentName,
-                                content: rawContent,
+                                content: batonParsed.contentSelectiveStripped,
                                 description: (frontmatter as Record<string, unknown>).description as
                                     | string
                                     | undefined,
@@ -1282,96 +1215,121 @@ export const syncCommand = defineCommand({
             }
 
             // Place command files
+            // Build a list of (commandName, profileName, scope) tuples for both paths
+            const commandPlacements: Array<{
+                commandName: string;
+                profileName: string;
+                scope: Scope;
+            }> = [];
+            for (const cmd of discoveryCommandEntries) {
+                commandPlacements.push({
+                    commandName: cmd.name,
+                    profileName: cmd.profileName,
+                    scope: cmd.scope,
+                });
+            }
+
             if (!dryRun && syncAi) {
                 for (const adapter of adapters) {
                     if (verbose) {
                         p.log.step(`[${adapter.key}] Placing commands...`);
                     }
-                    for (const profile of allProfiles) {
-                        const profileDir = profileLocalPaths.get(profile.name);
-                        if (!profileDir) continue;
-
-                        const commandNames = profile.manifest.ai?.commands || [];
-                        for (const commandName of commandNames) {
-                            try {
-                                const commandSourcePath = resolve(
-                                    profileDir,
+                    for (const {
+                        commandName,
+                        profileName: cmdProfileName,
+                        scope: cmdPlacementScope,
+                    } of commandPlacements) {
+                        try {
+                            // Resolve source file path from discovery
+                            const discoveredCmdPath = discoverySourcePaths.get(
+                                `commands/${commandName}`,
+                            );
+                            let commandSourcePath: string;
+                            if (discoveredCmdPath) {
+                                commandSourcePath = discoveredCmdPath;
+                            } else {
+                                const cmdProfileDir = profileLocalPaths.get(cmdProfileName);
+                                if (!cmdProfileDir) continue;
+                                commandSourcePath = resolve(
+                                    cmdProfileDir,
                                     "ai",
                                     "commands",
                                     `${commandName}.md`,
                                 );
-
-                                let content: string;
-                                try {
-                                    content = await readFile(commandSourcePath, "utf-8");
-                                } catch {
-                                    // Gracefully skip missing command files
-                                    continue;
-                                }
-
-                                const cmdScope = resolveScope(undefined, profile.manifest.scope);
-                                const finalContent = await processDirectives(content, {
-                                    context: {
-                                        projectRoot,
-                                        profileRoot: profileDir,
-                                        profileName: profile.name,
-                                        currentTool: adapter.key,
-                                        detectedTools: syncedAiTools,
-                                        detectedIdes,
-                                        scope: cmdScope,
-                                        contentType: "commands",
-                                    },
-                                    onWarning: (msg) => {
-                                        if (verbose) p.log.info(`  [directive] ${msg}`);
-                                    },
-                                    onPlacement: (placement) => pendingPlacements.push(placement),
-                                });
-
-                                const result = await placeFile(
-                                    finalContent,
-                                    adapter,
-                                    "commands",
-                                    cmdScope,
-                                    commandName,
-                                    placementConfig,
-                                );
-
-                                // Track stats by action type
-                                if (result.action === "created") stats.created++;
-                                else if (result.action === "updated") stats.updated++;
-                                else stats.skipped++;
-
-                                // Track tool-specific disk path for state/orphan detection
-                                const cmdRelPath = isAbsolute(result.path)
-                                    ? relative(projectRoot, result.path)
-                                    : result.path;
-                                actualPlacedPaths.add(cmdRelPath);
-                                aiToolPlacedPaths.add(cmdRelPath);
-
-                                // Track canonical key + source content for lockfile (once per command)
-                                const canonicalKey = `commands/${commandName}`;
-                                const pf = getOrCreatePlacedFiles(placedFiles, profile.name);
-                                if (!pf[canonicalKey]) {
-                                    pf[canonicalKey] = { content: finalContent, type: "commands" };
-                                }
-
-                                if (verbose) {
-                                    stats.details.push({
-                                        path: cmdRelPath,
-                                        action: result.action,
-                                    });
-                                    const label =
-                                        result.action === "skipped"
-                                            ? "unchanged, skipped"
-                                            : result.action;
-                                    p.log.info(`  -> ${result.path} (${label})`);
-                                }
-                            } catch (error) {
-                                spinner.message(
-                                    `Error placing command ${commandName} for ${adapter.name}: ${error}`,
-                                );
-                                stats.errors++;
                             }
+
+                            let content: string;
+                            try {
+                                const rawCmdContent = await readFile(commandSourcePath, "utf-8");
+                                // Strip Baton-owned frontmatter (scope, merge) before placement
+                                content = parseBatonFrontmatter(rawCmdContent).contentStripped;
+                            } catch {
+                                // Gracefully skip missing command files
+                                continue;
+                            }
+
+                            const cmdProfileDir = profileLocalPaths.get(cmdProfileName);
+                            const finalContent = await processDirectives(content, {
+                                context: {
+                                    projectRoot,
+                                    profileRoot: cmdProfileDir,
+                                    profileName: cmdProfileName,
+                                    currentTool: adapter.key,
+                                    detectedTools: syncedAiTools,
+                                    detectedIdes,
+                                    scope: cmdPlacementScope,
+                                    contentType: "commands",
+                                },
+                                onWarning: (msg) => {
+                                    if (verbose) p.log.info(`  [directive] ${msg}`);
+                                },
+                                onPlacement: (placement) => pendingPlacements.push(placement),
+                            });
+
+                            const result = await placeFile(
+                                finalContent,
+                                adapter,
+                                "commands",
+                                cmdPlacementScope,
+                                commandName,
+                                placementConfig,
+                            );
+
+                            // Track stats by action type
+                            if (result.action === "created") stats.created++;
+                            else if (result.action === "updated") stats.updated++;
+                            else stats.skipped++;
+
+                            // Track tool-specific disk path for state/orphan detection
+                            const cmdRelPath = isAbsolute(result.path)
+                                ? relative(projectRoot, result.path)
+                                : result.path;
+                            actualPlacedPaths.add(cmdRelPath);
+                            aiToolPlacedPaths.add(cmdRelPath);
+
+                            // Track canonical key + source content for lockfile (once per command)
+                            const canonicalKey = `commands/${commandName}`;
+                            const pf = getOrCreatePlacedFiles(placedFiles, cmdProfileName);
+                            if (!pf[canonicalKey]) {
+                                pf[canonicalKey] = { content: finalContent, type: "commands" };
+                            }
+
+                            if (verbose) {
+                                stats.details.push({
+                                    path: cmdRelPath,
+                                    action: result.action,
+                                });
+                                const label =
+                                    result.action === "skipped"
+                                        ? "unchanged, skipped"
+                                        : result.action;
+                                p.log.info(`  -> ${result.path} (${label})`);
+                            }
+                        } catch (error) {
+                            spinner.message(
+                                `Error placing command ${commandName} for ${adapter.name}: ${error}`,
+                            );
+                            stats.errors++;
                         }
                     }
                 }

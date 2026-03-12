@@ -1,23 +1,21 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
+    assembleContentFromDiscovery,
     type ClonedSource,
     cloneGitSource,
     detectInstalledAITools,
+    discoverProfile,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
     getGlobalAiTools,
     getGlobalIdePlatforms,
-    getIdePlatformTargetDir,
     loadProfileManifest,
     loadProjectManifest,
     type MemoryEntry,
     type MergedSkillItem,
     mergeContentParts,
-    mergeMemory,
-    mergeRules,
-    mergeSkills,
     normalizeMarkdown,
     parseFrontmatter,
     parseSource,
@@ -26,8 +24,6 @@ import {
     resolveAuth,
     resolveNpmSource,
     resolveProfileChain,
-    resolveScope,
-    type Scope,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -150,69 +146,34 @@ export const diffCommand = defineCommand({
 
             spinner.stop(`Resolved ${allProfiles.length} profile(s)`);
 
-            // Step 2: Merge configurations (same as sync.ts)
-            spinner.start("Merging configurations...");
+            // Step 2: Discover and assemble content (discovery path)
+            spinner.start("Discovering profile content...");
 
-            const mergedSkills: MergedSkillItem[] = mergeSkills(allProfiles);
-            const mergedRules: RuleEntry[] = mergeRules(allProfiles);
-            const mergedMemory: MemoryEntry[] = mergeMemory(allProfiles);
-
-            // Collect commands
-            const commandMap = new Map<string, { profileName: string; scope: Scope }>();
+            const discoveryInputs = [];
             for (const profile of allProfiles) {
-                for (const cmd of profile.manifest.ai?.commands || []) {
-                    commandMap.set(cmd, {
-                        profileName: profile.name,
-                        scope: resolveScope(undefined, profile.manifest.scope),
+                const localPath = profileLocalPaths.get(profile.name);
+                if (!localPath) continue;
+                try {
+                    const discovery = await discoverProfile(localPath);
+                    discoveryInputs.push({
+                        discovery,
+                        meta: {
+                            name: profile.name,
+                            profileScope: profile.manifest.scope,
+                        },
                     });
+                } catch {
+                    // skip profiles that fail discovery
                 }
             }
 
-            // Collect files
-            const fileMap = new Map<
-                string,
-                { source: string; target: string; profileName: string }
-            >();
-            for (const profile of allProfiles) {
-                for (const fileConfig of profile.manifest.files || []) {
-                    const target = fileConfig.target || fileConfig.source;
-                    fileMap.set(target, {
-                        source: fileConfig.source,
-                        target,
-                        profileName: profile.name,
-                    });
-                }
-            }
+            const assembled = assembleContentFromDiscovery(discoveryInputs);
+            const mergedSkills: MergedSkillItem[] = assembled.skills;
+            const mergedRules: RuleEntry[] = assembled.rules;
+            const mergedMemory: MemoryEntry[] = assembled.memory;
+            const discoverySourcePaths = assembled.sourceFilePaths;
 
-            // Collect IDE configs (uses central IDE platform registry)
-            const ideMap = new Map<
-                string,
-                {
-                    ideKey: string;
-                    fileName: string;
-                    targetDir: string;
-                    profileName: string;
-                }
-            >();
-            for (const profile of allProfiles) {
-                if (!profile.manifest.ide) continue;
-                for (const [ideKey, files] of Object.entries(profile.manifest.ide)) {
-                    if (!files) continue;
-                    const targetDir = getIdePlatformTargetDir(ideKey);
-                    if (!targetDir) continue;
-                    for (const fileName of files) {
-                        const targetPath = `${targetDir}/${fileName}`;
-                        ideMap.set(targetPath, {
-                            ideKey,
-                            fileName,
-                            targetDir,
-                            profileName: profile.name,
-                        });
-                    }
-                }
-            }
-
-            spinner.stop("Configurations merged");
+            spinner.stop("Content discovered");
 
             // Step 3: Determine which AI tools to diff (intersection-based, like sync.ts)
             spinner.start("Computing tool intersection...");
@@ -323,14 +284,9 @@ export const diffCommand = defineCommand({
             // --- Skills ---
             for (const adapter of adapters) {
                 for (const skillItem of mergedSkills) {
-                    const profileDir = profileLocalPaths.get(skillItem.profileName);
-                    if (!profileDir) continue;
-                    const skillSourceDir = resolve(profileDir, "ai", "skills", skillItem.name);
-                    try {
-                        await stat(skillSourceDir);
-                    } catch {
-                        continue;
-                    }
+                    const sourceDirPath = discoverySourcePaths.get(`skills/${skillItem.name}`);
+                    if (!sourceDirPath) continue;
+
                     const targetSkillPath = adapter.getPath(
                         "skills",
                         skillItem.scope,
@@ -339,7 +295,7 @@ export const diffCommand = defineCommand({
                     const absoluteTargetDir = resolveAbsolutePath(targetSkillPath, projectRoot);
 
                     // Compare all files in skill directory
-                    const remoteSkillFiles = await loadFilesFromDirectory(skillSourceDir);
+                    const remoteSkillFiles = await loadFilesFromDirectory(sourceDirPath);
                     const localSkillFiles = await loadFilesFromDirectory(absoluteTargetDir);
 
                     for (const [file, remoteContent] of Object.entries(remoteSkillFiles)) {
@@ -371,25 +327,12 @@ export const diffCommand = defineCommand({
             // --- Rules (accumulate) ---
             for (const adapter of adapters) {
                 for (const ruleEntry of mergedRules) {
-                    const isUniversal = ruleEntry.agents.length === 0;
-                    const isForThisAdapter = ruleEntry.agents.includes(adapter.key);
-                    if (!isUniversal && !isForThisAdapter) continue;
-
-                    const profileDir = profileLocalPaths.get(ruleEntry.profileName);
-                    if (!profileDir) continue;
-
-                    const ruleSubdir = isUniversal ? "universal" : ruleEntry.agents[0];
-                    const ruleSourcePath = resolve(
-                        profileDir,
-                        "ai",
-                        "rules",
-                        ruleSubdir,
-                        `${ruleEntry.name}.md`,
-                    );
+                    const sourceFilePath = discoverySourcePaths.get(`rules/${ruleEntry.name}`);
+                    if (!sourceFilePath) continue;
 
                     let rawContent: string;
                     try {
-                        rawContent = await readFile(ruleSourcePath, "utf-8");
+                        rawContent = await readFile(sourceFilePath, "utf-8");
                     } catch {
                         continue;
                     }
@@ -436,75 +379,24 @@ export const diffCommand = defineCommand({
 
             // --- Commands ---
             for (const adapter of adapters) {
-                for (const [commandName, { profileName, scope }] of commandMap) {
-                    const profileDir = profileLocalPaths.get(profileName);
-                    if (!profileDir) continue;
+                for (const cmdEntry of assembled.commands) {
+                    const sourceFilePath = discoverySourcePaths.get(`commands/${cmdEntry.name}`);
+                    if (!sourceFilePath) continue;
 
-                    const commandSourcePath = resolve(
-                        profileDir,
-                        "ai",
-                        "commands",
-                        `${commandName}.md`,
-                    );
                     let content: string;
                     try {
-                        content = await readFile(commandSourcePath, "utf-8");
+                        content = await readFile(sourceFilePath, "utf-8");
                     } catch {
                         continue;
                     }
 
-                    const targetPath = adapter.getPath("commands", scope, commandName);
+                    const targetPath = adapter.getPath("commands", cmdEntry.scope, cmdEntry.name);
                     const absolutePath = resolveAbsolutePath(targetPath, projectRoot);
                     const relativePath = toRelativePath(absolutePath, projectRoot);
                     expectedPaths.add(relativePath);
 
                     addDiffEntry(diffs, relativePath, content, await readSafe(absolutePath));
                 }
-            }
-
-            // --- Files (project root, no adapter) ---
-            for (const fileEntry of fileMap.values()) {
-                const profileDir = profileLocalPaths.get(fileEntry.profileName);
-                if (!profileDir) continue;
-
-                const fileSourcePath = resolve(profileDir, "files", fileEntry.source);
-                let content: string;
-                try {
-                    content = await readFile(fileSourcePath, "utf-8");
-                } catch {
-                    continue;
-                }
-
-                const absolutePath = resolve(projectRoot, fileEntry.target);
-                const relativePath = fileEntry.target;
-                expectedPaths.add(relativePath);
-
-                addDiffEntry(diffs, relativePath, content, await readSafe(absolutePath));
-            }
-
-            // --- IDE configs (project root, no adapter) ---
-            for (const ideEntry of ideMap.values()) {
-                const profileDir = profileLocalPaths.get(ideEntry.profileName);
-                if (!profileDir) continue;
-
-                const ideSourcePath = resolve(
-                    profileDir,
-                    "ide",
-                    ideEntry.ideKey,
-                    ideEntry.fileName,
-                );
-                let content: string;
-                try {
-                    content = await readFile(ideSourcePath, "utf-8");
-                } catch {
-                    continue;
-                }
-
-                const absolutePath = resolve(projectRoot, ideEntry.targetDir, ideEntry.fileName);
-                const relativePath = `${ideEntry.targetDir}/${ideEntry.fileName}`;
-                expectedPaths.add(relativePath);
-
-                addDiffEntry(diffs, relativePath, content, await readSafe(absolutePath));
             }
 
             spinner.stop();

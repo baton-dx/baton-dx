@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { mergeStrategySchema, profileManifestSchema, scopeSchema } from "./profile-manifest.js";
+import {
+    detectV1Fields,
+    mergeStrategySchema,
+    profileManifestSchema,
+    scopeSchema,
+} from "./profile-manifest.js";
 
-describe("Schema Validation - Profile Manifest", () => {
+describe("Schema Validation - Profile Manifest (v2)", () => {
     describe("Valid manifests", () => {
         it("validates minimal profile manifest", () => {
             const result = profileManifestSchema.safeParse({
@@ -12,34 +17,17 @@ describe("Schema Validation - Profile Manifest", () => {
             expect(result.success).toBe(true);
         });
 
-        it("validates full profile manifest with all sections", () => {
+        it("validates profile manifest with ai.tools", () => {
             const result = profileManifestSchema.safeParse({
                 name: "full-profile",
                 version: "2.3.5",
-                description: "Complete profile with all sections",
+                description: "Profile with tools only",
                 extends: "base-profile",
                 ai: {
                     tools: ["claude-code", "cursor"],
-                    skills: [{ name: "code-review", scope: "project" }],
-                    agents: ["code-reviewer", "test-writer"],
-                    rules: {
-                        universal: ["coding-standards"],
-                        cursor: ["code-style"],
-                    },
-                    memory: [
-                        { source: "CLAUDE.md", merge: "append" },
-                        { source: "AGENTS.md", merge: "prepend" },
-                    ],
-                    commands: ["review", "test"],
-                },
-                files: [{ source: "biome.json" }],
-                ide: {
-                    vscode: [".vscode/settings.json"],
-                    jetbrains: [".idea/settings.xml"],
                 },
                 variables: {
                     PROJECT_NAME: "my-project",
-                    TEAM: "frontend",
                 },
                 hooks: {
                     "post-install": "echo 'Installed'",
@@ -50,29 +38,21 @@ describe("Schema Validation - Profile Manifest", () => {
             expect(result.success).toBe(true);
         });
 
-        it("validates rules as array (universal format)", () => {
+        it("validates profile with empty ai section", () => {
             const result = profileManifestSchema.safeParse({
-                name: "test-profile",
+                name: "test",
                 version: "1.0.0",
-                ai: {
-                    rules: ["rule1", "rule2", "rule3"],
-                },
+                ai: {},
             });
 
             expect(result.success).toBe(true);
         });
 
-        it("validates rules as object (agent-specific format)", () => {
+        it("validates profile with ai.tools as wildcard", () => {
             const result = profileManifestSchema.safeParse({
-                name: "test-profile",
+                name: "test",
                 version: "1.0.0",
-                ai: {
-                    rules: {
-                        universal: ["rule1"],
-                        "claude-code": ["rule2"],
-                        cursor: ["rule3"],
-                    },
-                },
+                ai: { tools: ["*"] },
             });
 
             expect(result.success).toBe(true);
@@ -164,50 +144,41 @@ describe("Schema Validation - Profile Manifest", () => {
 
             expect(result.success).toBe(false);
         });
+    });
 
-        it("rejects invalid merge strategy", () => {
+    describe("v2 schema rejects v1 content fields", () => {
+        it("ignores (strips) unknown ai fields via Zod", () => {
+            // Zod by default strips unknown keys, so v1 fields in ai.* just get ignored
             const result = profileManifestSchema.safeParse({
                 name: "test",
                 version: "1.0.0",
                 ai: {
-                    memory: [{ source: "CLAUDE.md", merge: "invalid-strategy" }],
+                    tools: ["claude-code"],
+                    rules: ["coding-standards"],
+                    memory: [{ source: "MEMORY.md", merge: "append" }],
                 },
             });
 
-            expect(result.success).toBe(false);
-            if (!result.success) {
-                const errorMessage = result.error.issues[0].message;
-                // Zod enum error contains "Invalid enum value"
-                expect(errorMessage).toContain("Invalid enum value");
+            // Zod strips unknown keys — rules and memory are silently removed
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.ai).toEqual({ tools: ["claude-code"] });
             }
         });
 
-        it("rejects invalid scope", () => {
+        it("ignores unknown top-level fields via Zod", () => {
             const result = profileManifestSchema.safeParse({
                 name: "test",
                 version: "1.0.0",
-                ai: {
-                    skills: [{ name: "skill1", scope: "invalid" }],
-                },
+                files: [{ source: "biome.json" }],
+                ide: { vscode: ["settings.json"] },
             });
 
-            expect(result.success).toBe(false);
-        });
-
-        it("provides error path for nested invalid fields", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ai: {
-                    skills: [{ name: 123, scope: "project" }],
-                },
-            });
-
-            expect(result.success).toBe(false);
-            if (!result.success) {
-                const errorPath = result.error.issues[0].path.join(".");
-                expect(errorPath).toContain("ai");
-                expect(errorPath).toContain("skills");
+            // Zod strips unknown top-level keys
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect((result.data as Record<string, unknown>).files).toBeUndefined();
+                expect((result.data as Record<string, unknown>).ide).toBeUndefined();
             }
         });
     });
@@ -298,156 +269,6 @@ describe("Schema Validation - Profile Manifest", () => {
         });
     });
 
-    describe("IDE section (flexible schema)", () => {
-        it("validates ide with vscode and jetbrains (backward compatible)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ide: {
-                    vscode: ["settings.json", "extensions.json"],
-                    jetbrains: ["settings.xml"],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates ide with arbitrary platform keys", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ide: {
-                    vscode: ["settings.json"],
-                    zed: ["settings.json"],
-                    fleet: ["config.xml"],
-                    cursor: ["settings.json"],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates empty ide section", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ide: {},
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("rejects ide with non-array values", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ide: {
-                    vscode: "settings.json",
-                },
-            });
-
-            expect(result.success).toBe(false);
-        });
-    });
-
-    describe("Agents in AI section", () => {
-        it("validates agents as array (universal format)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: ["code-reviewer", "test-writer"],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates agents as object (tool-specific format)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: {
-                        universal: ["shared-agent"],
-                        "claude-code": ["claude-only"],
-                        cursor: ["cursor-only"],
-                    },
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates agents with mixed keys including optional arrays", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: {
-                        universal: ["shared"],
-                        "claude-code": undefined,
-                    },
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates empty agents array", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: [],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates missing agents field (optional)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    tools: ["claude-code"],
-                },
-            });
-
-            expect(result.success).toBe(true);
-            if (result.success) {
-                expect(result.data.ai?.agents).toBeUndefined();
-            }
-        });
-
-        it("rejects agents with non-string array items", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: [123, true],
-                },
-            });
-
-            expect(result.success).toBe(false);
-        });
-
-        it("rejects agents with nested objects as values", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test-profile",
-                version: "1.0.0",
-                ai: {
-                    agents: {
-                        universal: [{ name: "invalid" }],
-                    },
-                },
-            });
-
-            expect(result.success).toBe(false);
-        });
-    });
-
     describe("Scope property", () => {
         it("validates profile manifest with scope field", () => {
             const result = profileManifestSchema.safeParse({
@@ -486,54 +307,6 @@ describe("Schema Validation - Profile Manifest", () => {
                 expect(result.data.scope).toBeUndefined();
             }
         });
-
-        it("validates memory item with scope field", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ai: {
-                    memory: [{ source: "CLAUDE.md", merge: "append", scope: "global" }],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates memory item without scope (optional)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ai: {
-                    memory: [{ source: "CLAUDE.md", merge: "append" }],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates skill item without scope (now optional)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ai: {
-                    skills: [{ name: "code-review" }],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
-
-        it("validates skill item with scope (still accepted)", () => {
-            const result = profileManifestSchema.safeParse({
-                name: "test",
-                version: "1.0.0",
-                ai: {
-                    skills: [{ name: "code-review", scope: "project" }],
-                },
-            });
-
-            expect(result.success).toBe(true);
-        });
     });
 
     describe("Schema types", () => {
@@ -543,9 +316,13 @@ describe("Schema Validation - Profile Manifest", () => {
             expect(scopeSchema.safeParse("invalid").success).toBe(false);
         });
 
-        it("validates merge strategy schema with all strategies", () => {
-            const strategies = [
-                "replace",
+        it("validates merge strategy schema with v2 strategies only", () => {
+            expect(mergeStrategySchema.safeParse("concat").success).toBe(true);
+            expect(mergeStrategySchema.safeParse("replace").success).toBe(true);
+        });
+
+        it("rejects legacy merge strategies", () => {
+            const legacyStrategies = [
                 "deep",
                 "append",
                 "prepend",
@@ -554,10 +331,86 @@ describe("Schema Validation - Profile Manifest", () => {
                 "directory",
                 "import",
             ];
-
-            for (const strategy of strategies) {
-                expect(mergeStrategySchema.safeParse(strategy).success).toBe(true);
+            for (const strategy of legacyStrategies) {
+                expect(mergeStrategySchema.safeParse(strategy).success).toBe(false);
             }
         });
+    });
+});
+
+describe("detectV1Fields", () => {
+    it("returns empty array for v2 manifest", () => {
+        expect(detectV1Fields({ name: "test", version: "1.0.0", ai: { tools: ["*"] } })).toEqual(
+            [],
+        );
+    });
+
+    it("returns empty array for null/non-object", () => {
+        expect(detectV1Fields(null)).toEqual([]);
+        expect(detectV1Fields("string")).toEqual([]);
+    });
+
+    it("detects ai.rules", () => {
+        const errors = detectV1Fields({ ai: { rules: ["rule1"] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.rules");
+        expect(errors[0]).toContain("no longer supported");
+    });
+
+    it("detects ai.agents", () => {
+        const errors = detectV1Fields({ ai: { agents: ["agent1"] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.agents");
+    });
+
+    it("detects ai.skills", () => {
+        const errors = detectV1Fields({ ai: { skills: [{ name: "deploy" }] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.skills");
+    });
+
+    it("detects ai.memory", () => {
+        const errors = detectV1Fields({
+            ai: { memory: [{ source: "MEMORY.md", merge: "append" }] },
+        });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.memory");
+    });
+
+    it("detects ai.commands", () => {
+        const errors = detectV1Fields({ ai: { commands: ["build"] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.commands");
+    });
+
+    it("detects ai.mcp", () => {
+        const errors = detectV1Fields({ ai: { mcp: [{ name: "server" }] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("ai.mcp");
+    });
+
+    it("detects top-level files", () => {
+        const errors = detectV1Fields({ files: [{ source: "biome.json" }] });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain('"files"');
+    });
+
+    it("detects top-level ide", () => {
+        const errors = detectV1Fields({ ide: { vscode: ["settings.json"] } });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain('"ide"');
+    });
+
+    it("detects multiple v1 fields at once", () => {
+        const errors = detectV1Fields({
+            ai: { rules: ["r1"], memory: [{ source: "MEMORY.md", merge: "append" }] },
+            files: [{ source: "f" }],
+        });
+        expect(errors).toHaveLength(3);
+    });
+
+    it("does not flag ai.tools (still valid in v2)", () => {
+        const errors = detectV1Fields({ ai: { tools: ["claude-code"] } });
+        expect(errors).toEqual([]);
     });
 });

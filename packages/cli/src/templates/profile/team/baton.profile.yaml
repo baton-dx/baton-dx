@@ -1,33 +1,8 @@
 name: "{{name}}"
 version: "0.1.0"
-description: "Team profile {{name}} - Enhanced DX standards"
+description: "Team profile {{name}} — Enhanced DX standards"
 
 ai:
-  # Add profile-specific tools here
-  tools: []
-
-  skills:
-    - name: "code-review"
-      scope: "project"
-
-  rules:
-    universal:
-      - "coding-standards"
-    cursor:
-      - "code-style"
-
-  commands:
-    - "review"
-
-  memory:
-    - source: MEMORY.md
-      merge: "append"
-
-files:
-  - source: "biome.json"
-    merge: "deep"
-
-ide:
-  vscode:
-    - "settings.json"
-    - "extensions.json"
+  tools:
+    - claude-code
+    - cursor

@@ -173,211 +173,9 @@ describe("validateSource", () => {
         ).toBe(true);
     });
 
-    // ── Check 6: Skills ──────────────────────────────────────────────
-    it("warns when skill SKILL.md is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                skills: [{ name: "code-review", scope: "project" }],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some((i) => i.severity === "warning" && i.message.includes("SKILL.md")),
-        ).toBe(true);
-    });
-
-    it("does not warn when skill SKILL.md is present", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                skills: [{ name: "code-review", scope: "project" }],
-            },
-        });
-        const skillDir = join(profileDir, "ai", "skills", "code-review");
-        await mkdir(skillDir, { recursive: true });
-        await writeFile(join(skillDir, "SKILL.md"), "# Code Review Skill");
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(report.issues.some((i) => i.message.includes("SKILL.md"))).toBe(false);
-    });
-
-    // ── Check 7: Rules ──────────────────────────────────────────────
-    it("warns when rule file is missing (array format)", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                rules: ["coding-standards"],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("coding-standards.md"),
-            ),
-        ).toBe(true);
-    });
-
-    it("warns when rule file is missing (object format)", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                rules: {
-                    "claude-code": ["special-rule"],
-                },
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("special-rule.md"),
-            ),
-        ).toBe(true);
-    });
-
-    // ── Check 8: Agents ─────────────────────────────────────────────
-    it("warns when agent file is missing (array format)", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                agents: ["code-reviewer"],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("code-reviewer.md"),
-            ),
-        ).toBe(true);
-    });
-
-    it("warns when agent file is missing (object/scoped format)", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                agents: {
-                    "claude-code": ["reviewer"],
-                },
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("reviewer.md"),
-            ),
-        ).toBe(true);
-    });
-
-    // ── Check 9: Memory ─────────────────────────────────────────────
-    it("warns when memory file is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                memory: [{ source: "MEMORY.md", merge: "append" }],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some((i) => i.severity === "warning" && i.message.includes("MEMORY.md")),
-        ).toBe(true);
-    });
-
-    // ── Check 10: Commands ──────────────────────────────────────────
-    it("warns when command file is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ai: {
-                commands: ["review"],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some((i) => i.severity === "warning" && i.message.includes("review.md")),
-        ).toBe(true);
-    });
-
-    // ── Check 11: Files ─────────────────────────────────────────────
-    it("warns when files/ source is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            files: [{ source: "biome.json" }],
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some((i) => i.severity === "warning" && i.message.includes("biome.json")),
-        ).toBe(true);
-    });
-
-    // ── Check 12: IDE files ─────────────────────────────────────────
-    it("warns when IDE file is missing", async () => {
-        const profileDir = join(TEST_DIR, "profiles", "default");
-        await writeProfileManifest(profileDir, {
-            ide: {
-                vscode: ["settings.json"],
-            },
-        });
-        await writeSourceManifest(TEST_DIR, {
-            profiles: [{ name: "default", path: "profiles/default" }],
-        });
-
-        const report = await validateSource(TEST_DIR);
-
-        expect(report.valid).toBe(true);
-        expect(
-            report.issues.some(
-                (i) => i.severity === "warning" && i.message.includes("settings.json"),
-            ),
-        ).toBe(true);
-    });
+    // ── Checks 6-12 removed in v2 ──────────────────────────────────
+    // Content (skills, rules, agents, memory, commands, files, IDE) is now
+    // auto-discovered from the filesystem — no manifest declarations to validate.
 
     // ── Check 13: Extends references ────────────────────────────────
     it("reports error when extends sibling profile does not exist", async () => {
@@ -537,37 +335,25 @@ describe("validateSource", () => {
             ],
         });
 
-        // ── Base profile ──
+        // ── Base profile (v2: content auto-discovered, not declared) ──
         const baseDir = join(TEST_DIR, "profiles", "base");
         await writeProfileManifest(baseDir, {
             name: "base",
             variables: { project_name: "my-app" },
             ai: {
                 tools: ["claude-code"],
-                skills: [{ name: "code-review", scope: "project" }],
-                rules: ["coding-standards"],
-                agents: ["reviewer"],
-                memory: [{ source: "MEMORY.md", merge: "append" }],
-                commands: ["review"],
-            },
-            files: [{ source: "biome.json" }],
-            ide: {
-                vscode: ["settings.json"],
             },
         });
 
-        // Create all referenced files for base profile
+        // Create content files on disk (auto-discovered in v2)
         await mkdir(join(baseDir, "ai", "skills", "code-review"), { recursive: true });
         await writeFile(
             join(baseDir, "ai", "skills", "code-review", "SKILL.md"),
             "# Skill\nUse {{project_name}}",
         );
 
-        await mkdir(join(baseDir, "ai", "rules", "universal"), { recursive: true });
-        await writeFile(
-            join(baseDir, "ai", "rules", "universal", "coding-standards.md"),
-            "# Rules",
-        );
+        await mkdir(join(baseDir, "ai", "rules"), { recursive: true });
+        await writeFile(join(baseDir, "ai", "rules", "coding-standards.md"), "# Rules");
 
         await mkdir(join(baseDir, "ai", "agents"), { recursive: true });
         await writeFile(join(baseDir, "ai", "agents", "reviewer.md"), "# Agent");

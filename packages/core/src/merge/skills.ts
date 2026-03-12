@@ -1,15 +1,12 @@
 import type { Scope } from "@baton-dx/ai-tool-paths";
-import type { ResolvedProfile } from "../inheritance/profile-chain.js";
-import type { SkillItem } from "../schemas/profile-manifest.js";
-import { resolveScope } from "./scope-resolution.js";
-import type { WeightConflictWarning } from "./weight-sort.js";
-import { getProfileWeight, isLockedProfile } from "./weight-sort.js";
 
 /**
- * Merged skill item with profile attribution
+ * Merged skill item with profile attribution.
+ * In v2, skills are discovered from the filesystem (ai/skills/<name>/SKILL.md).
  */
-export interface MergedSkillItem extends SkillItem {
-    scope: Scope; // Override to non-optional — always resolved by merge
+export interface MergedSkillItem {
+    name: string;
+    scope: Scope;
     profileName: string;
 }
 
@@ -18,76 +15,21 @@ export interface MergedSkillItem extends SkillItem {
  */
 export interface MergeSkillsResult {
     skills: MergedSkillItem[];
-    warnings: WeightConflictWarning[];
+    warnings: string[];
 }
 
 /**
- * Merge skills from multiple profiles in an inheritance chain.
- * Skills with the same name in a more specific profile replace the entire skill directory.
+ * Merge/deduplicate skill entries from discovery.
  *
- * Lock behavior: Skills from profiles with weight -1 cannot be overridden.
- * Same-weight warnings: When two profiles with the same weight define the same skill,
- * a warning is emitted (the last one still wins per stable sort order).
+ * Skills with the same name: last one wins (entries are expected in weight-sorted order).
  *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Deduplicated array of skills with most specific versions and profile attribution
+ * @param entries - Array of skill entries in merge order (base first, overrides last)
+ * @returns Deduplicated array of skill entries
  */
-export function mergeSkills(profiles: ResolvedProfile[]): MergedSkillItem[] {
-    return mergeSkillsWithWarnings(profiles).skills;
-}
-
-/**
- * Merge skills with detailed conflict warnings.
- *
- * @param profiles - Array of resolved profiles in merge order (base first, overrides last)
- * @returns Skills and any same-weight conflict warnings
- */
-export function mergeSkillsWithWarnings(profiles: ResolvedProfile[]): MergeSkillsResult {
+export function mergeSkillEntries(entries: MergedSkillItem[]): MergedSkillItem[] {
     const skillMap = new Map<string, MergedSkillItem>();
-    const lockedKeys = new Set<string>();
-    const warnings: WeightConflictWarning[] = [];
-
-    // Track which profile set each key for same-weight conflict detection
-    const keyOwner = new Map<string, { profileName: string; weight: number }>();
-
-    for (const profile of profiles) {
-        const skills = profile.manifest.ai?.skills || [];
-        const weight = getProfileWeight(profile);
-        const locked = isLockedProfile(profile);
-
-        for (const skill of skills) {
-            // Skip if this key is locked by a previous profile
-            if (lockedKeys.has(skill.name)) {
-                continue;
-            }
-
-            // Check for same-weight conflict
-            const existing = keyOwner.get(skill.name);
-            if (existing && existing.weight === weight && existing.profileName !== profile.name) {
-                warnings.push({
-                    key: skill.name,
-                    category: "skill",
-                    profileA: existing.profileName,
-                    profileB: profile.name,
-                    weight,
-                });
-            }
-
-            skillMap.set(skill.name, {
-                ...skill,
-                scope: resolveScope(skill.scope, profile.manifest.scope),
-                profileName: profile.name,
-            });
-            keyOwner.set(skill.name, { profileName: profile.name, weight });
-
-            if (locked) {
-                lockedKeys.add(skill.name);
-            }
-        }
+    for (const entry of entries) {
+        skillMap.set(entry.name, entry);
     }
-
-    return {
-        skills: Array.from(skillMap.values()),
-        warnings,
-    };
+    return Array.from(skillMap.values());
 }

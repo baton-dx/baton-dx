@@ -253,7 +253,9 @@ export async function writeStateData(params: {
             "ai-tools": [...aiToolPaths].sort(),
             ides: [...idePaths].sort(),
             files: [...filePaths].sort(),
-            ...(includePaths && includePaths.size > 0 ? { includes: [...includePaths].sort() } : {}),
+            ...(includePaths && includePaths.size > 0
+                ? { includes: [...includePaths].sort() }
+                : {}),
         },
         ...(mcpServers && Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
     };

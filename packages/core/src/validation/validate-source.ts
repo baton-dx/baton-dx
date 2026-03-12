@@ -2,7 +2,11 @@ import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
 import { parse as parseYaml } from "yaml";
-import { profileManifestSchema } from "../schemas/profile-manifest.js";
+import {
+    detectV1Fields,
+    mcpServerSchema,
+    profileManifestSchema,
+} from "../schemas/profile-manifest.js";
 import { sourceManifestSchema } from "../schemas/source-manifest.js";
 import type { ValidationIssue, ValidationReport } from "./types.js";
 
@@ -47,6 +51,71 @@ function extractVariableReferences(content: string): string[] {
     const varRegex = /\{\{(\w+)\}\}/g;
     const matches = content.matchAll(varRegex);
     return Array.from(matches, (m) => m[1]);
+}
+
+/**
+ * Check whether a directory has v1-style subdirectory structure (e.g. ai/rules/universal/).
+ * In v2, rules and agents are flat files directly under ai/rules/ and ai/agents/.
+ *
+ * Returns true if any subdirectory is found that suggests v1 layout.
+ */
+async function hasV1SubdirectoryLayout(dir: string): Promise<boolean> {
+    try {
+        const entries = await readdir(dir, { withFileTypes: true });
+        return entries.some((e) => e.isDirectory());
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Validate all MCP YAML files under ai/mcp/ against the mcpServerSchema.
+ * Returns ValidationIssues for any files that fail schema validation.
+ */
+async function validateMcpYamlFiles(
+    profileDir: string,
+    _profilePath: string,
+    ctx: string,
+    sourceRoot: string,
+): Promise<ValidationIssue[]> {
+    const issues: ValidationIssue[] = [];
+    const mcpDir = join(profileDir, "ai", "mcp");
+
+    try {
+        const entries = await readdir(mcpDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isFile() || !entry.name.endsWith(".yaml")) continue;
+            const filePath = join(mcpDir, entry.name);
+            const relPath = relative(sourceRoot, filePath);
+
+            try {
+                const raw = await readFile(filePath, "utf-8");
+                const parsed = parseYaml(raw);
+                const result = mcpServerSchema.safeParse(parsed);
+                if (!result.success) {
+                    for (const issue of result.error.issues) {
+                        issues.push({
+                            severity: "error",
+                            message: `MCP server config schema error in ${relPath}: ${issue.message} (at ${issue.path.join(".")})`,
+                            path: relPath,
+                            context: ctx,
+                        });
+                    }
+                }
+            } catch {
+                issues.push({
+                    severity: "error",
+                    message: `MCP server config ${relPath} contains invalid YAML`,
+                    path: relPath,
+                    context: ctx,
+                });
+            }
+        }
+    } catch {
+        // ai/mcp/ directory doesn't exist — that's fine
+    }
+
+    return issues;
 }
 
 /**
@@ -200,152 +269,50 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
             }
         }
 
-        // ── Check 6: Skills exist ──────────────────────────────────────
-        if (profileManifest.ai?.skills) {
-            for (const skill of profileManifest.ai.skills) {
-                const skillMd = join(profileDir, "ai", "skills", skill.name, "SKILL.md");
-                if (!(await pathExists(skillMd))) {
-                    issues.push({
-                        severity: "warning",
-                        message: `Skill file missing: ai/skills/${skill.name}/SKILL.md`,
-                        path: join(profile.path, "ai", "skills", skill.name, "SKILL.md"),
-                        context: ctx,
-                    });
-                }
-            }
+        // ── Checks 6-12 removed in v2 ──────────────────────────────────
+        // Content (skills, rules, agents, memory, commands, files, IDE)
+        // is now auto-discovered from the filesystem. Manifest no longer
+        // declares these sections, so file-existence checks are no longer needed.
+
+        // ── Check 6a: Detect v1 manifest fields ────────────────────────
+        // rawProfileManifest is non-null here (we parsed it successfully above)
+        const v1FieldErrors = detectV1Fields(rawProfileManifest);
+        for (const msg of v1FieldErrors) {
+            issues.push({
+                severity: "error",
+                message: msg,
+                path: join(profile.path, "baton.profile.yaml"),
+                context: ctx,
+            });
         }
 
-        // ── Check 7: Rules exist ───────────────────────────────────────
-        if (profileManifest.ai?.rules) {
-            const rules = profileManifest.ai.rules;
-            if (Array.isArray(rules)) {
-                // Universal rules: ai/rules/universal/{name}.md
-                for (const name of rules) {
-                    const rulePath = join(profileDir, "ai", "rules", "universal", `${name}.md`);
-                    if (!(await pathExists(rulePath))) {
-                        issues.push({
-                            severity: "warning",
-                            message: `Rule file missing: ai/rules/universal/${name}.md`,
-                            path: join(profile.path, "ai", "rules", "universal", `${name}.md`),
-                            context: ctx,
-                        });
-                    }
-                }
-            } else {
-                // Scoped rules: ai/rules/{scope}/{name}.md
-                for (const [scope, names] of Object.entries(rules)) {
-                    if (!names) continue;
-                    for (const name of names) {
-                        const rulePath = join(profileDir, "ai", "rules", scope, `${name}.md`);
-                        if (!(await pathExists(rulePath))) {
-                            issues.push({
-                                severity: "warning",
-                                message: `Rule file missing: ai/rules/${scope}/${name}.md`,
-                                path: join(profile.path, "ai", "rules", scope, `${name}.md`),
-                                context: ctx,
-                            });
-                        }
-                    }
-                }
-            }
+        // ── Check 6b: Detect v1 subdirectory layout in ai/rules/ ───────
+        // In v2, rules are flat .md files directly under ai/rules/.
+        // A subdirectory (e.g. ai/rules/universal/ or ai/rules/cursor/) indicates v1 layout.
+        const rulesDir = join(profileDir, "ai", "rules");
+        if (await hasV1SubdirectoryLayout(rulesDir)) {
+            issues.push({
+                severity: "warning",
+                message: `ai/rules/ contains subdirectories (e.g. universal/, cursor/). In v2, rules are flat .md files directly under ai/rules/. Move files to ai/rules/<name>.md and remove subdirectories.`,
+                path: join(profile.path, "ai", "rules"),
+                context: ctx,
+            });
         }
 
-        // ── Check 8: Agents exist ──────────────────────────────────────
-        if (profileManifest.ai?.agents) {
-            const agents = profileManifest.ai.agents;
-            if (Array.isArray(agents)) {
-                // Universal agents: ai/agents/{name}.md
-                for (const name of agents) {
-                    const agentPath = join(profileDir, "ai", "agents", `${name}.md`);
-                    if (!(await pathExists(agentPath))) {
-                        issues.push({
-                            severity: "warning",
-                            message: `Agent file missing: ai/agents/${name}.md`,
-                            path: join(profile.path, "ai", "agents", `${name}.md`),
-                            context: ctx,
-                        });
-                    }
-                }
-            } else {
-                // Scoped agents: ai/agents/{scope}/{name}.md
-                for (const [scope, names] of Object.entries(agents)) {
-                    if (!names) continue;
-                    for (const name of names) {
-                        const agentPath = join(profileDir, "ai", "agents", scope, `${name}.md`);
-                        if (!(await pathExists(agentPath))) {
-                            issues.push({
-                                severity: "warning",
-                                message: `Agent file missing: ai/agents/${scope}/${name}.md`,
-                                path: join(profile.path, "ai", "agents", scope, `${name}.md`),
-                                context: ctx,
-                            });
-                        }
-                    }
-                }
-            }
+        // ── Check 6c: Detect v1 subdirectory layout in ai/agents/ ──────
+        const agentsDir = join(profileDir, "ai", "agents");
+        if (await hasV1SubdirectoryLayout(agentsDir)) {
+            issues.push({
+                severity: "warning",
+                message: `ai/agents/ contains subdirectories. In v2, agents are flat .md files directly under ai/agents/. Move files to ai/agents/<name>.md and remove subdirectories.`,
+                path: join(profile.path, "ai", "agents"),
+                context: ctx,
+            });
         }
 
-        // ── Check 9: Memory exists ─────────────────────────────────────
-        if (profileManifest.ai?.memory) {
-            for (const mem of profileManifest.ai.memory) {
-                const memPath = join(profileDir, "ai", "memory", mem.source);
-                if (!(await pathExists(memPath))) {
-                    issues.push({
-                        severity: "warning",
-                        message: `Memory file missing: ai/memory/${mem.source}`,
-                        path: join(profile.path, "ai", "memory", mem.source),
-                        context: ctx,
-                    });
-                }
-            }
-        }
-
-        // ── Check 10: Commands exist ───────────────────────────────────
-        if (profileManifest.ai?.commands) {
-            for (const cmd of profileManifest.ai.commands) {
-                const cmdPath = join(profileDir, "ai", "commands", `${cmd}.md`);
-                if (!(await pathExists(cmdPath))) {
-                    issues.push({
-                        severity: "warning",
-                        message: `Command file missing: ai/commands/${cmd}.md`,
-                        path: join(profile.path, "ai", "commands", `${cmd}.md`),
-                        context: ctx,
-                    });
-                }
-            }
-        }
-
-        // ── Check 11: Files exist ──────────────────────────────────────
-        if (profileManifest.files) {
-            for (const file of profileManifest.files) {
-                const filePath = join(profileDir, "files", file.source);
-                if (!(await pathExists(filePath))) {
-                    issues.push({
-                        severity: "warning",
-                        message: `File missing: files/${file.source}`,
-                        path: join(profile.path, "files", file.source),
-                        context: ctx,
-                    });
-                }
-            }
-        }
-
-        // ── Check 12: IDE files exist ──────────────────────────────────
-        if (profileManifest.ide) {
-            for (const [platform, files] of Object.entries(profileManifest.ide)) {
-                for (const file of files) {
-                    const idePath = join(profileDir, "ide", platform, file);
-                    if (!(await pathExists(idePath))) {
-                        issues.push({
-                            severity: "warning",
-                            message: `IDE file missing: ide/${platform}/${file}`,
-                            path: join(profile.path, "ide", platform, file),
-                            context: ctx,
-                        });
-                    }
-                }
-            }
-        }
+        // ── Check 6d: Validate MCP YAML files ──────────────────────────
+        const mcpIssues = await validateMcpYamlFiles(profileDir, profile.path, ctx, sourceRoot);
+        issues.push(...mcpIssues);
 
         // ── Check 13: Extends references are resolvable ────────────────
         if (profileManifest.extends) {
