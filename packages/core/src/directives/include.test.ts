@@ -259,17 +259,25 @@ describe("resolveInclude", () => {
             const directive: ParsedDirective = {
                 type: "include",
                 attributes: { src: "fragments/react.md", mode: "link" },
-                startIndex: 0, endIndex: 0, raw: "",
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
             };
 
             const result = await resolveInclude(
-                directive, "/project", undefined, profileRoot,
-                "my-profile", (p) => placements.push(p),
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                "my-profile",
+                (p) => placements.push(p),
             );
 
             expect(placements).toHaveLength(1);
             expect(placements[0].sourcePath).toBe(join(fragDir, "react.md"));
-            expect(placements[0].targetRelative).toBe(".baton/includes/my-profile/fragments/react.md");
+            expect(placements[0].targetRelative).toBe(
+                ".baton/includes/my-profile/fragments/react.md",
+            );
             expect(result).toContain(".baton/includes/my-profile/fragments/react.md");
 
             await rm(profileRoot, { recursive: true, force: true });
@@ -283,12 +291,18 @@ describe("resolveInclude", () => {
             const directive: ParsedDirective = {
                 type: "include",
                 attributes: { src: "@project/README.md", mode: "link" },
-                startIndex: 0, endIndex: 0, raw: "",
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
             };
 
             const result = await resolveInclude(
-                directive, tempProjectRoot, undefined, "/some-profile",
-                "my-profile", (p) => placements.push(p),
+                directive,
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                (p) => placements.push(p),
             );
 
             expect(placements).toHaveLength(0);
@@ -305,12 +319,18 @@ describe("resolveInclude", () => {
             const directive: ParsedDirective = {
                 type: "include",
                 attributes: { src: "api.md", mode: "reference" },
-                startIndex: 0, endIndex: 0, raw: "",
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
             };
 
             const result = await resolveInclude(
-                directive, "/project", undefined, profileRoot,
-                "my-profile", (p) => placements.push(p),
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                "my-profile",
+                (p) => placements.push(p),
             );
 
             expect(placements).toHaveLength(1);
@@ -328,12 +348,13 @@ describe("resolveInclude", () => {
             const directive: ParsedDirective = {
                 type: "include",
                 attributes: { src: "rules.md", mode: "inline" },
-                startIndex: 0, endIndex: 0, raw: "",
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
             };
 
-            await resolveInclude(
-                directive, "/project", undefined, profileRoot,
-                "my-profile", (p) => placements.push(p),
+            await resolveInclude(directive, "/project", undefined, profileRoot, "my-profile", (p) =>
+                placements.push(p),
             );
 
             expect(placements).toHaveLength(0);
@@ -349,13 +370,19 @@ describe("resolveInclude", () => {
             const directive: ParsedDirective = {
                 type: "include",
                 attributes: { src: "file.md", mode: "link" },
-                startIndex: 0, endIndex: 0, raw: "",
+                startIndex: 0,
+                endIndex: 0,
+                raw: "",
             };
 
             // No profileName → no placement (backward compat)
             const result = await resolveInclude(
-                directive, "/project", undefined, profileRoot,
-                undefined, (p) => placements.push(p),
+                directive,
+                "/project",
+                undefined,
+                profileRoot,
+                undefined,
+                (p) => placements.push(p),
             );
 
             expect(placements).toHaveLength(0);

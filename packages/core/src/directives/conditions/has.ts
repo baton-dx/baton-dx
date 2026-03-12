@@ -1,5 +1,5 @@
-import { registerAsyncCondition, splitValues } from "./registry.js";
 import { detectHas } from "./has-registry.js";
+import { registerAsyncCondition, splitValues } from "./registry.js";
 
 registerAsyncCondition("has", async (value, context) => {
     const keys = splitValues(value);

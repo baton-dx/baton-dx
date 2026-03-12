@@ -161,9 +161,9 @@ describe("has condition", () => {
     });
 
     it('not-has="prettier" passes when no prettier detected', async () => {
-        expect(await evaluateCondition({ "not-has": "prettier" }, makeContext({ projectRoot }))).toBe(
-            true,
-        );
+        expect(
+            await evaluateCondition({ "not-has": "prettier" }, makeContext({ projectRoot })),
+        ).toBe(true);
     });
 
     it('has="typescript,react" OR logic', async () => {
