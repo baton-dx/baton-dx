@@ -7,7 +7,9 @@ import type { DirectiveOptions } from "./types.js";
  * Regex to match any remaining baton:* HTML comment directives.
  * Used in the cleanup pass to strip leftover artifacts.
  */
-const BATON_COMMENT_CLEANUP = /<!--\s*baton:[^>]*?-->\s*/g;
+// Use (?:[^-]|-(?!->))* instead of [^>]*? to avoid polynomial backtracking (ReDoS).
+// Each step is deterministic: either a non-dash char, or a dash not followed by ->.
+const BATON_COMMENT_CLEANUP = /<!--\s*baton:(?:[^-]|-(?!->))*-->\s*/g;
 
 /**
  * Process all baton directives in content.
