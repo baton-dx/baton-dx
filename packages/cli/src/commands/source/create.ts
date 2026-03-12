@@ -233,15 +233,9 @@ export async function scaffoldSourceRepo(options: WizardOptions): Promise<string
 version: "0.1.0"
 description: "Baton source repository"
 
-${
-    withInitialProfile
-        ? `profiles:
-  - name: "default"
-    path: "profiles/default"
-    description: "Default profile configuration"
-`
-        : ""
-}
+# Profiles are auto-discovered from the profiles/ directory.
+# Each profile must contain a baton.profile.yaml manifest.
+
 metadata:
   created: "${new Date().getFullYear()}"
 `;
