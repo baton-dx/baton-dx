@@ -3,8 +3,6 @@ import { evaluateAST } from "./evaluator.js";
 import { ConditionParseError, parse } from "./parser.js";
 import { ConditionTokenError, tokenize } from "./tokenizer.js";
 
-export { ConditionParseError, parse } from "./parser.js";
-export { ConditionTokenError, tokenize } from "./tokenizer.js";
 export type { ASTNode } from "./types.js";
 
 /**

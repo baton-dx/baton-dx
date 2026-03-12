@@ -7,10 +7,7 @@ import type { DirectiveContext } from "../types.js";
  * @param context - The directive context
  * @returns true if condition passes, false if it fails
  */
-export type ConditionEvaluator = (
-    value: string,
-    context: DirectiveContext,
-) => boolean;
+export type ConditionEvaluator = (value: string, context: DirectiveContext) => boolean;
 
 /**
  * An async condition evaluator (for file-system checks).
@@ -75,11 +72,6 @@ export async function evaluateAsyncCondition(
     const evaluator = asyncRegistry.get(key);
     if (evaluator) return evaluator(value, context);
     return undefined;
-}
-
-/** Check if a key is registered in either registry. */
-export function isRegisteredCondition(key: string): boolean {
-    return syncRegistry.has(key) || asyncRegistry.has(key);
 }
 
 /** Check if a key requires async evaluation. */

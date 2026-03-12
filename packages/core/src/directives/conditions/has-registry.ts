@@ -76,7 +76,7 @@ const HAS_REGISTRY: Record<string, HasDetector> = {
         ])),
     tailwind: async (_root, pkg) => hasDep(pkg, "tailwindcss"),
     monorepo: async (root, pkg) =>
-        (pkg?.workspaces != null) || (await fileExists(root, "pnpm-workspace.yaml")),
+        pkg?.workspaces != null || (await fileExists(root, "pnpm-workspace.yaml")),
     docker: async (root) => fileExists(root, "Dockerfile"),
     python: async (root) => anyFileExists(root, ["pyproject.toml", "requirements.txt"]),
     rust: async (root) => fileExists(root, "Cargo.toml"),
@@ -93,7 +93,7 @@ const detectionCache = new Map<string, boolean>();
 const pkgJsonCache = new Map<string, PackageJson | null>();
 
 async function getPackageJson(projectRoot: string): Promise<PackageJson | null> {
-    if (pkgJsonCache.has(projectRoot)) return pkgJsonCache.get(projectRoot)!;
+    if (pkgJsonCache.has(projectRoot)) return pkgJsonCache.get(projectRoot) ?? null;
     try {
         const content = await readFile(resolve(projectRoot, "package.json"), "utf-8");
         const parsed = JSON.parse(content) as PackageJson;
@@ -114,7 +114,7 @@ export async function detectHas(projectRoot: string, key: string): Promise<boole
     if (!detector) return undefined;
 
     const cacheKey = `${projectRoot}::${key}`;
-    if (detectionCache.has(cacheKey)) return detectionCache.get(cacheKey)!;
+    if (detectionCache.has(cacheKey)) return detectionCache.get(cacheKey) ?? false;
 
     const pkgJson = await getPackageJson(projectRoot);
     const result = await detector(projectRoot, pkgJson);
@@ -126,9 +126,4 @@ export async function detectHas(projectRoot: string, key: string): Promise<boole
 export function clearHasCache(): void {
     detectionCache.clear();
     pkgJsonCache.clear();
-}
-
-/** Get all known has-characteristic keys. */
-export function getHasKeys(): string[] {
-    return Object.keys(HAS_REGISTRY);
 }
