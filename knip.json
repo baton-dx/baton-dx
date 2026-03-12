@@ -11,5 +11,6 @@
       "project": ["src/**/*.ts"]
     }
   },
-  "ignore": ["**/dist/**"]
+  "ignoreExportsUsedInFile": true,
+  "exclude": ["duplicates"]
 }

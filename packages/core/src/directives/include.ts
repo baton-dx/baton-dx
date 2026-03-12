@@ -62,9 +62,7 @@ export async function resolveInclude(
     }
 
     // Choose resolution root
-    const resolveRoot = isProjectRelative
-        ? projectRoot
-        : (profileRoot ?? projectRoot);
+    const resolveRoot = isProjectRelative ? projectRoot : (profileRoot ?? projectRoot);
 
     // Reject absolute paths
     if (isAbsolute(src)) {
@@ -132,7 +130,9 @@ export async function resolveInclude(
             const targetRelative = computePlacementTarget(profileName, src);
             onPlacement({ sourcePath: absolutePath, targetRelative, profileName });
             const rendered = `@${targetRelative}`;
-            return hint ? hint.replace("{{file}}", rendered) : `See ${rendered} for additional context.`;
+            return hint
+                ? hint.replace("{{file}}", rendered)
+                : `See ${rendered} for additional context.`;
         }
         const rendered = `@${rawSrc}`;
         return hint

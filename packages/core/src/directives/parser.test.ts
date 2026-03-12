@@ -144,20 +144,13 @@ describe("parseDirectives", () => {
     });
 
     it("ignores directives inside fenced code blocks (tildes)", () => {
-        const content = [
-            "~~~",
-            '<!-- baton:if tool="cursor" -->',
-            "~~~",
-        ].join("\n");
+        const content = ["~~~", '<!-- baton:if tool="cursor" -->', "~~~"].join("\n");
         const result = parseDirectives(content);
         expect(result).toHaveLength(0);
     });
 
     it("handles unclosed code blocks (extends to end)", () => {
-        const content = [
-            "```",
-            '<!-- baton:include src="inside.md" -->',
-        ].join("\n");
+        const content = ["```", '<!-- baton:include src="inside.md" -->'].join("\n");
         const result = parseDirectives(content);
         expect(result).toHaveLength(0);
     });

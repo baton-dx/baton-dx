@@ -104,9 +104,9 @@ describe("evaluateCondition", () => {
             await evaluateCondition({ tool: "claude-code", scope: "global" }, makeContext()),
         ).toBe(false);
         // scope matches but tool doesn't → false
-        expect(
-            await evaluateCondition({ tool: "cursor", scope: "project" }, makeContext()),
-        ).toBe(false);
+        expect(await evaluateCondition({ tool: "cursor", scope: "project" }, makeContext())).toBe(
+            false,
+        );
     });
 
     it('var="lang" checks variable existence', async () => {
