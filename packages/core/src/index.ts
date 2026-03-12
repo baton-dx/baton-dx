@@ -245,6 +245,7 @@ export {
 export type { ProjectManifest } from "./schemas/project-manifest.js";
 export { projectManifestSchema } from "./schemas/project-manifest.js";
 export {
+    detectLegacySourceFields,
     sourceManifestSchema,
     weightSchema,
 } from "./schemas/source-manifest.js";

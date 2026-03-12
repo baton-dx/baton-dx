@@ -10,25 +10,6 @@ import { KEBAB_CASE_REGEX, SEMVER_REGEX } from "./constants.js";
 export const weightSchema = z.number().int().min(-1).default(0);
 
 /**
- * Profile entry in source manifest
- */
-export const sourceProfileEntrySchema = z.object({
-    name: z.string(),
-    path: z.string(), // e.g., "profiles/frontend"
-    description: z.string().optional(),
-    weight: weightSchema.optional(),
-});
-
-/**
- * Source manifest schema
- *
- * The source manifest (baton.source.yaml) defines a source repository that
- * contains one or more profiles in the profiles/ directory.
- *
- * The profiles array is optional - if omitted, profiles will be auto-discovered
- * by scanning the profiles/ directory for baton.profile.yaml files.
- */
-/**
  * AI section in source manifest — default AI tools for all profiles in this source.
  *
  * `tools` defines which AI tools this source targets. Individual profiles inherit
@@ -70,8 +51,26 @@ export const sourceManifestSchema = z.object({
     // Optional: Default IDE platforms for all profiles in this source
     ide: sourceIdeSectionSchema,
 
-    // Optional: Auto-discovered if omitted
-    profiles: z.array(sourceProfileEntrySchema).optional(),
-
     metadata: z.record(z.string(), z.string()).optional(),
 });
+
+// --- Legacy field detection ---
+
+/**
+ * Detect pre-1.0 source manifest fields and return actionable error messages.
+ */
+export function detectLegacySourceFields(rawManifest: unknown): string[] {
+    if (typeof rawManifest !== "object" || rawManifest === null) return [];
+    const manifest = rawManifest as Record<string, unknown>;
+    const errors: string[] = [];
+
+    if ("profiles" in manifest && manifest.profiles !== undefined) {
+        errors.push(
+            '"profiles" is no longer supported in baton.source.yaml. ' +
+                "Profiles are auto-discovered from the profiles/ directory. " +
+                "Remove the field and ensure each profile has a baton.profile.yaml.",
+        );
+    }
+
+    return errors;
+}
