@@ -33,6 +33,7 @@ const sourceIdeSectionSchema = z
     })
     .optional();
 
+/** Schema for baton.source.yaml — the manifest at the root of a source repository. */
 export const sourceManifestSchema = z.object({
     name: z.string().regex(KEBAB_CASE_REGEX, {
         message: "Source name must be kebab-case (e.g., my-source, 3d-tools)",
