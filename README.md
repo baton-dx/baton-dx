@@ -152,6 +152,7 @@ Baton's own configurations are published as [`baton-dx-source`](https://github.c
 - [AI Tools Reference](docs/08-ai-tools-reference.md) — All 14 supported AI tools
 - [IDE Platforms](docs/09-ide-platforms-reference.md) — Supported IDE platforms
 - [Merge Strategies](docs/10-merge-strategies.md) — Deep dive into merge strategies
+- [Migration Guide](docs/MIGRATION-1.0.md) — upgrading from 0.x
 
 ## Built with AI, Verified by Humans
 
