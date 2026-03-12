@@ -6,7 +6,7 @@ A **source repository** is the distribution unit for Baton configurations. It gr
 
 ## What is a Source Repository
 
-A source repository is any directory (typically a Git repo) that contains a `baton.source.yaml` manifest at its root. The manifest declares metadata about the source -- its name, version, description, and the list of profiles it provides.
+A source repository is any directory (typically a Git repo) that contains a `baton.source.yaml` manifest at its root. The manifest declares metadata about the source -- its name, version, and description. Profiles are auto-discovered from the `profiles/` directory.
 
 Sources can be hosted on any supported transport:
 
@@ -54,11 +54,8 @@ name: my-team-configs
 version: 1.0.0
 description: Team DX standards
 repository: github:my-org/dx-configs
-profiles:
-  - name: frontend
-    path: profiles/frontend
-  - name: backend
-    path: profiles/backend
+
+# Profiles are auto-discovered from the profiles/ directory.
 ```
 
 ### Field Reference
@@ -69,22 +66,15 @@ profiles:
 | `version`     | string   | yes      | Semver version string (e.g. `1.0.0`).                             |
 | `description` | string   | no       | Human-readable description of the source.                          |
 | `repository`  | string   | no       | Canonical URI where the source is hosted.                          |
-| `profiles`    | array    | yes      | List of profile entries provided by this source.                   |
 
-Each entry in `profiles` has:
-
-| Field  | Type   | Required | Description                                          |
-| ------ | ------ | -------- | ---------------------------------------------------- |
-| `name` | string | yes      | Profile identifier. Must be unique within the source.|
-| `path` | string | yes      | Relative path from the source root to the profile.   |
+Profiles are auto-discovered: any subdirectory under `profiles/` that contains a valid `baton.profile.yaml` is automatically included. No explicit `profiles:` list is needed in the source manifest.
 
 ### Validation
 
 Baton validates the manifest on every operation. Common issues:
 
-- **Duplicate profile names** -- each `name` in `profiles` must be unique within the source.
-- **Missing paths** -- every `path` must point to a directory that contains a valid `baton.profile.yaml`.
 - **Invalid version** -- the `version` field must be a valid semver string.
+- **Missing profile manifest** -- every profile directory must contain a valid `baton.profile.yaml`.
 
 Run `baton source validate` to check your manifest without syncing.
 
@@ -171,19 +161,7 @@ To add a new profile to an existing source:
    touch profiles/my-new-profile/baton.profile.yaml
    ```
 
-3. Register the profile in `baton.source.yaml`:
-
-   ```yaml
-   profiles:
-     - name: frontend
-       path: profiles/frontend
-     - name: backend
-       path: profiles/backend
-     - name: my-new-profile           # add this
-       path: profiles/my-new-profile  # add this
-   ```
-
-4. Validate:
+3. Validate:
 
    ```bash
    baton source validate
@@ -296,7 +274,7 @@ source: github:my-org/dx-configs@v1.2.0/frontend
 Baton's own official source repository [`baton-dx-source`](https://github.com/baton-dx/baton-dx-source) is a complete, production-grade example of everything described in this guide. It demonstrates:
 
 - **Multi-audience profiles** — three specialized profiles (`maintainer`, `creator`, `consumer`) plus a shared `base` profile
-- **Profile inheritance** — all three profiles extend `base` via `extends: ["../base"]` to share common Baton knowledge without duplication
+- **Profile inheritance** — all three profiles extend `base` via `extends: ../base` to share common Baton knowledge without duplication
 - **Weight-based layering** — `base` at weight 0, child profiles at weight 10
 - **Full AI configuration** — skills, rules, agents, memory, and commands targeting all 14 AI tools
 - **Conventional directory layout** — `profiles/<name>/ai/{skills,rules,agents,memory,commands}/`
@@ -305,15 +283,9 @@ Baton's own official source repository [`baton-dx-source`](https://github.com/ba
 # baton.source.yaml (simplified)
 name: baton-dx-source
 version: 0.1.0
-profiles:
-  - name: base
-    path: profiles/base
-  - name: maintainer
-    path: profiles/maintainer
-  - name: creator
-    path: profiles/creator
-  - name: consumer
-    path: profiles/consumer
+
+# Profiles are auto-discovered from the profiles/ directory.
+# profiles/base/, profiles/maintainer/, profiles/creator/, profiles/consumer/
 ```
 
 The `creator` profile is specifically designed for developers building their own sources and profiles. To get AI-assisted guidance while creating your own source:
