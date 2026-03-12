@@ -9,6 +9,7 @@ import {
     type CloneContext,
     type CommandEntry,
     checkLockfileVersion,
+    checkSourceBatonRequires,
     cloneGitSource,
     createGit,
     detectInstalledAITools,
@@ -17,6 +18,7 @@ import {
     discoverProfile,
     FileNotFoundError,
     type FilePlacement,
+    findSourceManifest,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
@@ -222,6 +224,8 @@ export const applyCommand = defineCommand({
             const sourceShas = new Map<string, string>();
             // Track authenticated URL + token per source for reuse in Step 5
             const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
+            // Track source roots already checked for baton-cli version requirement
+            const checkedSourceRoots = new Set<string>();
             for (const profileSource of projectManifest.profiles || []) {
                 try {
                     if (verbose) {
@@ -309,6 +313,23 @@ export const applyCommand = defineCommand({
 
                     const manifest = await loadProfileManifest(manifestPath);
                     const profileDir = dirname(manifestPath);
+
+                    // Check requires["baton-cli"] once per source root
+                    const sourceRoot = resolve(profileDir, "../..");
+                    if (!checkedSourceRoots.has(sourceRoot)) {
+                        checkedSourceRoots.add(sourceRoot);
+                        const sourceMeta = await findSourceManifest(sourceRoot).catch(() => null);
+                        const requiresBatonCli = sourceMeta?.requires?.["baton-cli"];
+                        if (requiresBatonCli) {
+                            const err = checkSourceBatonRequires(requiresBatonCli, currentVersion);
+                            if (err) {
+                                spinner.stop("Version requirement not met");
+                                p.cancel(err);
+                                process.exit(1);
+                            }
+                        }
+                    }
+
                     const chain = await resolveProfileChain(
                         manifest,
                         profileSource.source,

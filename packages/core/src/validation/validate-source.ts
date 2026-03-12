@@ -1,6 +1,7 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { getAllAIToolKeys } from "@baton-dx/ai-tool-paths";
+import { validRange } from "semver";
 import { parse as parseYaml } from "yaml";
 import {
     detectLegacyFields,
@@ -176,6 +177,19 @@ export async function validateSource(sourceRoot: string): Promise<ValidationRepo
     }
 
     const sourceManifest = sourceResult.data;
+
+    // ── Check 3: requires["baton-cli"] is a valid semver range ───────────
+    const requiresBatonCli = sourceManifest.requires?.["baton-cli"];
+    if (requiresBatonCli) {
+        if (!validRange(requiresBatonCli)) {
+            issues.push({
+                severity: "error",
+                message: `Invalid semver range in requires["baton-cli"]: "${requiresBatonCli}"`,
+                path: "baton.source.yaml",
+                context: "source-manifest",
+            });
+        }
+    }
 
     // ── Check 5: AI tool keys are known (source-level) ────────────────
     const knownKeys = getAllAIToolKeys();

@@ -149,6 +149,46 @@ describe("validateSource", () => {
         ).toBe(true);
     });
 
+    // ── Check 3: requires["baton-cli"] semver range ──────────────────
+    it("passes when requires.baton-cli is a valid semver range", async () => {
+        await writeSourceManifest(TEST_DIR, {
+            requires: { "baton-cli": ">=1.0.0" },
+        });
+
+        const report = await validateSource(TEST_DIR);
+
+        expect(report.valid).toBe(true);
+        expect(report.issues).toHaveLength(0);
+    });
+
+    it("reports error when requires.baton-cli is not a valid semver range", async () => {
+        await writeSourceManifest(TEST_DIR, {
+            requires: { "baton-cli": "not-a-range" },
+        });
+
+        const report = await validateSource(TEST_DIR);
+
+        expect(report.valid).toBe(false);
+        expect(
+            report.issues.some(
+                (i) =>
+                    i.severity === "error" &&
+                    i.context === "source-manifest" &&
+                    i.message.includes('requires["baton-cli"]') &&
+                    i.message.includes("not-a-range"),
+            ),
+        ).toBe(true);
+    });
+
+    it("passes when requires is omitted", async () => {
+        await writeSourceManifest(TEST_DIR);
+
+        const report = await validateSource(TEST_DIR);
+
+        expect(report.valid).toBe(true);
+        expect(report.issues).toHaveLength(0);
+    });
+
     // ── Check 5: Unknown AI tool keys ───────────────────────────────
     it("warns about unknown AI tool keys in source manifest", async () => {
         await writeSourceManifest(TEST_DIR, {

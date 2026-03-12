@@ -52,6 +52,14 @@ export const sourceManifestSchema = z.object({
     // Optional: Default IDE platforms for all profiles in this source
     ide: sourceIdeSectionSchema,
 
+    // Optional: Minimum baton-cli version required to use this source.
+    // The range syntax is validated in validate-source.ts (Check 3).
+    requires: z
+        .object({
+            "baton-cli": z.string().optional(),
+        })
+        .optional(),
+
     metadata: z.record(z.string(), z.string()).optional(),
 });
 
