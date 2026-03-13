@@ -13,6 +13,7 @@
     "fix-sparse-checkout-cache-poisoning",
     "fix-sync-apply-bugs",
     "scan-show-config-state",
-    "tilde-path-support"
+    "tilde-path-support",
+    "fix-expression-case-sensitivity"
   ]
 }

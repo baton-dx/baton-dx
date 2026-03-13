@@ -352,13 +352,13 @@ For complex conditions, use the `condition` attribute with a readable expression
 ```markdown
 <!-- baton:if condition="tool == 'claude-code'" -->
 <!-- baton:if condition="tool != 'cursor'" -->
-<!-- baton:if condition="tool == 'cursor' or tool == 'windsurf'" -->
-<!-- baton:if condition="scope == 'project' and type == 'memory'" -->
-<!-- baton:if condition="has('typescript') and not has('prettier')" -->
-<!-- baton:if condition="file('biome.json') or file('biome.jsonc')" -->
+<!-- baton:if condition="tool == 'cursor' OR tool == 'windsurf'" -->
+<!-- baton:if condition="scope == 'project' AND type == 'memory'" -->
+<!-- baton:if condition="has('typescript') AND NOT has('prettier')" -->
+<!-- baton:if condition="file('biome.json') OR file('biome.jsonc')" -->
 <!-- baton:if condition="var('lang') == 'typescript'" -->
 <!-- baton:if condition="var('lang')" -->
-<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and scope == 'project'" -->
+<!-- baton:if condition="(tool == 'claude-code' OR tool == 'cursor') AND scope == 'project'" -->
 ```
 
 Expression conditions support:
@@ -368,19 +368,19 @@ Expression conditions support:
 | Properties | `tool`, `scope`, `type`, `ide` | Compare with `==` or `!=` |
 | Functions | `has('key')`, `file('path')`, `var('name')` | Lookup checks, return boolean |
 | Function + compare | `var('name') == 'value'` | Check function result against value |
-| AND | `and` or `&&` | Both sides must be true |
-| OR | `or` or `\|\|` | Either side must be true |
-| NOT | `not` or `!` | Negates the following expression |
+| AND | `AND` or `&&` | Both sides must be true |
+| OR | `OR` or `\|\|` | Either side must be true |
+| NOT | `NOT` or `!` | Negates the following expression |
 | Grouping | `(...)` | Override default precedence |
 
-**Operator precedence:** `not` > `and` > `or` (standard). Use parentheses to override.
+**Operator precedence:** `NOT` > `AND` > `OR` (standard). Use parentheses to override.
 
 **String values** use single quotes inside the double-quoted attribute: `condition="tool == 'claude-code'"`.
 
 Expression conditions also work with `baton:else`:
 
 ```markdown
-<!-- baton:if condition="tool == 'claude-code' or tool == 'cursor'" -->
+<!-- baton:if condition="tool == 'claude-code' OR tool == 'cursor'" -->
 Use AI-native file references.
 <!-- baton:else -->
 Use standard file paths.

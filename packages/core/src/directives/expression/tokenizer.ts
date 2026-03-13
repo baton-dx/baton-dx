@@ -100,7 +100,7 @@ export function tokenize(expression: string): Token[] {
                 i++;
             }
             const word = expression.slice(start, i);
-            const keywordType = KEYWORDS[word];
+            const keywordType = KEYWORDS[word.toLowerCase()];
             tokens.push({
                 type: keywordType ?? "IDENTIFIER",
                 value: word,

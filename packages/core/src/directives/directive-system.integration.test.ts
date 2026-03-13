@@ -1673,6 +1673,20 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
             expect(result).toContain("Web IDE content");
         });
 
+        it("uppercase OR correctly excludes non-matching tools", async () => {
+            const content = [
+                "<!-- baton:if condition=\"tool == 'claude-code' OR tool == 'antigravity'\" -->",
+                "Claude or Antigravity only",
+                "<!-- baton:endif -->",
+            ].join("\n");
+
+            const result = await processDirectives(
+                content,
+                makeOptions({ projectRoot, currentTool: "cursor" }),
+            );
+            expect(result).not.toContain("Claude or Antigravity only");
+        });
+
         it("AND expression requires both sides", async () => {
             const content = [
                 "<!-- baton:if condition=\"tool == 'claude-code' and scope == 'global'\" -->",
