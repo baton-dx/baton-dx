@@ -1,5 +1,11 @@
 # @baton-dx/cli
 
+## 1.0.0-alpha.6
+
+### Patch Changes
+
+- b1bc1ab: Fix content duplication when multiple adapters share the same target path, dry-run falsely reporting all files as orphans, and apply.ts not stripping Baton frontmatter
+
 ## 1.0.0-alpha.5
 
 ### Patch Changes

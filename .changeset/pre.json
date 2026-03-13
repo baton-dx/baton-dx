@@ -10,6 +10,7 @@
     "baton-1-0-release",
     "fix-preview-no-profiles-resolved",
     "fix-sparse-checkout-cache-poisoning",
+    "fix-sync-apply-bugs",
     "scan-show-config-state",
     "tilde-path-support"
   ]
