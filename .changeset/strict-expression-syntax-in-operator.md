@@ -1,5 +1,5 @@
 ---
-"@baton-dx/core": minor
+"@baton-dx/core": patch
 ---
 
 Strict expression syntax: uppercase-only operators (AND, OR, NOT, IN) and new IN operator for set membership
