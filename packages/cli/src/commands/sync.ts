@@ -696,6 +696,86 @@ export const syncCommand = defineCommand({
                 }
             >();
 
+            // === Compute expected target paths (always, including dry-run) for orphan detection ===
+            if (syncAi) {
+                const seenPaths = new Set<string>();
+                for (const adapter of adapters) {
+                    for (const memoryEntry of mergedMemory) {
+                        const p = adapter.getPath(
+                            "memory",
+                            memoryEntry.scope,
+                            memoryEntry.filename,
+                        );
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const skillItem of mergedSkills) {
+                        const p = adapter.getPath("skills", skillItem.scope, skillItem.name);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const ruleEntry of mergedRules) {
+                        const ruleName = ruleEntry.name.replace(/\.md$/, "");
+                        const isUniversal = ruleEntry.agents.length === 0;
+                        if (!isUniversal && !ruleEntry.agents.includes(adapter.key)) continue;
+                        const p = adapter.getPath("rules", ruleEntry.scope, ruleName);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const agentEntry of mergedAgents) {
+                        const agentName = agentEntry.name.replace(/\.md$/, "");
+                        const isUniversal = agentEntry.agents.length === 0;
+                        if (!isUniversal && !agentEntry.agents.includes(adapter.key)) continue;
+                        const p = adapter.getPath("agents", agentEntry.scope, agentName);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const cmd of discoveryCommandEntries) {
+                        const p = adapter.getPath("commands", cmd.scope, cmd.name);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                }
+            }
+            if (syncFiles) {
+                for (const fileEntry of fileMap.values()) {
+                    actualPlacedPaths.add(fileEntry.target);
+                    filePlacedPaths.add(fileEntry.target);
+                }
+            }
+            if (syncIde) {
+                for (const ideEntry of ideMap.values()) {
+                    if (
+                        syncedIdePlatforms !== null &&
+                        !syncedIdePlatforms.includes(ideEntry.ideKey)
+                    )
+                        continue;
+                    const rel = `${ideEntry.targetDir}/${ideEntry.fileName}`;
+                    actualPlacedPaths.add(rel);
+                    idePlacedPaths.add(rel);
+                }
+            }
+
             // Accumulate memory file content
             if (!dryRun && syncAi) {
                 for (const adapter of adapters) {
@@ -777,7 +857,9 @@ export const syncCommand = defineCommand({
                             // Accumulate content for this target path
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 for (const c of memoryEntry.contributions)
                                     existing.profiles.add(c.profileName);
                             } else {
@@ -1028,7 +1110,9 @@ export const syncCommand = defineCommand({
                             // Accumulate content for this target path
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 existing.profiles.add(ruleEntry.profileName);
                             } else {
                                 contentAccumulator.set(absolutePath, {
@@ -1156,7 +1240,9 @@ export const syncCommand = defineCommand({
                             // Accumulate content for this target path
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 existing.profiles.add(agentEntry.profileName);
                             } else {
                                 contentAccumulator.set(absolutePath, {
