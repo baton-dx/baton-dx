@@ -20,11 +20,11 @@
     },
     "packages/ai-tool-paths": {
       "name": "@baton-dx/ai-tool-paths",
-      "version": "1.0.0-alpha.9",
+      "version": "1.0.0-alpha.10",
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "1.0.0-alpha.9",
+      "version": "1.0.0-alpha.10",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
@@ -44,7 +44,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "1.0.0-alpha.9",
+      "version": "1.0.0-alpha.10",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
