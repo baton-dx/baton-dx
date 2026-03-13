@@ -92,6 +92,7 @@ export const previewCommand = defineCommand({
 
             const allProfiles = [];
             const profileLocalPaths = new Map<string, string>();
+            const resolutionErrors: string[] = [];
 
             for (const profileSource of manifest.profiles) {
                 try {
@@ -148,18 +149,21 @@ export const previewCommand = defineCommand({
                     );
 
                     for (const prof of chain) {
-                        profileLocalPaths.set(prof.name, localPath);
+                        profileLocalPaths.set(prof.name, prof.localPath ?? localPath);
                     }
                     allProfiles.push(...chain);
                 } catch (error) {
-                    spinner.message(
-                        `Failed to resolve profile ${profileSource.source}: ${error instanceof Error ? error.message : error}`,
+                    resolutionErrors.push(
+                        `Failed to resolve ${profileSource.source}: ${error instanceof Error ? error.message : error}`,
                     );
                 }
             }
 
             if (allProfiles.length === 0) {
                 spinner.stop("No profiles resolved");
+                for (const err of resolutionErrors) {
+                    p.log.error(err);
+                }
                 p.outro("Nothing to preview. Run `baton manage` to add a profile.");
                 process.exit(0);
             }
