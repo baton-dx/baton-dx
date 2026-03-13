@@ -9,7 +9,7 @@
  * Each describe block maps to a plan sub-phase with cross-references.
  */
 
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1133,6 +1133,38 @@ describe("Phase 2.4 — Referenced file placement (.baton/includes/)", () => {
             expect(placements).toHaveLength(0);
         });
 
+        it("@project/ reference mode renders path without prefix", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+            const d = makeIncludeDirective({ src: "@project/README.md", mode: "reference" });
+            const result = await resolveInclude(
+                d,
+                tempProjectRoot,
+                undefined,
+                profileRoot,
+                "test-profile",
+                () => {},
+            );
+            expect(result).toBe("See @README.md for additional context.");
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("@project/ link mode renders path without prefix", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+            const d = makeIncludeDirective({ src: "@project/README.md", mode: "link" });
+            const result = await resolveInclude(
+                d,
+                tempProjectRoot,
+                undefined,
+                profileRoot,
+                "test-profile",
+                () => {},
+            );
+            expect(result).toBe("[README.md](README.md)");
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
         it("does NOT emit placement for inline mode", async () => {
             await writeFile(join(profileRoot, "inline.md"), "Inline content");
             const placements: FilePlacement[] = [];
@@ -1362,6 +1394,23 @@ describe("End-to-end — Full directive pipeline integration", () => {
         expect(result).toContain(".baton/includes/my-profile/api-guide.md");
         expect(placements).toHaveLength(1);
         expect(placements[0].profileName).toBe("my-profile");
+    });
+
+    it("conditional wrapping @project/ reference mode renders without prefix", async () => {
+        await writeFile(join(projectRoot, "CONTRIBUTING.md"), "How to contribute");
+
+        const content = [
+            "# Rules",
+            '<!-- baton:if tool="claude-code" -->',
+            '<!-- baton:include src="@project/CONTRIBUTING.md" mode="reference" -->',
+            "<!-- baton:endif -->",
+        ].join("\n");
+
+        const result = await processDirectives(content, makeOptions({ projectRoot, profileRoot }));
+
+        expect(result).toContain("# Rules");
+        expect(result).toContain("See @CONTRIBUTING.md for additional context.");
+        expect(result).not.toContain("@project/");
     });
 
     it("conditionals with has detection + @project/ includes", async () => {

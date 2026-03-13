@@ -121,7 +121,7 @@ export async function resolveInclude(
             return hint ? hint.replace("{{file}}", rendered) : rendered;
         }
         // @project/ link or no placement callback: use original path
-        const rendered = `[${rawSrc}](${rawSrc})`;
+        const rendered = `[${src}](${src})`;
         return hint ? hint.replace("{{file}}", rendered) : rendered;
     }
 
@@ -134,7 +134,7 @@ export async function resolveInclude(
                 ? hint.replace("{{file}}", rendered)
                 : `See ${rendered} for additional context.`;
         }
-        const rendered = `@${rawSrc}`;
+        const rendered = `@${src}`;
         return hint
             ? hint.replace("{{file}}", rendered)
             : `See ${rendered} for additional context.`;
