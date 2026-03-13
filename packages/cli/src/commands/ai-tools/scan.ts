@@ -43,6 +43,13 @@ export const aiToolsScanCommand = defineCommand({
             p.log.warn("No AI tools detected on your system.");
         }
 
+        const savedButNotDetected = currentTools.filter((t) => !detectedAITools.includes(t));
+        if (savedButNotDetected.length > 0) {
+            p.log.warn(
+                `${savedButNotDetected.length} saved tool(s) not detected on your system: ${savedButNotDetected.join(", ")}`,
+            );
+        }
+
         // --yes flag: save only detected tools (preserves current behavior)
         if (args.yes) {
             const detectedKeys = detectedAITools;
@@ -64,10 +71,12 @@ export const aiToolsScanCommand = defineCommand({
         // Interactive: show multiselect with all 14 tools
         const options = allAdapters.map((adapter) => {
             const isDetected = detectedAITools.includes(adapter.key);
-            return {
-                value: adapter.key,
-                label: isDetected ? `${adapter.name} (detected)` : adapter.name,
-            };
+            const isSaved = currentTools.includes(adapter.key);
+            let label = adapter.name;
+            if (isDetected && isSaved) label += " (detected, saved)";
+            else if (isDetected) label += " (detected)";
+            else if (isSaved) label += " (saved, not detected)";
+            return { value: adapter.key, label };
         });
 
         const selected = await p.multiselect({

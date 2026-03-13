@@ -44,6 +44,13 @@ export const idesScanCommand = defineCommand({
             p.log.warn("No IDE platforms detected on your system.");
         }
 
+        const savedButNotDetected = currentPlatforms.filter((ide) => !detectedIdes.includes(ide));
+        if (savedButNotDetected.length > 0) {
+            p.log.warn(
+                `${savedButNotDetected.length} saved platform(s) not detected on your system: ${savedButNotDetected.join(", ")}`,
+            );
+        }
+
         // --yes flag: save only detected platforms (preserves current behavior)
         if (args.yes) {
             const hasChanges =
@@ -66,10 +73,12 @@ export const idesScanCommand = defineCommand({
         // Interactive: show multiselect with all 6 IDE platforms
         const options = allIdeKeys.map((ideKey) => {
             const isDetected = detectedIdes.includes(ideKey);
-            return {
-                value: ideKey,
-                label: isDetected ? `${formatIdeName(ideKey)} (detected)` : formatIdeName(ideKey),
-            };
+            const isSaved = currentPlatforms.includes(ideKey);
+            let label = formatIdeName(ideKey);
+            if (isDetected && isSaved) label += " (detected, saved)";
+            else if (isDetected) label += " (detected)";
+            else if (isSaved) label += " (saved, not detected)";
+            return { value: ideKey, label };
         });
 
         const selected = await p.multiselect({
