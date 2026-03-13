@@ -119,7 +119,7 @@ Use @file to reference project files.
 Reference files by relative path.
 <!-- baton:endif -->
 
-<!-- baton:if condition="(tool == 'claude-code' or tool == 'cursor') and has('typescript')" -->
+<!-- baton:if condition="(tool == 'claude-code' OR tool == 'cursor') AND has('typescript')" -->
 TypeScript-aware AI tool detected.
 <!-- baton:endif -->
 

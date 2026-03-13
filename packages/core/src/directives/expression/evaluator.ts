@@ -22,6 +22,12 @@ export async function evaluateAST(
             return evaluateComparison(node, context, onWarning);
         case "function_call":
             return evaluateFunctionCall(node, context, onWarning);
+        case "in": {
+            const matches = node.values.some(
+                (v) => resolveProperty(node.property, v, context, onWarning) === true,
+            );
+            return node.negated ? !matches : matches;
+        }
     }
 }
 
