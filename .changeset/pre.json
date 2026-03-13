@@ -6,5 +6,5 @@
     "@baton-dx/cli": "0.16.1",
     "@baton-dx/core": "0.16.1"
   },
-  "changesets": ["baton-1-0-release", "fix-sparse-checkout-cache-poisoning"]
+  "changesets": ["baton-1-0-release", "fix-sparse-checkout-cache-poisoning", "tilde-path-support"]
 }
