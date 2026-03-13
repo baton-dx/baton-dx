@@ -27,7 +27,7 @@
     "@vitest/coverage-v8": "^4.1.0",
     "husky": "^9.1.7",
     "knip": "^5.86.0",
-    "tsdown": "^0.20.3",
+    "tsdown": "^0.21.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
