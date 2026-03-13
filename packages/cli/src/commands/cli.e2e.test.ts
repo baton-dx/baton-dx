@@ -14,6 +14,26 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  * - --dry-run writes no files
  */
 
+async function createFixtureProfile(baseDir: string): Promise<string> {
+    const profileDir = join(baseDir, "fixture-profile");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+        join(profileDir, "baton.profile.yaml"),
+        'name: minimal-starter\nversion: 1.0.0\ndescription: A minimal fixture profile\n\nai:\n  tools:\n    - "*"\n',
+    );
+    return profileDir;
+}
+
+async function createFixtureSkill(baseDir: string): Promise<string> {
+    const skillDir = join(baseDir, "fixture-skill");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+        join(skillDir, "SKILL.md"),
+        "---\nname: code-review\ndescription: Review code\n---\nReview the code.\n",
+    );
+    return skillDir;
+}
+
 describe("E2E: CLI Commands", () => {
     let testDir: string;
 
@@ -28,8 +48,7 @@ describe("E2E: CLI Commands", () => {
     });
 
     it("E2E: init creates baton.yaml and sets up project", async () => {
-        // Test init command with local fixture profile
-        const fixtureProfile = join(process.cwd(), "../../test-fixtures/profiles/minimal");
+        const fixtureProfile = await createFixtureProfile(testDir);
 
         // Note: init command is interactive, would need to mock @clack/prompts
         // For now, we test the core manifest creation logic directly
@@ -64,7 +83,7 @@ describe("E2E: CLI Commands", () => {
         await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 
         // Simulate adding a skill via manage wizard
-        const fixtureSkill = join(process.cwd(), "../../test-fixtures/skills/code-review");
+        const fixtureSkill = await createFixtureSkill(testDir);
 
         manifest.extras.skills.push({
             source: fixtureSkill,
@@ -77,13 +96,12 @@ describe("E2E: CLI Commands", () => {
         const { readFile } = await import("node:fs/promises");
         const content = await readFile(manifestPath, "utf-8");
         expect(content).toContain(fixtureSkill);
-        expect(content).toContain("code-review");
+        expect(content).toContain("fixture-skill");
     });
 
     it("E2E: sync runs idempotently (second run produces no changes)", async () => {
-        // Create initial baton.yaml with fixture profile
+        const fixtureProfile = await createFixtureProfile(testDir);
         const manifestPath = join(testDir, "baton.yaml");
-        const fixtureProfile = join(process.cwd(), "../../test-fixtures/profiles/minimal");
 
         const manifest = {
             profiles: [{ source: fixtureProfile }],
@@ -104,9 +122,8 @@ describe("E2E: CLI Commands", () => {
     });
 
     it("E2E: manage wizard can remove a profile from manifest", async () => {
-        // Create initial baton.yaml with a profile
+        const fixtureProfile = await createFixtureProfile(testDir);
         const manifestPath = join(testDir, "baton.yaml");
-        const fixtureProfile = join(process.cwd(), "../../test-fixtures/profiles/minimal");
 
         const manifest = {
             profiles: [{ source: fixtureProfile }],
@@ -128,10 +145,9 @@ describe("E2E: CLI Commands", () => {
     });
 
     it("E2E: manifest structure supports profiles and extras", async () => {
-        // Create baton.yaml with profiles and extras
+        const fixtureProfile = await createFixtureProfile(testDir);
+        const fixtureSkill = await createFixtureSkill(testDir);
         const manifestPath = join(testDir, "baton.yaml");
-        const fixtureProfile = join(process.cwd(), "../../test-fixtures/profiles/minimal");
-        const fixtureSkill = join(process.cwd(), "../../test-fixtures/skills/code-review");
 
         const manifest = {
             profiles: [{ source: fixtureProfile, version: "0.1.0" }],
@@ -173,9 +189,8 @@ describe("E2E: CLI Commands", () => {
     });
 
     it("E2E: --dry-run writes no files", async () => {
-        // Create initial baton.yaml
+        const fixtureProfile = await createFixtureProfile(testDir);
         const manifestPath = join(testDir, "baton.yaml");
-        const fixtureProfile = join(process.cwd(), "../../test-fixtures/profiles/minimal");
 
         const manifest = {
             profiles: [{ source: fixtureProfile }],

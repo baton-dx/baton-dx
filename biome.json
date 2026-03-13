@@ -13,7 +13,6 @@
       "!**/node_modules",
       "!**/dist",
       "!**/*.tsbuildinfo",
-      "!**/test-fixtures",
       "!**/.baton",
       "!**/.claude"
     ]
