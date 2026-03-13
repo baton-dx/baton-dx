@@ -90,6 +90,21 @@ describe("tokenize", () => {
         expect(() => tokenize("tool == @value")).toThrow(ConditionTokenError);
     });
 
+    it("tokenizes uppercase OR as OR token", () => {
+        const tokens = tokenize("tool == 'a' OR tool == 'b'");
+        expect(tokens[3]).toEqual({ type: "OR", value: "OR", position: 12 });
+    });
+
+    it("tokenizes mixed-case And as AND token", () => {
+        const tokens = tokenize("tool == 'a' And scope == 'project'");
+        expect(tokens[3]).toEqual({ type: "AND", value: "And", position: 12 });
+    });
+
+    it("tokenizes mixed-case Not as NOT token", () => {
+        const tokens = tokenize("Not tool == 'cursor'");
+        expect(tokens[0]).toEqual({ type: "NOT", value: "Not", position: 0 });
+    });
+
     it("tokenizes empty-argument-like edge case: bare function", () => {
         // This won't parse correctly, but tokenizer should still work
         const tokens = tokenize("has('typescript')");

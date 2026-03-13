@@ -112,6 +112,36 @@ describe("evaluateExpressionCondition", () => {
         );
     });
 
+    // --- Case-insensitive operators ---
+
+    it("uppercase OR: non-matching returns false", async () => {
+        expect(
+            await evaluateExpressionCondition(
+                "tool == 'claude-code' OR tool == 'antigravity'",
+                makeContext({ currentTool: "cursor" }),
+            ),
+        ).toBe(false);
+    });
+
+    it("uppercase AND: evaluates correctly", async () => {
+        expect(
+            await evaluateExpressionCondition(
+                "tool == 'claude-code' AND scope == 'project'",
+                makeContext(),
+            ),
+        ).toBe(true);
+        expect(
+            await evaluateExpressionCondition(
+                "tool == 'claude-code' AND scope == 'global'",
+                makeContext(),
+            ),
+        ).toBe(false);
+    });
+
+    it("uppercase NOT: negates correctly", async () => {
+        expect(await evaluateExpressionCondition("NOT tool == 'cursor'", makeContext())).toBe(true);
+    });
+
     // --- Grouped expressions ---
 
     it("grouped or with and", async () => {
