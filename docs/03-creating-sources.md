@@ -144,26 +144,17 @@ my-team-configs/
 
 Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./04-creating-profiles.md) for the full profile reference.
 
-To add a new profile to an existing source:
+To add a new profile, run the following from inside the source directory:
 
-1. Create the profile directory:
+```bash
+baton profile create my-new-profile
+```
 
-   ```bash
-   mkdir -p profiles/my-new-profile/ai/{memory,rules,agents,skills,commands,mcp}
-   mkdir -p profiles/my-new-profile/{files,ide}
-   ```
+This scaffolds the full directory structure and a starter `baton.profile.yaml`. Then validate:
 
-2. Create the profile manifest:
-
-   ```bash
-   touch profiles/my-new-profile/baton.profile.yaml
-   ```
-
-3. Validate:
-
-   ```bash
-   baton source validate
-   ```
+```bash
+baton source validate
+```
 
 ---
 

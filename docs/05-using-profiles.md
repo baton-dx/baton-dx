@@ -103,13 +103,13 @@ baton init --profile github:my-org/dx-configs/frontend
 
 ### After init
 
-Add profiles to an existing project by editing `baton.yaml` directly or using the CLI:
+Add profiles to an existing project by editing `baton.yaml` directly, or use the interactive manager:
 
 ```bash
-baton add github:my-org/dx-configs/backend
+baton manage
 ```
 
-This appends the profile reference to your `baton.yaml` and runs a sync.
+Select **Add Profile** to pick from connected sources. Baton updates `baton.yaml` and runs a sync automatically.
 
 ---
 

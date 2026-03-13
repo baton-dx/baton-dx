@@ -16,6 +16,18 @@ Baton uses **convention over configuration**: you drop files into the right dire
 
 ---
 
+## Creating a Profile
+
+Use the `baton profile create` command from inside the source directory:
+
+```bash
+baton profile create my-profile
+```
+
+This scaffolds the directory layout and a starter `baton.profile.yaml`. You can also create the files manually — see [Directory Structure](#directory-structure) below.
+
+---
+
 ## Profile Manifest (`baton.profile.yaml`)
 
 The manifest declares identity and options. Content is auto-discovered from the directory structure.
@@ -42,10 +54,8 @@ variables:
   project_type: frontend
   framework: react
 hooks:
-  pre-sync:
-    - echo "Starting sync..."
-  post-sync:
-    - npm install
+  post-install: "npm install"
+  post-update: "npm install"
 ```
 
 ### Field Reference
@@ -60,7 +70,7 @@ hooks:
 | `scope`       | string  | no       | —       | Default scope for all content (`project` or `global`).           |
 | `ai.tools`    | string[]| no       | all     | AI tools this profile targets.                                   |
 | `variables`   | object  | no       | `{}`    | Key-value pairs for template substitution.                       |
-| `hooks`       | object  | no       | —       | Lifecycle hooks (pre-sync, post-sync).                           |
+| `hooks`       | object  | no       | —       | Lifecycle hooks. Supported keys: `post-install`, `post-update`. Value is a shell command string. |
 
 Everything else — skills, rules, agents, memory, commands, files, IDE settings — is discovered automatically from the directory layout.
 
@@ -586,20 +596,16 @@ Hooks allow you to run commands at specific points during the sync lifecycle.
 
 ```yaml
 hooks:
-  pre-sync:
-    - echo "Starting sync..."
-    - npm run clean
-  post-sync:
-    - echo "Sync complete!"
-    - npm install
+  post-install: "npm install"
+  post-update: "npm install"
 ```
 
-| Hook        | When it runs                         |
-| ----------- | ------------------------------------ |
-| `pre-sync`  | Before profile files are written.    |
-| `post-sync` | After all profile files are written. |
+| Hook            | When it runs                                      |
+| --------------- | ------------------------------------------------- |
+| `post-install`  | After the profile is installed for the first time. |
+| `post-update`   | After the profile is updated.                     |
 
-Each hook is an array of shell commands that run sequentially. If any command fails, the sync process is halted and an error is reported.
+Each hook value is a shell command string that runs when the event fires. If the command fails, an error is reported.
 
 ---
 
