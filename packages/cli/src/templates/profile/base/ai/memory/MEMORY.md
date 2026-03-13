@@ -2,7 +2,7 @@
 
 Add persistent context that all AI tools should always know about this project.
 
-<!-- baton:include src="ai/memory/stack.md" -->
+<!-- baton:include src="ai/memory/fragments/stack.md" -->
 
 ## Project Context
 

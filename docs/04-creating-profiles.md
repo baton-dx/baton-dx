@@ -404,7 +404,7 @@ Include external files by reference or inline their content:
 
 | Attribute  | Required | Default  | Description                                                           |
 | ---------- | -------- | -------- | --------------------------------------------------------------------- |
-| `src`      | yes      | —        | Path relative to project root                                        |
+| `src`      | yes      | —        | Path relative to the profile source (or project root with `@project/`) |
 | `mode`     | no       | `inline` | How to include the file (see below)                                  |
 | `hint`     | no       | —        | Template for `link`/`reference` output. Use `{{file}}` as placeholder. |
 | `optional` | no       | `false`  | `true` = silently skip if the file doesn't exist                     |
@@ -468,6 +468,36 @@ The ROOT file uses directives to build the final content dynamically:
 ```
 
 This pattern works for memory, skills (SKILL.md + fragments/), and agents.
+
+### Shared Fragments Across Multiple Files
+
+When a fragment is needed in more than one file — for example, the same tech stack context in `MEMORY.md` and in a `SKILL.md` — put it in `ai/shared/` and use `mode="reference"`:
+
+```
+profile/
+└── ai/
+    ├── shared/
+    │   └── tech-stack.md        ← one file, referenced from multiple places
+    ├── memory/
+    │   └── MEMORY.md
+    └── skills/
+        ├── commit/
+        │   └── SKILL.md
+        └── review/
+            └── SKILL.md
+```
+
+```markdown
+<!-- in MEMORY.md -->
+<!-- baton:include src="ai/shared/tech-stack.md" mode="reference" -->
+
+<!-- in skills/commit/SKILL.md -->
+<!-- baton:include src="ai/shared/tech-stack.md" mode="reference" -->
+```
+
+With `mode="reference"`, Baton copies `tech-stack.md` to `.baton/includes/<profileName>/ai/shared/tech-stack.md` in the target project and replaces the directive with `@.baton/includes/...`. Even if the same file is referenced ten times, it is only copied once.
+
+Use `mode="inline"` instead when the fragment is small and only used in one place — inlining avoids the extra file and is simpler to reason about.
 
 ---
 
