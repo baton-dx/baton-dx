@@ -113,7 +113,7 @@ describe("checkRemoteSha", () => {
                 ),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
 
         const result = await checkRemoteSha(
@@ -131,7 +131,7 @@ describe("checkRemoteSha", () => {
                 .mockResolvedValue("abc123def456abc123def456abc123def456abc1\trefs/heads/main\n"),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
 
         const result = await checkRemoteSha(
@@ -147,7 +147,7 @@ describe("checkRemoteSha", () => {
             listRemote: vi.fn().mockRejectedValue(new Error("terminal prompts disabled")),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
 
         const result = await checkRemoteSha(
@@ -163,7 +163,7 @@ describe("checkRemoteSha", () => {
             listRemote: vi.fn().mockRejectedValue(new Error("Could not resolve host")),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
 
         const result = await checkRemoteSha(
@@ -180,10 +180,10 @@ describe("checkRemoteSha", () => {
         };
         const authedGit = { ...mockGit };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
         vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            authedGit as ReturnType<typeof gitUtils.withTokenAuth>,
+            authedGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
         );
 
         await checkRemoteSha("https://github.com/org/repo.git", "abc1", "my-token");
@@ -264,10 +264,10 @@ describe("resolveSourcesBatch", () => {
                 .mockResolvedValue("aaa111aaa111aaa111aaa111aaa111aaa111aaa1\trefs/heads/main\n"),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
         vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.withTokenAuth>,
+            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
         );
 
         vi.mocked(gitClone.cloneGitSource).mockResolvedValue({
@@ -307,10 +307,10 @@ describe("resolveSourcesBatch", () => {
                 .mockResolvedValue("bbb222bbb222bbb222bbb222bbb222bbb222bbb2\trefs/heads/main\n"),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
         vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.withTokenAuth>,
+            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
         );
         vi.mocked(versionResolver.resolveVersion).mockResolvedValue(
             "bbb222bbb222bbb222bbb222bbb222bbb222bbb2",
@@ -350,10 +350,10 @@ describe("resolveSourcesBatch", () => {
             listRemote: vi.fn().mockRejectedValue(new Error("Could not resolve host")),
         };
         vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.createGit>,
+            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
         );
         vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as ReturnType<typeof gitUtils.withTokenAuth>,
+            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
         );
         vi.mocked(versionResolver.resolveVersion).mockResolvedValue("abc123");
         vi.mocked(gitClone.cloneGitSource).mockResolvedValue({

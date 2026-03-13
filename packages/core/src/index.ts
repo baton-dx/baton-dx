@@ -271,6 +271,18 @@ export {
     resolveAuth,
     runAuthDiagnostic,
 } from "./sources/auth-cascade.js";
+// Export batch source resolver
+export {
+    type BatchResolveOptions,
+    type BatchResolveResult,
+    checkRemoteSha,
+    getPackageNameFromSource,
+    type RemoteCheckResult,
+    type ResolvedSourceEntry,
+    resolveSourcesBatch,
+    type SourceError,
+    VersionRequirementError,
+} from "./sources/batch-resolver.js";
 // Export File resolver
 export {
     type FileResolverOptions,
