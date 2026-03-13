@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseSource } from "../utils/index.js";
-import { getPackageNameFromSource, pLimit } from "./batch-resolver.js";
+import { checkRemoteSha, getPackageNameFromSource, pLimit } from "./batch-resolver.js";
+import * as gitUtils from "./git-utils.js";
+
+vi.mock("./git-utils.js", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("./git-utils.js")>()),
+    createGit: vi.fn(),
+    withTokenAuth: vi.fn(),
+}));
 
 describe("pLimit", () => {
     it("limits concurrency to the specified value", async () => {
@@ -61,5 +68,103 @@ describe("getPackageNameFromSource", () => {
     it("returns raw source for local sources", () => {
         const parsed = parseSource("./profiles/base");
         expect(getPackageNameFromSource("./profiles/base", parsed)).toBe("./profiles/base");
+    });
+});
+
+describe("checkRemoteSha", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns ok with changed=false when lockfile SHA found in remote refs", async () => {
+        const mockGit = {
+            listRemote: vi
+                .fn()
+                .mockResolvedValue(
+                    "abc123def456abc123def456abc123def456abc1\trefs/heads/main\n" +
+                        "def789abc123def789abc123def789abc123def7\trefs/tags/v1.0.0\n",
+                ),
+        };
+        vi.mocked(gitUtils.createGit).mockReturnValue(
+            mockGit as ReturnType<typeof gitUtils.createGit>,
+        );
+
+        const result = await checkRemoteSha(
+            "https://github.com/org/repo.git",
+            "abc123def456abc123def456abc123def456abc1",
+        );
+
+        expect(result).toEqual({ type: "ok", changed: false });
+    });
+
+    it("returns ok with changed=true when lockfile SHA not in remote refs", async () => {
+        const mockGit = {
+            listRemote: vi
+                .fn()
+                .mockResolvedValue("abc123def456abc123def456abc123def456abc1\trefs/heads/main\n"),
+        };
+        vi.mocked(gitUtils.createGit).mockReturnValue(
+            mockGit as ReturnType<typeof gitUtils.createGit>,
+        );
+
+        const result = await checkRemoteSha(
+            "https://github.com/org/repo.git",
+            "000000000000000000000000000000000000dead",
+        );
+
+        expect(result).toEqual({ type: "ok", changed: true });
+    });
+
+    it("returns auth_error on authentication failure", async () => {
+        const mockGit = {
+            listRemote: vi.fn().mockRejectedValue(new Error("terminal prompts disabled")),
+        };
+        vi.mocked(gitUtils.createGit).mockReturnValue(
+            mockGit as ReturnType<typeof gitUtils.createGit>,
+        );
+
+        const result = await checkRemoteSha(
+            "https://github.com/org/private-repo.git",
+            "abc123def456abc123def456abc123def456abc1",
+        );
+
+        expect(result.type).toBe("auth_error");
+    });
+
+    it("returns network_error on network failure", async () => {
+        const mockGit = {
+            listRemote: vi.fn().mockRejectedValue(new Error("Could not resolve host")),
+        };
+        vi.mocked(gitUtils.createGit).mockReturnValue(
+            mockGit as ReturnType<typeof gitUtils.createGit>,
+        );
+
+        const result = await checkRemoteSha(
+            "https://github.com/org/repo.git",
+            "abc123def456abc123def456abc123def456abc1",
+        );
+
+        expect(result).toEqual({ type: "network_error" });
+    });
+
+    it("uses token auth when provided", async () => {
+        const mockGit = {
+            listRemote: vi.fn().mockResolvedValue("abc1\trefs/heads/main\n"),
+        };
+        const authedGit = { ...mockGit };
+        vi.mocked(gitUtils.createGit).mockReturnValue(
+            mockGit as ReturnType<typeof gitUtils.createGit>,
+        );
+        vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
+            authedGit as ReturnType<typeof gitUtils.withTokenAuth>,
+        );
+
+        await checkRemoteSha("https://github.com/org/repo.git", "abc1", "my-token");
+
+        expect(gitUtils.withTokenAuth).toHaveBeenCalledWith(
+            mockGit,
+            "https://github.com/org/repo.git",
+            "my-token",
+        );
     });
 });
