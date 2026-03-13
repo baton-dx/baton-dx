@@ -57,79 +57,43 @@ describe("evaluateExpressionCondition", () => {
 
     // --- Logical operators ---
 
-    it("or: first true", async () => {
+    it("OR: first true", async () => {
         expect(
             await evaluateExpressionCondition(
-                "tool == 'claude-code' or tool == 'cursor'",
+                "tool == 'claude-code' OR tool == 'cursor'",
                 makeContext(),
             ),
         ).toBe(true);
     });
 
-    it("or: second true", async () => {
+    it("OR: second true", async () => {
         expect(
             await evaluateExpressionCondition(
-                "tool == 'windsurf' or scope == 'project'",
+                "tool == 'windsurf' OR scope == 'project'",
                 makeContext(),
             ),
         ).toBe(true);
     });
 
-    it("or: both false", async () => {
+    it("OR: both false", async () => {
         expect(
             await evaluateExpressionCondition(
-                "tool == 'windsurf' or scope == 'global'",
+                "tool == 'windsurf' OR scope == 'global'",
                 makeContext(),
             ),
         ).toBe(false);
     });
 
-    it("and: both true", async () => {
-        expect(
-            await evaluateExpressionCondition(
-                "tool == 'claude-code' and scope == 'project'",
-                makeContext(),
-            ),
-        ).toBe(true);
-    });
-
-    it("and: one false", async () => {
-        expect(
-            await evaluateExpressionCondition(
-                "tool == 'claude-code' and scope == 'global'",
-                makeContext(),
-            ),
-        ).toBe(false);
-    });
-
-    it("not: negates true", async () => {
-        expect(await evaluateExpressionCondition("not tool == 'cursor'", makeContext())).toBe(true);
-    });
-
-    it("not: negates false to true", async () => {
-        expect(await evaluateExpressionCondition("not tool == 'claude-code'", makeContext())).toBe(
-            false,
-        );
-    });
-
-    // --- Case-insensitive operators ---
-
-    it("uppercase OR: non-matching returns false", async () => {
-        expect(
-            await evaluateExpressionCondition(
-                "tool == 'claude-code' OR tool == 'antigravity'",
-                makeContext({ currentTool: "cursor" }),
-            ),
-        ).toBe(false);
-    });
-
-    it("uppercase AND: evaluates correctly", async () => {
+    it("AND: both true", async () => {
         expect(
             await evaluateExpressionCondition(
                 "tool == 'claude-code' AND scope == 'project'",
                 makeContext(),
             ),
         ).toBe(true);
+    });
+
+    it("AND: one false", async () => {
         expect(
             await evaluateExpressionCondition(
                 "tool == 'claude-code' AND scope == 'global'",
@@ -138,23 +102,80 @@ describe("evaluateExpressionCondition", () => {
         ).toBe(false);
     });
 
-    it("uppercase NOT: negates correctly", async () => {
+    it("NOT: negates true", async () => {
         expect(await evaluateExpressionCondition("NOT tool == 'cursor'", makeContext())).toBe(true);
+    });
+
+    it("NOT: negates false to true", async () => {
+        expect(await evaluateExpressionCondition("NOT tool == 'claude-code'", makeContext())).toBe(
+            false,
+        );
     });
 
     // --- Grouped expressions ---
 
-    it("grouped or with and", async () => {
+    it("grouped OR with AND", async () => {
         expect(
             await evaluateExpressionCondition(
-                "(tool == 'claude-code' or tool == 'cursor') and scope == 'project'",
+                "(tool == 'claude-code' OR tool == 'cursor') AND scope == 'project'",
                 makeContext(),
             ),
         ).toBe(true);
 
         expect(
             await evaluateExpressionCondition(
-                "(tool == 'windsurf' or tool == 'aider') and scope == 'project'",
+                "(tool == 'windsurf' OR tool == 'aider') AND scope == 'project'",
+                makeContext(),
+            ),
+        ).toBe(false);
+    });
+
+    // --- IN expressions ---
+
+    it("IN: matching tool in list", async () => {
+        expect(
+            await evaluateExpressionCondition("tool IN ['claude-code', 'cursor']", makeContext()),
+        ).toBe(true);
+    });
+
+    it("IN: non-matching tool", async () => {
+        expect(
+            await evaluateExpressionCondition("tool IN ['cursor', 'windsurf']", makeContext()),
+        ).toBe(false);
+    });
+
+    it("NOT IN: tool not in list", async () => {
+        expect(
+            await evaluateExpressionCondition("tool NOT IN ['cursor', 'windsurf']", makeContext()),
+        ).toBe(true);
+    });
+
+    it("NOT IN: tool in list", async () => {
+        expect(
+            await evaluateExpressionCondition(
+                "tool NOT IN ['claude-code', 'cursor']",
+                makeContext(),
+            ),
+        ).toBe(false);
+    });
+
+    it("IN with ide property", async () => {
+        expect(
+            await evaluateExpressionCondition("ide IN ['vscode', 'jetbrains']", makeContext()),
+        ).toBe(true);
+    });
+
+    it("IN combined with AND", async () => {
+        expect(
+            await evaluateExpressionCondition(
+                "tool IN ['claude-code', 'cursor'] AND scope == 'project'",
+                makeContext(),
+            ),
+        ).toBe(true);
+
+        expect(
+            await evaluateExpressionCondition(
+                "tool IN ['claude-code', 'cursor'] AND scope == 'global'",
                 makeContext(),
             ),
         ).toBe(false);
@@ -227,11 +248,11 @@ describe("evaluateExpressionCondition", () => {
         ).toBe(false);
     });
 
-    it("file() with or", async () => {
+    it("file() with OR", async () => {
         await writeFile(join(projectRoot, "biome.jsonc"), "{}");
         expect(
             await evaluateExpressionCondition(
-                "file('biome.json') or file('biome.jsonc')",
+                "file('biome.json') OR file('biome.jsonc')",
                 makeContext({ projectRoot }),
             ),
         ).toBe(true);
@@ -252,10 +273,10 @@ describe("evaluateExpressionCondition", () => {
         ).toBe(false);
     });
 
-    it("not has()", async () => {
+    it("NOT has()", async () => {
         expect(
             await evaluateExpressionCondition(
-                "not has('typescript')",
+                "NOT has('typescript')",
                 makeContext({ projectRoot }),
             ),
         ).toBe(true);
@@ -282,26 +303,5 @@ describe("evaluateExpressionCondition", () => {
         const result = await evaluateExpressionCondition("tool == invalid", makeContext(), warn);
         expect(result).toBe(true); // fail-open
         expect(warn).toHaveBeenCalled();
-    });
-
-    // --- Symbol operators ---
-
-    it("&& and || aliases work", async () => {
-        expect(
-            await evaluateExpressionCondition(
-                "tool == 'claude-code' && scope == 'project'",
-                makeContext(),
-            ),
-        ).toBe(true);
-        expect(
-            await evaluateExpressionCondition(
-                "tool == 'windsurf' || scope == 'project'",
-                makeContext(),
-            ),
-        ).toBe(true);
-    });
-
-    it("! alias for not", async () => {
-        expect(await evaluateExpressionCondition("!tool == 'cursor'", makeContext())).toBe(true);
     });
 });

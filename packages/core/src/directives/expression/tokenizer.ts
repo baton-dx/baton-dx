@@ -1,9 +1,10 @@
 import type { Token, TokenType } from "./types.js";
 
 const KEYWORDS: Record<string, TokenType> = {
-    and: "AND",
-    or: "OR",
-    not: "NOT",
+    AND: "AND",
+    OR: "OR",
+    NOT: "NOT",
+    IN: "IN",
 };
 
 /**
@@ -11,9 +12,12 @@ const KEYWORDS: Record<string, TokenType> = {
  *
  * Handles:
  * - String literals: `'...'`
- * - Operators: `==`, `!=`, `&&`, `||`, `!` (not followed by `=`)
+ * - Operators: `==`, `!=`
  * - Parentheses: `(`, `)`
- * - Identifiers: `[a-z][a-zA-Z0-9]*` — checked against keyword set
+ * - Brackets: `[`, `]`
+ * - Comma: `,`
+ * - Keywords: `AND`, `OR`, `NOT`, `IN` (uppercase only)
+ * - Identifiers: `[a-zA-Z][a-zA-Z0-9]*` — checked against keyword set
  * - Whitespace is skipped between tokens
  */
 export function tokenize(expression: string): Token[] {
@@ -60,27 +64,6 @@ export function tokenize(expression: string): Token[] {
             continue;
         }
 
-        // ! (NOT, when not followed by =)
-        if (ch === "!") {
-            tokens.push({ type: "NOT", value: "!", position: i });
-            i++;
-            continue;
-        }
-
-        // &&
-        if (ch === "&" && expression[i + 1] === "&") {
-            tokens.push({ type: "AND", value: "&&", position: i });
-            i += 2;
-            continue;
-        }
-
-        // ||
-        if (ch === "|" && expression[i + 1] === "|") {
-            tokens.push({ type: "OR", value: "||", position: i });
-            i += 2;
-            continue;
-        }
-
         // Parentheses
         if (ch === "(") {
             tokens.push({ type: "LPAREN", value: "(", position: i });
@@ -93,6 +76,25 @@ export function tokenize(expression: string): Token[] {
             continue;
         }
 
+        // Brackets
+        if (ch === "[") {
+            tokens.push({ type: "LBRACKET", value: "[", position: i });
+            i++;
+            continue;
+        }
+        if (ch === "]") {
+            tokens.push({ type: "RBRACKET", value: "]", position: i });
+            i++;
+            continue;
+        }
+
+        // Comma
+        if (ch === ",") {
+            tokens.push({ type: "COMMA", value: ",", position: i });
+            i++;
+            continue;
+        }
+
         // Identifier or keyword
         if (/[a-z]/i.test(ch)) {
             const start = i;
@@ -100,7 +102,7 @@ export function tokenize(expression: string): Token[] {
                 i++;
             }
             const word = expression.slice(start, i);
-            const keywordType = KEYWORDS[word.toLowerCase()];
+            const keywordType = KEYWORDS[word];
             tokens.push({
                 type: keywordType ?? "IDENTIFIER",
                 value: word,

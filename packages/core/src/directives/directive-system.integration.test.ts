@@ -1661,7 +1661,7 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
 
         it("OR expression selects matching branch", async () => {
             const content = [
-                "<!-- baton:if condition=\"tool == 'cursor' or tool == 'windsurf'\" -->",
+                "<!-- baton:if condition=\"tool == 'cursor' OR tool == 'windsurf'\" -->",
                 "Web IDE content",
                 "<!-- baton:endif -->",
             ].join("\n");
@@ -1689,7 +1689,7 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
 
         it("AND expression requires both sides", async () => {
             const content = [
-                "<!-- baton:if condition=\"tool == 'claude-code' and scope == 'global'\" -->",
+                "<!-- baton:if condition=\"tool == 'claude-code' AND scope == 'global'\" -->",
                 "Global Claude rule",
                 "<!-- baton:endif -->",
             ].join("\n");
@@ -1701,7 +1701,7 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
 
         it("grouped expression overrides default precedence", async () => {
             const content = [
-                "<!-- baton:if condition=\"(tool == 'claude-code' or tool == 'cursor') and scope == 'project'\" -->",
+                "<!-- baton:if condition=\"(tool == 'claude-code' OR tool == 'cursor') AND scope == 'project'\" -->",
                 "Project rule for Claude or Cursor",
                 "<!-- baton:endif -->",
             ].join("\n");
@@ -1711,12 +1711,44 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
         });
     });
 
+    describe("4.1b — IN expression conditions", () => {
+        it("IN expression matches tool from list", async () => {
+            const content = [
+                "<!-- baton:if condition=\"tool IN ['claude-code', 'cursor']\" -->",
+                "Supported tool content",
+                "<!-- baton:endif -->",
+            ].join("\n");
+            const result = await processDirectives(content, makeOptions({ projectRoot }));
+            expect(result).toContain("Supported tool content");
+        });
+
+        it("IN expression excludes non-matching tool", async () => {
+            const content = [
+                "<!-- baton:if condition=\"tool IN ['cursor', 'windsurf']\" -->",
+                "Web IDE only",
+                "<!-- baton:endif -->",
+            ].join("\n");
+            const result = await processDirectives(content, makeOptions({ projectRoot }));
+            expect(result).not.toContain("Web IDE only");
+        });
+
+        it("NOT IN expression works", async () => {
+            const content = [
+                "<!-- baton:if condition=\"tool NOT IN ['cursor', 'windsurf']\" -->",
+                "Non-web-IDE content",
+                "<!-- baton:endif -->",
+            ].join("\n");
+            const result = await processDirectives(content, makeOptions({ projectRoot }));
+            expect(result).toContain("Non-web-IDE content");
+        });
+    });
+
     describe("4.2 — Function calls in expressions", () => {
         it("has() detects project characteristics", async () => {
             await writeFile(join(projectRoot, "tsconfig.json"), "{}");
 
             const content = [
-                "<!-- baton:if condition=\"has('typescript') and not has('prettier')\" -->",
+                "<!-- baton:if condition=\"has('typescript') AND NOT has('prettier')\" -->",
                 "TypeScript without Prettier",
                 "<!-- baton:endif -->",
             ].join("\n");
@@ -1729,7 +1761,7 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
             await writeFile(join(projectRoot, "biome.jsonc"), "{}");
 
             const content = [
-                "<!-- baton:if condition=\"file('biome.json') or file('biome.jsonc')\" -->",
+                "<!-- baton:if condition=\"file('biome.json') OR file('biome.jsonc')\" -->",
                 "Biome is configured",
                 "<!-- baton:endif -->",
             ].join("\n");
@@ -1816,7 +1848,7 @@ describe("Phase 4 — Expression-Based Condition Syntax", () => {
     describe("4.4 — Expression conditions in explain mode", () => {
         it("annotates expression condition as included", async () => {
             const content = [
-                "<!-- baton:if condition=\"tool == 'claude-code' and scope == 'project'\" -->",
+                "<!-- baton:if condition=\"tool == 'claude-code' AND scope == 'project'\" -->",
                 "Claude project rule",
                 "<!-- baton:endif -->",
             ].join("\n");

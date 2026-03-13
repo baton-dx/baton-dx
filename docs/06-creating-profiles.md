@@ -352,7 +352,8 @@ For complex conditions, use the `condition` attribute with a readable expression
 ```markdown
 <!-- baton:if condition="tool == 'claude-code'" -->
 <!-- baton:if condition="tool != 'cursor'" -->
-<!-- baton:if condition="tool == 'cursor' OR tool == 'windsurf'" -->
+<!-- baton:if condition="tool IN ['cursor', 'windsurf']" -->
+<!-- baton:if condition="tool NOT IN ['aider', 'codex']" -->
 <!-- baton:if condition="scope == 'project' AND type == 'memory'" -->
 <!-- baton:if condition="has('typescript') AND NOT has('prettier')" -->
 <!-- baton:if condition="file('biome.json') OR file('biome.jsonc')" -->
@@ -368,22 +369,60 @@ Expression conditions support:
 | Properties | `tool`, `scope`, `type`, `ide` | Compare with `==` or `!=` |
 | Functions | `has('key')`, `file('path')`, `var('name')` | Lookup checks, return boolean |
 | Function + compare | `var('name') == 'value'` | Check function result against value |
-| AND | `AND` or `&&` | Both sides must be true |
-| OR | `OR` or `\|\|` | Either side must be true |
-| NOT | `NOT` or `!` | Negates the following expression |
-| Grouping | `(...)` | Override default precedence |
+| `AND` | Both sides must be true |
+| `OR` | Either side must be true |
+| `NOT` | Negates the following expression |
+| `IN` | `property IN ['a', 'b']` — matches any value in list |
+| `NOT IN` | `property NOT IN ['a', 'b']` — matches none |
+| `(...)` | Override default precedence |
 
 **Operator precedence:** `NOT` > `AND` > `OR` (standard). Use parentheses to override.
 
+**Operators must be uppercase.** `AND`, `OR`, `NOT`, `IN` — lowercase is not accepted.
+
 **String values** use single quotes inside the double-quoted attribute: `condition="tool == 'claude-code'"`.
 
-Expression conditions also work with `baton:else`:
+#### Examples
+
+Target multiple tools:
+
+```markdown
+<!-- baton:if condition="tool IN ['claude-code', 'cursor', 'windsurf']" -->
+Content for these three tools only.
+<!-- baton:endif -->
+```
+
+Combine conditions with grouping:
+
+```markdown
+<!-- baton:if condition="(tool == 'claude-code' OR tool == 'cursor') AND has('typescript')" -->
+TypeScript-specific content for Claude Code or Cursor.
+<!-- baton:endif -->
+```
+
+Exclude specific tools:
+
+```markdown
+<!-- baton:if condition="tool NOT IN ['aider', 'codex']" -->
+Content for all tools except Aider and Codex.
+<!-- baton:endif -->
+```
+
+Conditional with else branch:
 
 ```markdown
 <!-- baton:if condition="tool == 'claude-code' OR tool == 'cursor'" -->
 Use AI-native file references.
 <!-- baton:else -->
 Use standard file paths.
+<!-- baton:endif -->
+```
+
+Combine file detection with tool targeting:
+
+```markdown
+<!-- baton:if condition="file('biome.json') AND tool IN ['claude-code', 'cursor']" -->
+Biome is configured — use `biome check` instead of ESLint.
 <!-- baton:endif -->
 ```
 

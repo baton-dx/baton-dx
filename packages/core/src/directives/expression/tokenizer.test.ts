@@ -27,8 +27,8 @@ describe("tokenize", () => {
         expect(tokens[1]).toEqual({ type: "NEQ", value: "!=", position: 5 });
     });
 
-    it("tokenizes word operators: and, or, not", () => {
-        const tokens = tokenize("has('ts') and not has('prettier')");
+    it("tokenizes uppercase AND, OR, NOT keywords", () => {
+        const tokens = tokenize("has('ts') AND NOT has('prettier')");
         const types = tokens.map((t) => t.type);
         expect(types).toEqual([
             "IDENTIFIER",
@@ -45,26 +45,50 @@ describe("tokenize", () => {
         ]);
     });
 
-    it("tokenizes symbol operators: &&, ||, !", () => {
-        const tokens = tokenize("has('ts') && !has('prettier')");
+    it("tokenizes IN keyword", () => {
+        const tokens = tokenize("tool IN ['a', 'b']");
+        expect(tokens).toEqual([
+            { type: "IDENTIFIER", value: "tool", position: 0 },
+            { type: "IN", value: "IN", position: 5 },
+            { type: "LBRACKET", value: "[", position: 8 },
+            { type: "STRING", value: "a", position: 9 },
+            { type: "COMMA", value: ",", position: 12 },
+            { type: "STRING", value: "b", position: 14 },
+            { type: "RBRACKET", value: "]", position: 17 },
+            { type: "EOF", value: "", position: 18 },
+        ]);
+    });
+
+    it("tokenizes brackets and comma", () => {
+        const tokens = tokenize("['a','b']");
         const types = tokens.map((t) => t.type);
-        expect(types).toEqual([
+        expect(types).toEqual(["LBRACKET", "STRING", "COMMA", "STRING", "RBRACKET", "EOF"]);
+    });
+
+    it("treats lowercase 'and', 'or', 'not', 'in' as identifiers", () => {
+        const tokens = tokenize("and or not in");
+        expect(tokens.map((t) => t.type)).toEqual([
             "IDENTIFIER",
-            "LPAREN",
-            "STRING",
-            "RPAREN",
-            "AND",
-            "NOT",
             "IDENTIFIER",
-            "LPAREN",
-            "STRING",
-            "RPAREN",
+            "IDENTIFIER",
+            "IDENTIFIER",
+            "EOF",
+        ]);
+    });
+
+    it("treats mixed-case 'And', 'Or', 'Not', 'In' as identifiers", () => {
+        const tokens = tokenize("And Or Not In");
+        expect(tokens.map((t) => t.type)).toEqual([
+            "IDENTIFIER",
+            "IDENTIFIER",
+            "IDENTIFIER",
+            "IDENTIFIER",
             "EOF",
         ]);
     });
 
     it("tokenizes parenthesized groups", () => {
-        const tokens = tokenize("(tool == 'a' or tool == 'b') and scope == 'project'");
+        const tokens = tokenize("(tool == 'a' OR tool == 'b') AND scope == 'project'");
         const types = tokens.map((t) => t.type);
         expect(types[0]).toBe("LPAREN");
         expect(types).toContain("RPAREN");
@@ -90,23 +114,19 @@ describe("tokenize", () => {
         expect(() => tokenize("tool == @value")).toThrow(ConditionTokenError);
     });
 
-    it("tokenizes uppercase OR as OR token", () => {
-        const tokens = tokenize("tool == 'a' OR tool == 'b'");
-        expect(tokens[3]).toEqual({ type: "OR", value: "OR", position: 12 });
+    it("throws on && (removed symbol operator)", () => {
+        expect(() => tokenize("tool == 'a' && tool == 'b'")).toThrow(ConditionTokenError);
     });
 
-    it("tokenizes mixed-case And as AND token", () => {
-        const tokens = tokenize("tool == 'a' And scope == 'project'");
-        expect(tokens[3]).toEqual({ type: "AND", value: "And", position: 12 });
+    it("throws on || (removed symbol operator)", () => {
+        expect(() => tokenize("tool == 'a' || tool == 'b'")).toThrow(ConditionTokenError);
     });
 
-    it("tokenizes mixed-case Not as NOT token", () => {
-        const tokens = tokenize("Not tool == 'cursor'");
-        expect(tokens[0]).toEqual({ type: "NOT", value: "Not", position: 0 });
+    it("throws on standalone ! (removed symbol operator)", () => {
+        expect(() => tokenize("!has('ts')")).toThrow(ConditionTokenError);
     });
 
     it("tokenizes empty-argument-like edge case: bare function", () => {
-        // This won't parse correctly, but tokenizer should still work
         const tokens = tokenize("has('typescript')");
         expect(tokens.map((t) => t.type)).toEqual([
             "IDENTIFIER",

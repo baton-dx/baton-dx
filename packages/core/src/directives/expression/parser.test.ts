@@ -48,19 +48,19 @@ describe("parse", () => {
     });
 
     it("parses OR expression", () => {
-        const ast = parseExpr("tool == 'cursor' or tool == 'windsurf'");
+        const ast = parseExpr("tool == 'cursor' OR tool == 'windsurf'");
         expect(ast.type).toBe("binary");
         expect((ast as { operator: string }).operator).toBe("or");
     });
 
     it("parses AND expression", () => {
-        const ast = parseExpr("tool == 'claude-code' and scope == 'project'");
+        const ast = parseExpr("tool == 'claude-code' AND scope == 'project'");
         expect(ast.type).toBe("binary");
         expect((ast as { operator: string }).operator).toBe("and");
     });
 
     it("parses NOT expression", () => {
-        const ast = parseExpr("not has('prettier')");
+        const ast = parseExpr("NOT has('prettier')");
         expect(ast).toEqual({
             type: "unary",
             operator: "not",
@@ -68,9 +68,9 @@ describe("parse", () => {
         });
     });
 
-    it("respects operator precedence: not > and > or", () => {
-        // "a or b and not c" → "a or (b and (not c))"
-        const ast = parseExpr("tool == 'a' or tool == 'b' and not has('c')");
+    it("respects operator precedence: NOT > AND > OR", () => {
+        // "a OR b AND NOT c" → "a OR (b AND (NOT c))"
+        const ast = parseExpr("tool == 'a' OR tool == 'b' AND NOT has('c')");
         expect(ast.type).toBe("binary");
         const binary = ast as { type: "binary"; operator: string; left: ASTNode; right: ASTNode };
         expect(binary.operator).toBe("or");
@@ -81,7 +81,7 @@ describe("parse", () => {
     });
 
     it("parses grouped expressions", () => {
-        const ast = parseExpr("(tool == 'claude-code' or tool == 'cursor') and scope == 'project'");
+        const ast = parseExpr("(tool == 'claude-code' OR tool == 'cursor') AND scope == 'project'");
         expect(ast.type).toBe("binary");
         const binary = ast as { type: "binary"; operator: string; left: ASTNode; right: ASTNode };
         expect(binary.operator).toBe("and");
@@ -90,21 +90,46 @@ describe("parse", () => {
         expect(left.operator).toBe("or");
     });
 
-    it("parses && and || aliases", () => {
-        const ast = parseExpr("tool == 'a' || tool == 'b' && has('c')");
-        expect(ast.type).toBe("binary");
-        const binary = ast as { type: "binary"; operator: string };
-        expect(binary.operator).toBe("or");
-    });
+    // --- IN expression ---
 
-    it("parses ! alias for not", () => {
-        const ast = parseExpr("!has('prettier')");
+    it("parses IN expression", () => {
+        const ast = parseExpr("tool IN ['claude-code', 'cursor', 'windsurf']");
         expect(ast).toEqual({
-            type: "unary",
-            operator: "not",
-            operand: { type: "function_call", name: "has", arg: "prettier" },
+            type: "in",
+            property: "tool",
+            values: ["claude-code", "cursor", "windsurf"],
+            negated: false,
         });
     });
+
+    it("parses NOT IN expression", () => {
+        const ast = parseExpr("tool NOT IN ['aider']");
+        expect(ast).toEqual({
+            type: "in",
+            property: "tool",
+            values: ["aider"],
+            negated: true,
+        });
+    });
+
+    it("parses IN combined with AND", () => {
+        const ast = parseExpr("tool IN ['a', 'b'] AND scope == 'project'");
+        expect(ast.type).toBe("binary");
+        const binary = ast as { type: "binary"; operator: string; left: ASTNode; right: ASTNode };
+        expect(binary.operator).toBe("and");
+        expect(binary.left.type).toBe("in");
+        expect(binary.right.type).toBe("comparison");
+    });
+
+    it("throws on IN without brackets", () => {
+        expect(() => parseExpr("tool IN 'a'")).toThrow(ConditionParseError);
+    });
+
+    it("throws on IN with empty list", () => {
+        expect(() => parseExpr("tool IN []")).toThrow(ConditionParseError);
+    });
+
+    // --- Error cases ---
 
     it("throws on missing string after ==", () => {
         expect(() => parseExpr("tool ==")).toThrow(ConditionParseError);
@@ -124,9 +149,8 @@ describe("parse", () => {
 
     it("parses complex nested expression", () => {
         const ast = parseExpr(
-            "(tool == 'claude-code' or tool == 'cursor') and has('typescript') and not file('biome.json')",
+            "(tool == 'claude-code' OR tool == 'cursor') AND has('typescript') AND NOT file('biome.json')",
         );
-        // Should parse without error — structure is deeply nested AND chain
         expect(ast.type).toBe("binary");
     });
 });

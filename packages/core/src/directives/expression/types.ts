@@ -6,11 +6,15 @@ export type TokenType =
     | "STRING"
     | "LPAREN"
     | "RPAREN"
+    | "LBRACKET"
+    | "RBRACKET"
+    | "COMMA"
     | "EQ"
     | "NEQ"
     | "AND"
     | "OR"
     | "NOT"
+    | "IN"
     | "EOF";
 
 /**
@@ -25,7 +29,7 @@ export interface Token {
 /**
  * AST node types for condition expressions.
  */
-export type ASTNode = BinaryNode | UnaryNode | ComparisonNode | FunctionCallNode;
+export type ASTNode = BinaryNode | UnaryNode | ComparisonNode | FunctionCallNode | InNode;
 
 export interface BinaryNode {
     type: "binary";
@@ -52,4 +56,11 @@ export interface FunctionCallNode {
     name: string;
     arg: string;
     comparison?: { operator: "==" | "!="; value: string };
+}
+
+export interface InNode {
+    type: "in";
+    property: string;
+    values: string[];
+    negated: boolean;
 }

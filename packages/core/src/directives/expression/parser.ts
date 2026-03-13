@@ -1,14 +1,15 @@
-import type { ASTNode, Token } from "./types.js";
+import type { ASTNode, InNode, Token } from "./types.js";
 
 /**
  * Parse a token list into an AST using recursive descent.
  *
  * Grammar:
  *   expression = or_expr
- *   or_expr    = and_expr { ("or" | "||") and_expr }
- *   and_expr   = unary_expr { ("and" | "&&") unary_expr }
- *   unary_expr = ("not" | "!") unary_expr | primary
- *   primary    = comparison | func_expr | "(" expression ")"
+ *   or_expr    = and_expr { OR and_expr }
+ *   and_expr   = unary_expr { AND unary_expr }
+ *   unary_expr = NOT unary_expr | primary
+ *   primary    = in_expr | comparison | func_expr | "(" expression ")"
+ *   in_expr    = IDENTIFIER [NOT] IN "[" STRING { "," STRING } "]"
  *   comparison = IDENTIFIER ("==" | "!=") STRING
  *   func_expr  = IDENTIFIER "(" STRING ")" [ ("==" | "!=") STRING ]
  */
@@ -90,6 +91,19 @@ class Parser {
             return { type: "function_call", name: ident.value, arg: arg.value };
         }
 
+        // IN expression: property IN ['a', 'b', 'c']
+        if (this.check("IN")) {
+            this.advance();
+            return this.parseInList(ident.value, false);
+        }
+
+        // NOT IN expression: property NOT IN ['a', 'b', 'c']
+        if (this.check("NOT") && this.peekNext()?.type === "IN") {
+            this.advance(); // skip NOT
+            this.advance(); // skip IN
+            return this.parseInList(ident.value, true);
+        }
+
         // Comparison: identifier ("==" | "!=") string
         if (this.check("EQ") || this.check("NEQ")) {
             const op = this.advance();
@@ -105,8 +119,20 @@ class Parser {
         throw new ConditionParseError(
             this.tokens,
             ident,
-            `Expected '==', '!=', or '(' after '${ident.value}'`,
+            `Expected '==', '!=', 'IN', or '(' after '${ident.value}'`,
         );
+    }
+
+    private parseInList(property: string, negated: boolean): InNode {
+        this.expect("LBRACKET", "Expected '[' after IN");
+        const values: string[] = [];
+        values.push(this.expect("STRING", "Expected string value in IN list").value);
+        while (this.check("COMMA")) {
+            this.advance();
+            values.push(this.expect("STRING", "Expected string value after ','").value);
+        }
+        this.expect("RBRACKET", "Expected closing ']'");
+        return { type: "in", property, values, negated };
     }
 
     expectEnd(): void {
@@ -118,6 +144,10 @@ class Parser {
 
     private peek(): Token {
         return this.tokens[this.pos];
+    }
+
+    private peekNext(): Token | undefined {
+        return this.tokens[this.pos + 1];
     }
 
     private check(type: string): boolean {
