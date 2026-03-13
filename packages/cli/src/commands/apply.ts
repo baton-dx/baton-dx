@@ -33,6 +33,7 @@ import {
     normalizeMarkdown,
     type ParsedSource,
     type ProjectManifest,
+    parseBatonFrontmatter,
     parseFrontmatter,
     parseSource,
     placeFile,
@@ -639,6 +640,86 @@ export const applyCommand = defineCommand({
                 }
             >();
 
+            // === Compute expected target paths (always, including dry-run) for orphan detection ===
+            if (syncAi) {
+                const seenPaths = new Set<string>();
+                for (const adapter of adapters) {
+                    for (const memoryEntry of mergedMemory) {
+                        const p = adapter.getPath(
+                            "memory",
+                            memoryEntry.scope,
+                            memoryEntry.filename,
+                        );
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const skillItem of mergedSkills) {
+                        const p = adapter.getPath("skills", skillItem.scope, skillItem.name);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const ruleEntry of mergedRules) {
+                        const ruleName = ruleEntry.name.replace(/\.md$/, "");
+                        const isUniversal = ruleEntry.agents.length === 0;
+                        if (!isUniversal && !ruleEntry.agents.includes(adapter.key)) continue;
+                        const p = adapter.getPath("rules", ruleEntry.scope, ruleName);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const agentEntry of mergedAgents) {
+                        const agentName = agentEntry.name.replace(/\.md$/, "");
+                        const isUniversal = agentEntry.agents.length === 0;
+                        if (!isUniversal && !agentEntry.agents.includes(adapter.key)) continue;
+                        const p = adapter.getPath("agents", agentEntry.scope, agentName);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                    for (const cmd of discoveryCommandEntries) {
+                        const p = adapter.getPath("commands", cmd.scope, cmd.name);
+                        const rel = p.startsWith("/") ? relative(projectRoot, p) : p;
+                        if (!seenPaths.has(rel)) {
+                            seenPaths.add(rel);
+                            actualPlacedPaths.add(rel);
+                            aiToolPlacedPaths.add(rel);
+                        }
+                    }
+                }
+            }
+            if (syncFiles) {
+                for (const fileEntry of fileMap.values()) {
+                    actualPlacedPaths.add(fileEntry.target);
+                    filePlacedPaths.add(fileEntry.target);
+                }
+            }
+            if (syncIde) {
+                for (const ideEntry of ideMap.values()) {
+                    if (
+                        syncedIdePlatforms !== null &&
+                        !syncedIdePlatforms.includes(ideEntry.ideKey)
+                    )
+                        continue;
+                    const rel = `${ideEntry.targetDir}/${ideEntry.fileName}`;
+                    actualPlacedPaths.add(rel);
+                    idePlacedPaths.add(rel);
+                }
+            }
+
             // Accumulate memory file content
             if (!dryRun && syncAi) {
                 for (const adapter of adapters) {
@@ -683,7 +764,10 @@ export const applyCommand = defineCommand({
                                         onPlacement: (placement) =>
                                             pendingPlacements.push(placement),
                                     });
-                                    contentParts.push(processed);
+                                    // Strip Baton-owned frontmatter (scope, merge) before placement
+                                    const strippedContent =
+                                        parseBatonFrontmatter(processed).contentStripped;
+                                    contentParts.push(strippedContent);
                                 } catch {
                                     spinner.message(`Warning: Could not read ${memoryFilePath}`);
                                 }
@@ -712,7 +796,9 @@ export const applyCommand = defineCommand({
 
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 for (const c of memoryEntry.contributions)
                                     existing.profiles.add(c.profileName);
                             } else {
@@ -908,10 +994,11 @@ export const applyCommand = defineCommand({
                             });
 
                             const parsed = parseFrontmatter(rawContent);
+                            const batonParsed = parseBatonFrontmatter(rawContent);
 
                             const ruleFile: RuleFile = {
                                 name: ruleName,
-                                content: rawContent,
+                                content: batonParsed.contentSelectiveStripped,
                                 frontmatter:
                                     Object.keys(parsed.data).length > 0
                                         ? (parsed.data as RuleFile["frontmatter"])
@@ -927,7 +1014,9 @@ export const applyCommand = defineCommand({
 
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 existing.profiles.add(ruleEntry.profileName);
                             } else {
                                 contentAccumulator.set(absolutePath, {
@@ -1009,6 +1098,7 @@ export const applyCommand = defineCommand({
                             });
 
                             const parsed = parseFrontmatter(rawContent);
+                            const batonParsed = parseBatonFrontmatter(rawContent);
 
                             const frontmatter =
                                 Object.keys(parsed.data).length > 0
@@ -1016,7 +1106,7 @@ export const applyCommand = defineCommand({
                                     : { name: agentName };
                             const agentFile: AgentFile = {
                                 name: agentName,
-                                content: rawContent,
+                                content: batonParsed.contentSelectiveStripped,
                                 description: (frontmatter as Record<string, unknown>).description as
                                     | string
                                     | undefined,
@@ -1036,7 +1126,9 @@ export const applyCommand = defineCommand({
 
                             const existing = contentAccumulator.get(absolutePath);
                             if (existing) {
-                                existing.parts.push(transformed.content);
+                                if (!existing.parts.includes(transformed.content)) {
+                                    existing.parts.push(transformed.content);
+                                }
                                 existing.profiles.add(agentEntry.profileName);
                             } else {
                                 contentAccumulator.set(absolutePath, {
