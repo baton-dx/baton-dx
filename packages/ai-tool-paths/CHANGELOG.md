@@ -1,5 +1,7 @@
 # @baton-dx/ai-tool-paths
 
+## 1.0.0-alpha.11
+
 ## 1.0.0-alpha.10
 
 ## 1.0.0-alpha.9

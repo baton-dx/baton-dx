@@ -1,7 +1,7 @@
 {
   "name": "@baton-dx/ai-tool-paths",
   "private": true,
-  "version": "1.0.0-alpha.10",
+  "version": "1.0.0-alpha.11",
   "description": "Path registry for 14+ AI tools - knows where each tool expects its configuration files",
   "type": "module",
   "main": "./dist/index.mjs",
