@@ -16,6 +16,7 @@ import {
     detectInstalledIdes,
     detectLegacyPaths,
     discoverProfile,
+    expandLocalPath,
     FileNotFoundError,
     type FilePlacement,
     findSourceManifest,
@@ -237,9 +238,7 @@ export const applyCommand = defineCommand({
                     let manifestPath: string;
                     let cloneContext: CloneContext | undefined;
                     if (parsed.provider === "local" || parsed.provider === "file") {
-                        const absolutePath = parsed.path.startsWith("/")
-                            ? parsed.path
-                            : resolve(projectRoot, parsed.path);
+                        const absolutePath = expandLocalPath(parsed.path, projectRoot);
                         manifestPath = resolve(absolutePath, "baton.profile.yaml");
                         // Try to get SHA from local git repo, fallback to "local"
                         try {
@@ -579,9 +578,7 @@ export const applyCommand = defineCommand({
             for (const profileSource of projectManifest.profiles || []) {
                 const parsed = parseSource(profileSource.source);
                 if (parsed.provider === "local" || parsed.provider === "file") {
-                    const localPath = parsed.path.startsWith("/")
-                        ? parsed.path
-                        : resolve(projectRoot, parsed.path);
+                    const localPath = expandLocalPath(parsed.path, projectRoot);
                     for (const prof of allProfiles) {
                         if (prof.source === profileSource.source) {
                             profileLocalPaths.set(prof.name, localPath);

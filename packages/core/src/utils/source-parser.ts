@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { SourceParseError } from "../errors.js";
 
 /**
@@ -67,8 +69,13 @@ export function parseSource(source: string): ParsedSource {
         throw new SourceParseError("Source string cannot be empty");
     }
 
-    // Local path (starts with ./ or ../ or /)
-    if (trimmed.startsWith("./") || trimmed.startsWith("../") || trimmed.startsWith("/")) {
+    // Local path (starts with ./ or ../ or / or ~/)
+    if (
+        trimmed.startsWith("./") ||
+        trimmed.startsWith("../") ||
+        trimmed.startsWith("/") ||
+        trimmed.startsWith("~/")
+    ) {
         return {
             provider: "local",
             path: trimmed,
@@ -228,4 +235,22 @@ function parseNpmPackage(input: string): Extract<ParsedSource, { provider: "npm"
     }
 
     return result;
+}
+
+/**
+ * Resolve a local source path to an absolute filesystem path.
+ *
+ * - `~/...`  → expanded relative to the user's home directory (stored as-is in baton.yaml for portability)
+ * - `/...`   → already absolute, returned as-is
+ * - `./...`  → resolved relative to baseDir
+ * - `../...` → resolved relative to baseDir
+ */
+export function expandLocalPath(path: string, baseDir: string): string {
+    if (path.startsWith("~/")) {
+        return join(homedir(), path.slice(2));
+    }
+    if (path.startsWith("/")) {
+        return path;
+    }
+    return resolve(baseDir, path);
 }

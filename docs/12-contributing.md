@@ -175,7 +175,7 @@ Use `baton source create` to scaffold test sources for development. See [Creatin
 
 ### Working with Profiles
 
-Use `baton profile create` to create new profiles. See [Creating Profiles](04-creating-profiles.md) for details.
+Use `baton profile create` to create new profiles. See [Creating Profiles](06-creating-profiles.md) for details.
 
 ## Running Tests
 

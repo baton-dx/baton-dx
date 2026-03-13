@@ -3,6 +3,7 @@ import type { IntersectionResult, SourceManifest } from "@baton-dx/core";
 import {
     cloneGitSource,
     computeIntersection,
+    expandLocalPath,
     findSourceManifest,
     getAuthenticatedUrl,
     loadProfileManifest,
@@ -44,7 +45,7 @@ export async function buildIntersection(
         repoRoot = repoClone.localPath;
         profileDir = parsed.subpath ? resolve(repoRoot, parsed.subpath) : repoRoot;
     } else if (parsed.provider === "local" || parsed.provider === "file") {
-        const absolutePath = parsed.path.startsWith("/") ? parsed.path : resolve(cwd, parsed.path);
+        const absolutePath = expandLocalPath(parsed.path, cwd);
         profileDir = absolutePath;
         repoRoot = (await findSourceRoot(absolutePath, { fallbackToStart: true })) as string;
     } else {

@@ -10,6 +10,7 @@ import {
     computeIntersection,
     detectInstalledAITools,
     detectInstalledIdes,
+    expandLocalPath,
     findSourceManifest,
     type GitignoreSection,
     getAuthenticatedUrl,
@@ -401,9 +402,7 @@ async function showProfileIntersections(profileSources: string[]): Promise<void>
                 repoRoot = repoClone.localPath;
                 profileDir = parsed.subpath ? resolve(repoRoot, parsed.subpath) : repoRoot;
             } else if (parsed.provider === "local" || parsed.provider === "file") {
-                const absolutePath = parsed.path.startsWith("/")
-                    ? parsed.path
-                    : resolve(process.cwd(), parsed.path);
+                const absolutePath = expandLocalPath(parsed.path, process.cwd());
                 profileDir = absolutePath;
                 // Walk up from profile dir to find source root (containing baton.source.yaml)
                 repoRoot = (await findSourceRoot(absolutePath, {

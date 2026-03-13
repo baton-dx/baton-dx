@@ -1,18 +1,20 @@
 # Creating Profiles
 
-A **profile** is a self-contained bundle of AI tool configurations, file placements, and IDE settings. Profiles live inside source repositories and are the primary unit of reuse in Baton. A single source can export multiple profiles (e.g. `frontend`, `backend`, `data-science`), and a project can compose several profiles together.
+Profiles live inside source repositories and are the primary unit of reuse in Baton. A single source can export multiple profiles (e.g. `frontend`, `backend`, `data-science`), and a project can compose several profiles together. For how to consume profiles, see [Using Profiles](./04-using-profiles.md).
+
+Baton uses **convention over configuration**: you drop files into the right directories and they are automatically discovered at sync time. The manifest is minimal — you only declare things that can't be inferred from the filesystem.
 
 ---
 
-## What is a Profile
+## Creating a Profile
 
-A profile answers the question: "What should a developer's AI tooling and project config look like for this kind of work?" It bundles:
+Use the `baton profile create` command from inside the source directory:
 
-- **AI configurations** — skills, rules, agents, memory, commands, MCP servers
-- **File placements** — static config files like `.editorconfig`, `biome.json`, `.prettierrc`
-- **IDE settings** — editor-specific settings, extensions, and workspace configuration
+```bash
+baton profile create my-profile
+```
 
-Baton uses **convention over configuration**: you drop files into the right directories and they are automatically discovered at sync time. The manifest is minimal — you only declare things that can't be inferred from the filesystem.
+This scaffolds the directory layout and a starter `baton.profile.yaml`. You can also create the files manually — see [Directory Structure](#directory-structure) below.
 
 ---
 
@@ -42,10 +44,8 @@ variables:
   project_type: frontend
   framework: react
 hooks:
-  pre-sync:
-    - echo "Starting sync..."
-  post-sync:
-    - npm install
+  post-install: "npm install"
+  post-update: "npm install"
 ```
 
 ### Field Reference
@@ -60,7 +60,7 @@ hooks:
 | `scope`       | string  | no       | —       | Default scope for all content (`project` or `global`).           |
 | `ai.tools`    | string[]| no       | all     | AI tools this profile targets.                                   |
 | `variables`   | object  | no       | `{}`    | Key-value pairs for template substitution.                       |
-| `hooks`       | object  | no       | —       | Lifecycle hooks (pre-sync, post-sync).                           |
+| `hooks`       | object  | no       | —       | Lifecycle hooks. Supported keys: `post-install`, `post-update`. Value is a shell command string. |
 
 Everything else — skills, rules, agents, memory, commands, files, IDE settings — is discovered automatically from the directory layout.
 
@@ -586,20 +586,16 @@ Hooks allow you to run commands at specific points during the sync lifecycle.
 
 ```yaml
 hooks:
-  pre-sync:
-    - echo "Starting sync..."
-    - npm run clean
-  post-sync:
-    - echo "Sync complete!"
-    - npm install
+  post-install: "npm install"
+  post-update: "npm install"
 ```
 
-| Hook        | When it runs                         |
-| ----------- | ------------------------------------ |
-| `pre-sync`  | Before profile files are written.    |
-| `post-sync` | After all profile files are written. |
+| Hook            | When it runs                                      |
+| --------------- | ------------------------------------------------- |
+| `post-install`  | After the profile is installed for the first time. |
+| `post-update`   | After the profile is updated.                     |
 
-Each hook is an array of shell commands that run sequentially. If any command fails, the sync process is halted and an error is reported.
+Each hook value is a shell command string that runs when the event fires. If the command fails, an error is reported.
 
 ---
 
@@ -673,5 +669,5 @@ scope: global
 
 ## Next Steps
 
-- [Using Profiles](./05-using-profiles.md) — learn how to consume profiles in your projects.
-- [Creating Sources](./03-creating-sources.md) — learn how to package profiles into distributable sources.
+- [Using Profiles](./04-using-profiles.md) — learn how to consume profiles in your projects.
+- [Creating Sources](./05-creating-sources.md) — learn how to package profiles into distributable sources.

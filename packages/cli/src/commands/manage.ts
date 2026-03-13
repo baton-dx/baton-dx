@@ -7,6 +7,7 @@ import {
     collectFilePatterns,
     collectIdePatterns,
     ensureBatonDirGitignored,
+    expandLocalPath,
     FileNotFoundError,
     flattenPlacedFiles,
     getAllAIToolAdapters,
@@ -76,7 +77,7 @@ async function loadInstalledProfileMeta(
                 ? resolve(repoClone.localPath, parsed.subpath)
                 : repoClone.localPath;
         } else if (parsed.provider === "local" || parsed.provider === "file") {
-            profileDir = parsed.path.startsWith("/") ? parsed.path : resolve(cwd, parsed.path);
+            profileDir = expandLocalPath(parsed.path, cwd);
         } else {
             return null;
         }

@@ -6,6 +6,7 @@ import {
     cloneGitSource,
     detectInstalledAITools,
     discoverProfile,
+    expandLocalPath,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
@@ -78,9 +79,7 @@ export const diffCommand = defineCommand({
                     let localPath: string;
 
                     if (parsed.provider === "local" || parsed.provider === "file") {
-                        localPath = parsed.path.startsWith("/")
-                            ? parsed.path
-                            : resolve(projectRoot, parsed.path);
+                        localPath = expandLocalPath(parsed.path, projectRoot);
                         profileManifestPath = resolve(localPath, "baton.profile.yaml");
                     } else if (parsed.provider === "npm") {
                         const resolved = await resolveNpmSource({

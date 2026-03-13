@@ -9,19 +9,20 @@ Welcome to the Baton documentation. Baton is a CLI package manager for Developer
 
 ## Guides
 
-- [Creating Sources](./03-creating-sources.md) — Build source repositories
-- [Creating Profiles](./04-creating-profiles.md) — Design profile manifests
-- [Using Profiles](./05-using-profiles.md) — Use profiles in your projects
+- [Using Sources](./03-using-sources.md) — Connect and use source repositories
+- [Using Profiles](./04-using-profiles.md) — Use profiles in your projects
+- [Creating Sources](./05-creating-sources.md) — Build source repositories
+- [Creating Profiles](./06-creating-profiles.md) — Design profile manifests
 
 ## Reference
 
-- [CLI Reference](./06-cli-reference.md) — Complete command reference
-- [Configuration Reference](./07-configuration-reference.md) — All config file schemas
-- [AI Tools Reference](./08-ai-tools-reference.md) — All 14 supported AI tools
-- [IDE Platforms Reference](./09-ide-platforms-reference.md) — Supported IDE platforms
-- [Directives](04-creating-profiles.md#directives) — Conditional content and file inclusion
-- [Merge Strategies](./10-merge-strategies.md) — Deep dive into merge strategies
+- [CLI Reference](./07-cli-reference.md) — Complete command reference
+- [Configuration Reference](./08-configuration-reference.md) — All config file schemas
+- [AI Tools Reference](./09-ai-tools-reference.md) — All 14 supported AI tools
+- [IDE Platforms Reference](./10-ide-platforms-reference.md) — Supported IDE platforms
+- [Directives](./06-creating-profiles.md#directives) — Conditional content and file inclusion
+- [Merge Strategies](./11-merge-strategies.md) — Deep dive into merge strategies
 
 ## Contributing
 
-- [Contributing Guide](./11-contributing.md) — How to contribute to Baton
+- [Contributing Guide](./12-contributing.md) — How to contribute to Baton

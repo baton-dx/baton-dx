@@ -3,7 +3,7 @@ import { CircularInheritanceError, FileNotFoundError } from "../errors.js";
 import type { ProfileManifest } from "../schemas/profile-manifest.js";
 import { cloneGitSource, expandSparseCheckout } from "../sources/git-clone.js";
 import { resolveNpmSource } from "../sources/npm-resolver.js";
-import { parseSource } from "../utils/source-parser.js";
+import { expandLocalPath, parseSource } from "../utils/source-parser.js";
 import { loadProfileManifest } from "../utils/yaml-parser.js";
 
 /**
@@ -63,11 +63,11 @@ export async function resolveProfileChain(
     // and provides localPath so name-based extends resolution can find sibling profiles.
     const parsed = parseSource(source);
     const isLocal = parsed.provider === "local" || parsed.provider === "file";
-    const normalizedSource = isLocal ? resolve(baseDir, parsed.path) : source;
+    const normalizedSource = isLocal ? expandLocalPath(parsed.path, baseDir) : source;
     // For local/file providers: resolve relative path against baseDir (project root convention).
     // For all other providers (github, gitlab, npm, git): callers always pass the cloned
     // profile directory as baseDir (i.e. dirname(manifestPath)), so use it directly.
-    const initialLocalPath = isLocal ? resolve(baseDir, parsed.path) : baseDir;
+    const initialLocalPath = isLocal ? expandLocalPath(parsed.path, baseDir) : baseDir;
 
     // Start with the root profile.
     // logicalSource is the original source string (before normalization) — used in the lockfile.
@@ -235,8 +235,8 @@ async function loadProfileFromSource(
     const parsed = parseSource(source);
 
     if (parsed.provider === "local") {
-        // Local source: resolve relative to baseDir
-        const absolutePath = resolve(baseDir, parsed.path);
+        // Local source: resolve relative to baseDir (or expand ~/ home paths)
+        const absolutePath = expandLocalPath(parsed.path, baseDir);
         const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
         try {
@@ -257,9 +257,7 @@ async function loadProfileFromSource(
 
     if (parsed.provider === "file") {
         // File source: resolve path (can be relative or absolute)
-        const absolutePath = parsed.path.startsWith("/")
-            ? parsed.path
-            : resolve(baseDir, parsed.path);
+        const absolutePath = expandLocalPath(parsed.path, baseDir);
         const manifestPath = resolve(absolutePath, "baton.profile.yaml");
 
         try {

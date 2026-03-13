@@ -355,6 +355,7 @@ export {
     collectFilePatterns,
     collectIdePatterns,
     ensureBatonDirGitignored,
+    expandLocalPath,
     type GitignoreConfig,
     type GitignoreSection,
     loadLockfile,

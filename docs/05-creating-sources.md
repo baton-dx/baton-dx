@@ -14,7 +14,8 @@ Sources can be hosted on any supported transport:
 | ---------- | ---------------------------------------- | ---------------------------------- |
 | `github:`  | `github:my-org/dx-configs`               | GitHub repository                  |
 | `gitlab:`  | `gitlab:my-org/dx-configs`               | GitLab repository                  |
-| `git:`     | `git:https://git.internal.co/dx-configs` | Any Git remote                     |
+| `https://` | `https://git.internal.co/dx-configs.git` | Any HTTPS Git URL                  |
+| `git@`     | `git@github.com:my-org/dx-configs.git`   | SSH Git URL                        |
 | `npm:`     | `npm:@my-org/dx-configs`                 | npm registry package               |
 | `file:`    | `file:../local-configs`                  | Local filesystem path              |
 
@@ -30,13 +31,11 @@ The fastest way to scaffold a new source is with the `baton source create` comma
 baton source create my-team-configs
 ```
 
-This generates a ready-to-use directory with the manifest and an example profile. You can also pass options:
+This generates a ready-to-use directory with the manifest and an example profile. You can also pass a description:
 
 ```bash
 baton source create my-team-configs \
-  --description "Team DX standards" \
-  --profile frontend \
-  --profile backend
+  --description "Team DX standards"
 ```
 
 If you prefer to set things up manually, create a directory, add a `baton.source.yaml` file, and start adding profiles.
@@ -144,28 +143,19 @@ my-team-configs/
 
 ## Adding Profiles to a Source
 
-Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./04-creating-profiles.md) for the full profile reference.
+Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./06-creating-profiles.md) for the full profile reference.
 
-To add a new profile to an existing source:
+To add a new profile, run the following from inside the source directory:
 
-1. Create the profile directory:
+```bash
+baton profile create my-new-profile
+```
 
-   ```bash
-   mkdir -p profiles/my-new-profile/ai/{memory,rules,agents,skills,commands,mcp}
-   mkdir -p profiles/my-new-profile/{files,ide}
-   ```
+This scaffolds the full directory structure and a starter `baton.profile.yaml`. Then validate:
 
-2. Create the profile manifest:
-
-   ```bash
-   touch profiles/my-new-profile/baton.profile.yaml
-   ```
-
-3. Validate:
-
-   ```bash
-   baton source validate
-   ```
+```bash
+baton source validate
+```
 
 ---
 
@@ -301,5 +291,5 @@ This gives your AI tools context about profile schemas, merge strategies, tool t
 
 ## Next Steps
 
-- [Creating Profiles](./04-creating-profiles.md) -- learn how to define profile manifests and configure AI tools.
-- [Using Profiles](./05-using-profiles.md) -- learn how to consume profiles in your projects.
+- [Creating Profiles](./06-creating-profiles.md) — learn how to define profile manifests and configure AI tools.
+- [Using Profiles](./04-using-profiles.md) — learn how to consume profiles in your projects.

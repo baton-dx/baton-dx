@@ -6,6 +6,21 @@
 
 **Baton is a CLI package manager for Developer Experience & AI configuration.** Manage Skills, Rules, Agents, Memory Files, and file configs as versioned, composable profiles for 14 AI coding tools.
 
+## What's New in v1.0.0
+
+v1.0.0 is the first stable release of Baton. Key changes from 0.x:
+
+- **Convention over Configuration** — Drop files into `ai/rules/`, `ai/agents/`, `ai/skills/` and Baton discovers them. No manifest declarations needed.
+- **`baton preview`** — Inspect processed output for any AI tool before syncing. Supports `--diff` to compare two tools side by side.
+- **Directives** — `baton:if` / `baton:else` / `baton:endif` with expression syntax, and `baton:include` with `inline` / `link` / `reference` modes.
+- **MCP Server Distribution** — Define MCP servers once in `ai/mcp/*.yaml`; Baton places them in each tool's native config format with per-tool env-var syntax transformations.
+- **Profile Inheritance** — `extends: ../base` in `baton.profile.yaml` for layered configuration.
+- **`baton self-update`** — Update Baton to the latest version from the CLI.
+- **`baton source validate`** — Validate a source repository's structure and manifests.
+- **`baton sync` replaces `baton update`** — The old `baton update` command has been removed.
+
+See [Migration Guide](docs/MIGRATION-1.0.md) for upgrading from 0.x.
+
 ## Why Baton?
 
 | | Without Baton | With Baton |
@@ -144,15 +159,18 @@ Baton's own configurations are published as [`baton-dx-source`](https://github.c
 
 - [Installation](docs/01-installation.md) — Prerequisites and install methods
 - [Quick Start Guide](docs/02-quickstart.md) — Get running in 5 minutes
-- [Creating Sources](docs/03-creating-sources.md) — Build source repositories
-- [Creating Profiles](docs/04-creating-profiles.md) — Design profile manifests
-- [Using Profiles](docs/05-using-profiles.md) — Use profiles in your projects
-- [CLI Reference](docs/06-cli-reference.md) — Complete command reference
-- [Configuration Reference](docs/07-configuration-reference.md) — All config file schemas
-- [AI Tools Reference](docs/08-ai-tools-reference.md) — All 14 supported AI tools
-- [IDE Platforms](docs/09-ide-platforms-reference.md) — Supported IDE platforms
-- [Merge Strategies](docs/10-merge-strategies.md) — Deep dive into merge strategies
-- [Migration Guide](docs/MIGRATION-1.0.md) — upgrading from 0.x
+- [Using Sources](docs/03-using-sources.md) — Connect and use source repositories
+- [Using Profiles](docs/04-using-profiles.md) — Use profiles in your projects
+- [Creating Sources](docs/05-creating-sources.md) — Build source repositories
+- [Creating Profiles](docs/06-creating-profiles.md) — Design profile manifests
+- [CLI Reference](docs/07-cli-reference.md) — Complete command reference
+- [Configuration Reference](docs/08-configuration-reference.md) — All config file schemas
+- [AI Tools Reference](docs/09-ai-tools-reference.md) — All 14 supported AI tools
+- [IDE Platforms](docs/10-ide-platforms-reference.md) — Supported IDE platforms
+- [Merge Strategies](docs/11-merge-strategies.md) — Deep dive into merge strategies
+- [Migration Guide](docs/MIGRATION-1.0.md) — Upgrading from 0.x
+- [Contributing](docs/12-contributing.md) — How to contribute to Baton
+- [Troubleshooting](docs/13-troubleshooting.md) — Common issues and solutions
 
 ## Built with AI, Verified by Humans
 
@@ -160,7 +178,7 @@ Baton is proudly built with the help of AI tools. We believe AI-assisted develop
 
 ## Contributing
 
-See [Contributing Guide](docs/11-contributing.md) for development setup, coding conventions, and PR workflow.
+See [Contributing Guide](docs/12-contributing.md) for development setup, coding conventions, and PR workflow.
 
 ## License
 

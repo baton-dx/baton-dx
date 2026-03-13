@@ -1,6 +1,8 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SourceParseError } from "../errors.js";
-import { parseSource } from "./source-parser.js";
+import { expandLocalPath, parseSource } from "./source-parser.js";
 
 describe("parseSource", () => {
     describe("GitHub sources", () => {
@@ -127,6 +129,24 @@ describe("parseSource", () => {
             expect(result).toEqual({
                 provider: "local",
                 path: "/absolute/path",
+            });
+        });
+
+        it("parses ~/home/path", () => {
+            const result = parseSource("~/Sites/baton/test-v1");
+
+            expect(result).toEqual({
+                provider: "local",
+                path: "~/Sites/baton/test-v1",
+            });
+        });
+
+        it("parses ~/ (bare home shorthand)", () => {
+            const result = parseSource("~/");
+
+            expect(result).toEqual({
+                provider: "local",
+                path: "~/",
             });
         });
     });
@@ -294,6 +314,26 @@ describe("parseSource", () => {
 
         it("throws SourceParseError for npm:@scope/ without package name", () => {
             expect(() => parseSource("npm:@scope/")).toThrow(SourceParseError);
+        });
+    });
+
+    describe("expandLocalPath", () => {
+        it("expands ~/ to home directory", () => {
+            expect(expandLocalPath("~/foo/bar", "/any/base")).toBe(join(homedir(), "foo/bar"));
+        });
+
+        it("returns absolute path as-is", () => {
+            expect(expandLocalPath("/usr/local/lib", "/any/base")).toBe("/usr/local/lib");
+        });
+
+        it("resolves ./ relative to baseDir", () => {
+            expect(expandLocalPath("./profiles", "/home/user/project")).toBe(
+                "/home/user/project/profiles",
+            );
+        });
+
+        it("resolves ../ relative to baseDir", () => {
+            expect(expandLocalPath("../sibling", "/home/user/project")).toBe("/home/user/sibling");
         });
     });
 

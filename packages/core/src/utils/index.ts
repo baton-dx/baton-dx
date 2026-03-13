@@ -13,5 +13,5 @@ export {
     updateGitignore,
     updateGitignoreWithSections,
 } from "./gitignore.js";
-export { type ParsedSource, parseSource } from "./source-parser.js";
+export { expandLocalPath, type ParsedSource, parseSource } from "./source-parser.js";
 export { loadLockfile, loadProfileManifest, loadProjectManifest } from "./yaml-parser.js";

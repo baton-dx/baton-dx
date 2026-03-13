@@ -1,7 +1,7 @@
-import { resolve } from "node:path";
 import {
     addGlobalSource,
     checkSourceBatonRequires,
+    expandLocalPath,
     findSourceManifest,
     KEBAB_CASE_REGEX,
     type ParsedSource,
@@ -63,9 +63,7 @@ export const connectCommand = defineCommand({
         // For local sources: warn if baton-cli version requirement is not met.
         // Remote sources are skipped here — sync/apply will catch it after cloning.
         if (parsed.provider === "local" || parsed.provider === "file") {
-            const absolutePath = parsed.path.startsWith("/")
-                ? parsed.path
-                : resolve(process.cwd(), parsed.path);
+            const absolutePath = expandLocalPath(parsed.path, process.cwd());
             const sourceMeta = await findSourceManifest(absolutePath).catch(() => null);
             const requiresBatonCli = sourceMeta?.requires?.["baton-cli"];
             if (requiresBatonCli) {
@@ -77,8 +75,17 @@ export const connectCommand = defineCommand({
             }
         }
 
+        // Normalize relative paths to absolute before storing so the stored URL
+        // is never cwd-dependent. ~/  and absolute paths are stored as-is.
+        let storedUrl = url;
+        if (parsed.provider === "local" || parsed.provider === "file") {
+            if (!parsed.path.startsWith("/") && !parsed.path.startsWith("~/")) {
+                storedUrl = expandLocalPath(parsed.path, process.cwd());
+            }
+        }
+
         try {
-            await addGlobalSource(url, {
+            await addGlobalSource(storedUrl, {
                 name: args.name as string | undefined,
                 description: args.description as string | undefined,
             });
@@ -98,7 +105,7 @@ export const connectCommand = defineCommand({
 
             p.outro("Starting profile sync...");
 
-            const profiles = await selectMultipleProfilesFromSource(url);
+            const profiles = await selectMultipleProfilesFromSource(storedUrl);
             if (profiles.length > 0) {
                 p.log.success(`Selected ${profiles.length} profile(s) for sync.`);
                 p.note(
