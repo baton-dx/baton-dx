@@ -6,13 +6,10 @@ import {
     type AIToolAdapter,
     assembleContentFromDiscovery,
     atomicWriteFile,
-    type CloneContext,
     type CommandEntry,
     checkLockfileVersion,
-    checkSourceBatonRequires,
     checkStale,
     cloneGitSource,
-    createGit,
     detectInstalledAITools,
     detectInstalledIdes,
     detectLegacyPaths,
@@ -20,12 +17,9 @@ import {
     expandLocalPath,
     FileNotFoundError,
     type FilePlacement,
-    findSourceManifest,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
-    getAuthSetupInstructions,
     type LockFileEntry,
-    loadProfileManifest,
     loadProjectManifest,
     type MemoryEntry,
     type MergedSkillItem,
@@ -46,10 +40,10 @@ import {
     resolveAuth,
     resolveNpmSource,
     resolvePreferences,
-    resolveProfileChain,
-    resolveVersion,
+    resolveSourcesBatch,
     type Scope,
     sortProfilesByWeight,
+    VersionRequirementError,
     writeMcpJson,
     writeMcpJsonc,
     writeMcpToml,
@@ -244,141 +238,43 @@ export const syncCommand = defineCommand({
             const spinner = p.spinner();
             spinner.start("Resolving profile chain...");
 
-            const allProfiles = [];
-            // Track SHA per source for lockfile
-            const sourceShas = new Map<string, string>();
-            // Track authenticated URL + token per source for reuse in Step 5
-            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
-            // Track source roots already checked for baton-cli version requirement
-            const checkedSourceRoots = new Set<string>();
-            for (const profileSource of projectManifest.profiles || []) {
-                try {
-                    if (verbose) {
-                        p.log.info(`Resolving source: ${profileSource.source}`);
-                    }
-                    // Load the profile manifest first
-                    const parsed = parseSource(profileSource.source);
-
-                    let manifestPath: string;
-                    let cloneContext: CloneContext | undefined;
-                    if (parsed.provider === "local" || parsed.provider === "file") {
-                        const absolutePath = expandLocalPath(parsed.path, projectRoot);
-                        manifestPath = resolve(absolutePath, "baton.profile.yaml");
-                        // Try to get SHA from local git repo, fallback to "local"
-                        try {
-                            const git = createGit(absolutePath);
-                            await git.checkIsRepo();
-                            const sha = await git.revparse(["HEAD"]);
-                            sourceShas.set(profileSource.source, sha.trim());
-                        } catch {
-                            sourceShas.set(profileSource.source, "local");
-                        }
-                    } else if (parsed.provider === "npm") {
-                        // NPM source: resolve via npm-resolver with fresh install
-                        const resolved = await resolveNpmSource({
-                            source: parsed,
-                            basePath: projectRoot,
-                            useCache: false, // Always fetch fresh for sync
-                        });
-                        manifestPath = resolve(resolved.localPath, "baton.profile.yaml");
-                        sourceShas.set(profileSource.source, resolved.version);
-                    } else {
-                        // For remote sources, clone first
-                        const url =
-                            parsed.provider === "github" || parsed.provider === "gitlab"
-                                ? parsed.url
-                                : parsed.provider === "git"
-                                  ? parsed.url
-                                  : "";
-
-                        if (!url) {
-                            throw new Error(`Invalid source: ${profileSource.source}`);
-                        }
-
-                        // Pre-resolve auth via cascade
-                        const hostname = new URL(url).hostname;
-                        const authLogger = verbose
-                            ? { debug: (msg: string) => p.log.info(msg) }
-                            : undefined;
-                        const auth = await resolveAuth(
-                            hostname,
-                            authLogger ? { logger: authLogger } : undefined,
-                        );
-                        if (auth.method === "none") {
-                            p.log.warn(
-                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname, auth.triedMethods)}`,
-                            );
-                            continue;
-                        }
-                        const cloneUrl = await getAuthenticatedUrl(url, auth);
-                        sourceAuth.set(profileSource.source, { cloneUrl, authToken: auth.token });
-
-                        // Always resolve to latest version
-                        let resolvedRef: string;
-                        try {
-                            resolvedRef = await resolveVersion(cloneUrl, "latest", auth.token);
-                            if (verbose) {
-                                p.log.info(
-                                    `Resolved latest: ${profileSource.source} → ${resolvedRef.slice(0, 12)}`,
-                                );
-                            }
-                        } catch {
-                            // Fallback to profileSource.version if resolution fails
-                            resolvedRef = profileSource.version || "HEAD";
-                            if (verbose) {
-                                p.log.warn(
-                                    `Could not resolve latest for ${url}, using ${resolvedRef}`,
-                                );
-                            }
-                        }
-
-                        const cloned = await cloneGitSource({
-                            url: cloneUrl,
-                            ref: resolvedRef,
-                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                            useCache: false,
-                            authToken: auth.token,
-                        });
-                        manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
-                        sourceShas.set(profileSource.source, cloned.sha);
-                        cloneContext = {
-                            cachePath: cloned.cachePath,
-                            sparseCheckout: cloned.sparseCheckout,
-                            authToken: auth.token,
-                            cloneUrl,
-                        };
-                    }
-
-                    const manifest = await loadProfileManifest(manifestPath);
-                    const profileDir = dirname(manifestPath);
-
-                    // Check requires["baton-cli"] once per source root
-                    const sourceRoot = resolve(profileDir, "../..");
-                    if (!checkedSourceRoots.has(sourceRoot)) {
-                        checkedSourceRoots.add(sourceRoot);
-                        const sourceMeta = await findSourceManifest(sourceRoot).catch(() => null);
-                        const requiresBatonCli = sourceMeta?.requires?.["baton-cli"];
-                        if (requiresBatonCli) {
-                            const err = checkSourceBatonRequires(requiresBatonCli, currentVersion);
-                            if (err) {
-                                spinner.stop("Version requirement not met");
-                                p.cancel(err);
-                                process.exit(1);
-                            }
-                        }
-                    }
-
-                    const chain = await resolveProfileChain(
-                        manifest,
-                        profileSource.source,
-                        profileDir,
-                        cloneContext,
-                    );
-                    allProfiles.push(...chain);
-                } catch (error) {
-                    spinner.stop(`Failed to resolve profile ${profileSource.source}: ${error}`);
-                    stats.errors++;
+            const concurrency = Math.max(1, Number.parseInt(String(args.concurrency), 10) || 5);
+            let batchResult: import("@baton-dx/core").BatchResolveResult;
+            try {
+                batchResult = await resolveSourcesBatch(projectManifest.profiles || [], {
+                    mode: "sync",
+                    concurrency,
+                    lockfile: existingLock ?? undefined,
+                    projectRoot,
+                    verbose,
+                    logger: { info: (msg) => p.log.info(msg), warn: (msg) => p.log.warn(msg) },
+                    resolveAuth,
+                    getAuthenticatedUrl,
+                    currentVersion,
+                });
+            } catch (error) {
+                if (error instanceof VersionRequirementError) {
+                    spinner.stop("Version requirement not met");
+                    p.cancel(error.message);
+                    process.exit(1);
                 }
+                throw error;
+            }
+
+            // Extract results into the Maps expected downstream
+            const sourceShas = new Map<string, string>();
+            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
+            const allProfiles = [];
+            for (const entry of batchResult.resolved) {
+                sourceShas.set(entry.profileSource.source, entry.sha);
+                if (entry.auth) {
+                    sourceAuth.set(entry.profileSource.source, entry.auth);
+                }
+                allProfiles.push(...entry.profiles);
+            }
+            for (const err of batchResult.errors) {
+                spinner.stop(`Failed to resolve profile ${err.source}: ${err.error}`);
+                stats.errors++;
             }
 
             if (allProfiles.length === 0) {
@@ -410,35 +306,40 @@ export const syncCommand = defineCommand({
                 }
             }
 
-            const discoveryInputs = [];
-            for (const profile of weightSortedProfiles) {
-                const localPath = earlyLocalPaths.get(profile.name);
-                if (!localPath) {
-                    if (verbose) {
-                        p.log.warn(
-                            `Profile "${profile.name}": no local path available — skipping discovery`,
-                        );
-                    }
-                    continue;
-                }
-                try {
-                    const discovery = await discoverProfile(localPath);
-                    discoveryInputs.push({
-                        discovery,
-                        meta: {
-                            name: profile.name,
-                            profileScope: profile.manifest.scope,
-                        },
-                    });
-                    if (discovery.warnings.length > 0 && verbose) {
-                        for (const w of discovery.warnings) {
-                            p.log.info(`  [discovery] ${profile.name}: ${w}`);
+            const discoveryResults = await Promise.all(
+                weightSortedProfiles.map(async (profile) => {
+                    const localPath = earlyLocalPaths.get(profile.name);
+                    if (!localPath) {
+                        if (verbose) {
+                            p.log.warn(
+                                `Profile "${profile.name}": no local path available — skipping discovery`,
+                            );
                         }
+                        return null;
                     }
-                } catch (error) {
-                    p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
-                }
-            }
+                    try {
+                        const discovery = await discoverProfile(localPath);
+                        if (discovery.warnings.length > 0 && verbose) {
+                            for (const w of discovery.warnings) {
+                                p.log.info(`  [discovery] ${profile.name}: ${w}`);
+                            }
+                        }
+                        return {
+                            discovery,
+                            meta: {
+                                name: profile.name,
+                                profileScope: profile.manifest.scope,
+                            },
+                        };
+                    } catch (error) {
+                        p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
+                        return null;
+                    }
+                }),
+            );
+            const discoveryInputs = discoveryResults.filter(
+                (r): r is NonNullable<typeof r> => r !== null,
+            );
 
             const assembled = assembleContentFromDiscovery(discoveryInputs);
             const mergedSkills: MergedSkillItem[] = assembled.skills;
@@ -505,28 +406,35 @@ export const syncCommand = defineCommand({
                 const aggregatedSyncedIde = new Set<string>();
                 allIntersections = new Map();
 
-                for (const profileSource of projectManifest.profiles || []) {
-                    try {
-                        const intersection = await buildIntersection(
-                            profileSource.source,
-                            developerTools,
-                            projectRoot,
-                        );
-                        if (intersection) {
-                            allIntersections.set(profileSource.source, intersection);
-                            for (const tool of intersection.aiTools.synced) {
-                                aggregatedSyncedAi.add(tool);
-                            }
-                            for (const platform of intersection.idePlatforms.synced) {
-                                aggregatedSyncedIde.add(platform);
-                            }
-                        }
-                    } catch (error) {
-                        if (verbose) {
-                            p.log.warn(
-                                `Could not compute intersection for ${profileSource.source}: ${error instanceof Error ? error.message : String(error)}`,
+                const intersectionResults = await Promise.all(
+                    (projectManifest.profiles || []).map(async (profileSource) => {
+                        try {
+                            const intersection = await buildIntersection(
+                                profileSource.source,
+                                developerTools,
+                                projectRoot,
                             );
+                            return intersection
+                                ? { source: profileSource.source, intersection }
+                                : null;
+                        } catch (error) {
+                            if (verbose) {
+                                p.log.warn(
+                                    `Could not compute intersection for ${profileSource.source}: ${error instanceof Error ? error.message : String(error)}`,
+                                );
+                            }
+                            return null;
                         }
+                    }),
+                );
+                for (const result of intersectionResults) {
+                    if (!result) continue;
+                    allIntersections.set(result.source, result.intersection);
+                    for (const tool of result.intersection.aiTools.synced) {
+                        aggregatedSyncedAi.add(tool);
+                    }
+                    for (const platform of result.intersection.idePlatforms.synced) {
+                        aggregatedSyncedIde.add(platform);
                     }
                 }
 
