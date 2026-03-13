@@ -1,5 +1,14 @@
 # @baton-dx/cli
 
+## 1.0.0-alpha.5
+
+### Patch Changes
+
+- 22ec59e: fix(cli): `baton preview` now correctly shows resolution errors and resolves paths for extended profiles
+
+  - Resolution errors are collected and displayed via `p.log.error()` after the spinner stops, instead of being silently lost via `spinner.message()`
+  - Extended profiles in a chain now get their own correct `localPath` instead of inheriting the root profile's path
+
 ## 1.0.0-alpha.4
 
 ### Patch Changes
