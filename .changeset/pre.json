@@ -13,6 +13,7 @@
     "fix-lockfile-sha-cache-lookup",
     "fix-preview-no-profiles-resolved",
     "fix-project-prefix-output",
+    "fix-resolve-latest-to-head",
     "fix-sparse-checkout-cache-poisoning",
     "fix-sync-apply-bugs",
     "parallel-source-fetching",

@@ -5,7 +5,7 @@
     "": {
       "name": "baton-dx-monorepo",
       "devDependencies": {
-        "@biomejs/biome": "^2.4.6",
+        "@biomejs/biome": "^2.4.7",
         "@changesets/changelog-github": "^0.6.0",
         "@changesets/cli": "^2.30.0",
         "@types/node": "^25.5.0",
@@ -20,11 +20,11 @@
     },
     "packages/ai-tool-paths": {
       "name": "@baton-dx/ai-tool-paths",
-      "version": "1.0.0-alpha.12",
+      "version": "1.0.0-alpha.13",
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "1.0.0-alpha.12",
+      "version": "1.0.0-alpha.13",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
@@ -44,7 +44,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "1.0.0-alpha.12",
+      "version": "1.0.0-alpha.13",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
