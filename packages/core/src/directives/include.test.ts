@@ -306,7 +306,87 @@ describe("resolveInclude", () => {
             );
 
             expect(placements).toHaveLength(0);
-            expect(result).toContain("README.md");
+            expect(result).toBe("[README.md](README.md)");
+
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("@project/ link mode strips prefix from rendered output", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/README.md", mode: "link" }),
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                () => {},
+            );
+
+            expect(result).toBe("[README.md](README.md)");
+
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("@project/ link mode with hint strips prefix", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+
+            const result = await resolveInclude(
+                makeInclude({
+                    src: "@project/README.md",
+                    mode: "link",
+                    hint: "Check {{file}} for details",
+                }),
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                () => {},
+            );
+
+            expect(result).toBe("Check [README.md](README.md) for details");
+
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("@project/ reference mode strips prefix from rendered output", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+
+            const result = await resolveInclude(
+                makeInclude({ src: "@project/README.md", mode: "reference" }),
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                () => {},
+            );
+
+            expect(result).toBe("See @README.md for additional context.");
+
+            await rm(tempProjectRoot, { recursive: true, force: true });
+        });
+
+        it("@project/ reference mode with hint strips prefix", async () => {
+            const tempProjectRoot = await mkdtemp(join(tmpdir(), "project-"));
+            await writeFile(join(tempProjectRoot, "README.md"), "# Project");
+
+            const result = await resolveInclude(
+                makeInclude({
+                    src: "@project/README.md",
+                    mode: "reference",
+                    hint: "Read {{file}} for project info",
+                }),
+                tempProjectRoot,
+                undefined,
+                "/some-profile",
+                "my-profile",
+                () => {},
+            );
+
+            expect(result).toBe("Read @README.md for project info");
 
             await rm(tempProjectRoot, { recursive: true, force: true });
         });
