@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { SimpleGit } from "simple-git";
 import { GitAuthenticationError, GitSourceError } from "../errors.js";
 import {
     createGit,
@@ -86,6 +87,14 @@ async function isCacheStale(cachePath: string, maxAgeMs: number): Promise<boolea
 }
 
 /**
+ * Checks if sparse-checkout is enabled in a cached repository.
+ */
+async function isSparseCheckout(git: SimpleGit): Promise<boolean> {
+    const result = await git.raw(["config", "--get", "core.sparseCheckout"]).catch(() => "");
+    return result.trim() === "true";
+}
+
+/**
  * Clones a Git repository with shallow clone and optional sparse checkout
  */
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
@@ -109,6 +118,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
                 // Stale cache: aggressive refresh with fetch + reset
                 try {
                     await git.fetch(["--depth=1", "origin"]);
+                    // If no subpath requested but cache is sparse, restore full checkout
+                    if (!subpath && (await isSparseCheckout(git))) {
+                        await git.raw(["sparse-checkout", "disable"]);
+                    }
                     await git.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
                 } catch {
                     // Fetch failed (network issue), fall back to pull
@@ -124,6 +137,9 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
             } else {
                 // Cache is fresh or no TTL set: best-effort pull
                 try {
+                    if (!subpath && (await isSparseCheckout(git))) {
+                        await git.raw(["sparse-checkout", "disable"]);
+                    }
                     await git.pull(["--depth=1"]);
                 } catch {
                     // Pull failed (network issue, detached HEAD, etc.) - use cache as-is
@@ -160,6 +176,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         const cachedGit = makeGit(cachePath);
         try {
             await cachedGit.fetch(["--depth=1", "origin"]);
+            // If no subpath requested but cache is sparse, restore full checkout
+            if (!subpath && (await isSparseCheckout(cachedGit))) {
+                await cachedGit.raw(["sparse-checkout", "disable"]);
+            }
             await cachedGit.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
             if (subpath) {
                 await expandSparseCheckout(cachePath, [subpath]);
