@@ -14,6 +14,7 @@
     "fix-sparse-checkout-cache-poisoning",
     "fix-sync-apply-bugs",
     "scan-show-config-state",
+    "strict-expression-syntax-in-operator",
     "tilde-path-support"
   ]
 }
