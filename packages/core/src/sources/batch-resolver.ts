@@ -1,4 +1,5 @@
 import { dirname, resolve } from "node:path";
+import { GitAuthenticationError } from "../errors.js";
 import type { CloneContext, ResolvedProfile } from "../inheritance/profile-chain.js";
 import { resolveProfileChain } from "../inheritance/profile-chain.js";
 import { checkSourceBatonRequires } from "../lockfile/version-check.js";
@@ -7,7 +8,6 @@ import type { ParsedSource } from "../utils/index.js";
 import { expandLocalPath, loadProfileManifest, parseSource } from "../utils/index.js";
 import type { AuthOptions, AuthResult } from "./auth-cascade.js";
 import { cloneGitSource } from "./git-clone.js";
-import { createGit, isAuthError, withTokenAuth } from "./git-utils.js";
 import { resolveNpmSource } from "./npm-resolver.js";
 import { findSourceManifest } from "./source-discovery.js";
 import { resolveVersion } from "./version-resolver.js";
@@ -45,49 +45,6 @@ export function findLockedPackageBySource(
         if (pkg.source === source) return pkg;
     }
     return undefined;
-}
-
-export type RemoteCheckResult =
-    | { type: "ok"; changed: boolean }
-    | { type: "auth_error"; error: Error }
-    | { type: "network_error" };
-
-/**
- * Lightweight remote SHA check via `git ls-remote`.
- * Compares the given lockedSha against all remote refs.
- * If the lockedSha is found in any remote ref, the source is unchanged.
- *
- * Note: For annotated tags, ls-remote returns the tag object SHA, not the
- * dereferenced commit SHA. This means a lockfile SHA pointing to a commit
- * behind an annotated tag may show as "changed" — an acceptable false-positive
- * that triggers a fresh clone (safe, no stale data risk).
- */
-export async function checkRemoteSha(
-    url: string,
-    lockedSha: string,
-    authToken?: string,
-): Promise<RemoteCheckResult> {
-    try {
-        const git = authToken ? withTokenAuth(createGit(), url, authToken) : createGit();
-        const remoteRefs = await git.listRemote(["--heads", "--tags", "--refs", url]);
-
-        for (const line of remoteRefs.split("\n")) {
-            const match = line.match(/^([a-f0-9]+)\s+refs\//);
-            if (match && match[1] === lockedSha) {
-                return { type: "ok", changed: false };
-            }
-        }
-
-        return { type: "ok", changed: true };
-    } catch (error) {
-        if (isAuthError(error)) {
-            return {
-                type: "auth_error",
-                error: error instanceof Error ? error : new Error(String(error)),
-            };
-        }
-        return { type: "network_error" };
-    }
 }
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -264,30 +221,27 @@ async function resolveGitSync(
     let useCache = false;
     let ref: string | undefined;
 
-    if (lockfile) {
-        const lockedPkg = findLockedPackageBySource(lockfile, profileSource.source);
-        if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
-            const check = await checkRemoteSha(cloneUrl, lockedPkg.sha, authResult.token);
-            if (check.type === "auth_error") {
-                if (verbose) ctx.log.warn(`Auth failed for ${profileSource.source}`);
-                return null as unknown as SourceResolution;
-            }
-            if (check.type === "ok" && !check.changed) {
-                useCache = true;
-                ref = lockedPkg.sha;
-                if (verbose) ctx.log.info(`SHA unchanged for ${profileSource.source}, using cache`);
-            }
+    // Resolve the latest ref (HEAD for unpinned sources, tag/branch for pinned)
+    const spec = profileSource.version || "latest";
+    try {
+        ref = await resolveVersion(cloneUrl, spec, authResult.token);
+        if (verbose)
+            ctx.log.info(`Resolved ${spec}: ${profileSource.source} → ${ref.slice(0, 12)}`);
+    } catch (error) {
+        if (error instanceof GitAuthenticationError) {
+            if (verbose) ctx.log.warn(`Auth failed for ${profileSource.source}`);
+            return null as unknown as SourceResolution;
         }
+        ref = profileSource.version || "HEAD";
+        if (verbose) ctx.log.warn(`Could not resolve for ${url}, using ${ref}`);
     }
 
-    if (!useCache) {
-        try {
-            ref = await resolveVersion(cloneUrl, "latest", authResult.token);
-            if (verbose)
-                ctx.log.info(`Resolved latest: ${profileSource.source} → ${ref.slice(0, 12)}`);
-        } catch {
-            ref = profileSource.version || "HEAD";
-            if (verbose) ctx.log.warn(`Could not resolve latest for ${url}, using ${ref}`);
+    // Compare resolved ref to locked SHA — use cache if identical
+    if (lockfile && ref) {
+        const lockedPkg = findLockedPackageBySource(lockfile, profileSource.source);
+        if (lockedPkg?.sha && lockedPkg.sha !== "unknown" && lockedPkg.sha === ref) {
+            useCache = true;
+            if (verbose) ctx.log.info(`SHA unchanged for ${profileSource.source}, using cache`);
         }
     }
 

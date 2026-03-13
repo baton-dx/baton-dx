@@ -14,7 +14,7 @@ import { createGit, isAuthError, redactUrl, withTokenAuth } from "./git-utils.js
  * - Exact tag: "v2.0.0", "2.0.0"
  * - Branch name: "main", "develop"
  * - Commit SHA: "abc1234567890def"
- * - "latest": resolves to newest semver tag, or HEAD if no tags
+ * - "latest": resolves to HEAD of default branch (main or master)
  *
  * @param repoUrl - The Git repository URL (clean, without embedded credentials)
  * @param versionSpec - The version specification to resolve (default: "latest")
@@ -49,29 +49,15 @@ export async function resolveVersion(
             }
         }
 
-        // Handle "latest" - resolve to newest semver tag, or HEAD if no tags
+        // Handle "latest" - resolve to HEAD of default branch
+        // Semver tags are only used when an explicit version range is specified (e.g., "^1.0.0")
         if (versionSpec === "latest") {
-            const semverTags = tags.map((tag) => tag.replace(/^v/, "")).filter((tag) => valid(tag));
-
-            if (semverTags.length > 0) {
-                const latest = maxSatisfying(semverTags, "*");
-                if (latest) {
-                    // Find the SHA for this tag
-                    const tagName = tags.find((t) => t === latest || t === `v${latest}`);
-                    if (tagName) {
-                        const tagSha = await getTagSha(git, repoUrl, tagName);
-                        return tagSha;
-                    }
-                }
-            }
-
-            // No semver tags found, return HEAD of default branch
             const defaultBranch = branches.get("main") || branches.get("master");
             if (defaultBranch) {
                 return defaultBranch;
             }
 
-            throw new VersionNotFoundError(`No versions found in repository: ${safeUrl}`);
+            throw new VersionNotFoundError(`No default branch found in repository: ${safeUrl}`);
         }
 
         // Check if it's a commit SHA (40 hex chars) - do this before other checks
