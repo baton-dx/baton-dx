@@ -1,5 +1,19 @@
 # @baton-dx/core
 
+## 1.0.0-alpha.9
+
+### Patch Changes
+
+- fd7f54b: Strict expression syntax: uppercase-only operators (AND, OR, NOT, IN) and new IN operator for set membership
+
+  **Breaking:** Expression conditions now require uppercase operators only. Lowercase (`and`, `or`, `not`) and symbol aliases (`&&`, `||`, `!`) are no longer accepted — they produce parse errors. Use `AND`, `OR`, `NOT` instead.
+
+  **New:** `IN` and `NOT IN` operators for concise multi-value matching:
+
+  - `tool IN ['claude-code', 'cursor', 'windsurf']`
+  - `tool NOT IN ['aider', 'codex']`
+  - @baton-dx/ai-tool-paths@1.0.0-alpha.9
+
 ## 1.0.0-alpha.8
 
 ### Patch Changes
