@@ -25,22 +25,17 @@ describe("resolveVersion", () => {
     });
 
     describe("latest", () => {
-        it("should resolve 'latest' to the newest semver tag", async () => {
+        it("should resolve 'latest' to HEAD of default branch, ignoring semver tags", async () => {
             mockListRemote.mockResolvedValueOnce(
                 `
-abc1234567890def1234567890abcdef12345678 refs/tags/v1.0.0
+abc1234567890def1234567890abcdef12345678 refs/heads/main
 def1234567890abc1234567890def12345678abcd refs/tags/v2.0.0
 123abc4567890def1234567890abc12345678def refs/tags/v1.5.0
       `.trim(),
             );
 
-            // Second call for getTagSha
-            mockListRemote.mockResolvedValueOnce(
-                "def1234567890abc1234567890def12345678abcd refs/tags/v2.0.0",
-            );
-
             const result = await resolveVersion("https://github.com/org/repo.git");
-            expect(result).toBe("def1234567890abc1234567890def12345678abcd");
+            expect(result).toBe("abc1234567890def1234567890abcdef12345678");
         });
 
         it("should resolve 'latest' to HEAD when no semver tags exist", async () => {
@@ -67,8 +62,10 @@ def1234567890abc1234567890def12345678abcd refs/heads/develop
             expect(result).toBe("abc1234567890def1234567890abcdef12345678");
         });
 
-        it("should throw VersionNotFoundError when no refs exist", async () => {
-            mockListRemote.mockResolvedValueOnce("");
+        it("should throw VersionNotFoundError when no branches exist", async () => {
+            mockListRemote.mockResolvedValueOnce(
+                "abc1234567890def1234567890abcdef12345678 refs/tags/v1.0.0",
+            );
 
             await expect(resolveVersion("https://github.com/org/repo.git")).rejects.toThrow(
                 VersionNotFoundError,

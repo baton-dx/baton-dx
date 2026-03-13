@@ -3,21 +3,14 @@ import * as profileChain from "../inheritance/profile-chain.js";
 import * as utils from "../utils/index.js";
 import {
     type BatchResolveOptions,
-    checkRemoteSha,
     findLockedPackageBySource,
     pLimit,
     resolveSourcesBatch,
 } from "./batch-resolver.js";
 import * as gitClone from "./git-clone.js";
-import * as gitUtils from "./git-utils.js";
 import * as sourceDiscovery from "./source-discovery.js";
 import * as versionResolver from "./version-resolver.js";
 
-vi.mock("./git-utils.js", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("./git-utils.js")>()),
-    createGit: vi.fn(),
-    withTokenAuth: vi.fn(),
-}));
 vi.mock("./git-clone.js", async (importOriginal) => ({
     ...(await importOriginal<typeof import("./git-clone.js")>()),
     cloneGitSource: vi.fn(),
@@ -126,104 +119,6 @@ describe("findLockedPackageBySource", () => {
     });
 });
 
-describe("checkRemoteSha", () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it("returns ok with changed=false when lockfile SHA found in remote refs", async () => {
-        const mockGit = {
-            listRemote: vi
-                .fn()
-                .mockResolvedValue(
-                    "abc123def456abc123def456abc123def456abc1\trefs/heads/main\n" +
-                        "def789abc123def789abc123def789abc123def7\trefs/tags/v1.0.0\n",
-                ),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-
-        const result = await checkRemoteSha(
-            "https://github.com/org/repo.git",
-            "abc123def456abc123def456abc123def456abc1",
-        );
-
-        expect(result).toEqual({ type: "ok", changed: false });
-    });
-
-    it("returns ok with changed=true when lockfile SHA not in remote refs", async () => {
-        const mockGit = {
-            listRemote: vi
-                .fn()
-                .mockResolvedValue("abc123def456abc123def456abc123def456abc1\trefs/heads/main\n"),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-
-        const result = await checkRemoteSha(
-            "https://github.com/org/repo.git",
-            "000000000000000000000000000000000000dead",
-        );
-
-        expect(result).toEqual({ type: "ok", changed: true });
-    });
-
-    it("returns auth_error on authentication failure", async () => {
-        const mockGit = {
-            listRemote: vi.fn().mockRejectedValue(new Error("terminal prompts disabled")),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-
-        const result = await checkRemoteSha(
-            "https://github.com/org/private-repo.git",
-            "abc123def456abc123def456abc123def456abc1",
-        );
-
-        expect(result.type).toBe("auth_error");
-    });
-
-    it("returns network_error on network failure", async () => {
-        const mockGit = {
-            listRemote: vi.fn().mockRejectedValue(new Error("Could not resolve host")),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-
-        const result = await checkRemoteSha(
-            "https://github.com/org/repo.git",
-            "abc123def456abc123def456abc123def456abc1",
-        );
-
-        expect(result).toEqual({ type: "network_error" });
-    });
-
-    it("uses token auth when provided", async () => {
-        const mockGit = {
-            listRemote: vi.fn().mockResolvedValue("abc1\trefs/heads/main\n"),
-        };
-        const authedGit = { ...mockGit };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-        vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            authedGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
-        );
-
-        await checkRemoteSha("https://github.com/org/repo.git", "abc1", "my-token");
-
-        expect(gitUtils.withTokenAuth).toHaveBeenCalledWith(
-            mockGit,
-            "https://github.com/org/repo.git",
-            "my-token",
-        );
-    });
-});
-
 describe("resolveSourcesBatch", () => {
     const baseOptions: BatchResolveOptions = {
         mode: "sync",
@@ -285,19 +180,10 @@ describe("resolveSourcesBatch", () => {
         expect(result.stats.cloned).toBe(2);
     });
 
-    it("sync mode: uses cache when lockfile SHA matches remote", async () => {
-        const mockGit = {
-            listRemote: vi
-                .fn()
-                .mockResolvedValue("aaa111aaa111aaa111aaa111aaa111aaa111aaa1\trefs/heads/main\n"),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
+    it("sync mode: uses cache when resolved HEAD matches lockfile SHA", async () => {
+        vi.mocked(versionResolver.resolveVersion).mockResolvedValue(
+            "aaa111aaa111aaa111aaa111aaa111aaa111aaa1",
         );
-        vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
-        );
-
         vi.mocked(gitClone.cloneGitSource).mockResolvedValue({
             localPath: "/cache/abc",
             fromCache: true,
@@ -328,18 +214,7 @@ describe("resolveSourcesBatch", () => {
         );
     });
 
-    it("sync mode: fresh clone when lockfile SHA not in remote refs", async () => {
-        const mockGit = {
-            listRemote: vi
-                .fn()
-                .mockResolvedValue("bbb222bbb222bbb222bbb222bbb222bbb222bbb2\trefs/heads/main\n"),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
-        );
-        vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
-        );
+    it("sync mode: fresh clone when resolved HEAD differs from lockfile SHA", async () => {
         vi.mocked(versionResolver.resolveVersion).mockResolvedValue(
             "bbb222bbb222bbb222bbb222bbb222bbb222bbb2",
         );
@@ -373,17 +248,10 @@ describe("resolveSourcesBatch", () => {
         );
     });
 
-    it("sync mode: fresh clone when checkRemoteSha fails (network error)", async () => {
-        const mockGit = {
-            listRemote: vi.fn().mockRejectedValue(new Error("Could not resolve host")),
-        };
-        vi.mocked(gitUtils.createGit).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.createGit>,
+    it("sync mode: falls back to HEAD when resolveVersion fails", async () => {
+        vi.mocked(versionResolver.resolveVersion).mockRejectedValue(
+            new Error("Could not resolve host"),
         );
-        vi.mocked(gitUtils.withTokenAuth).mockReturnValue(
-            mockGit as unknown as ReturnType<typeof gitUtils.withTokenAuth>,
-        );
-        vi.mocked(versionResolver.resolveVersion).mockResolvedValue("abc123");
         vi.mocked(gitClone.cloneGitSource).mockResolvedValue({
             localPath: "/cache/abc",
             fromCache: false,
@@ -394,23 +262,11 @@ describe("resolveSourcesBatch", () => {
 
         const result = await resolveSourcesBatch([{ source: "github:org/repo/profiles/main" }], {
             ...baseOptions,
-            lockfile: {
-                locked_at: "2026-01-01T00:00:00.000Z",
-                packages: {
-                    main: {
-                        source: "github:org/repo/profiles/main",
-                        resolved: "https://github.com/org/repo.git",
-                        version: "main",
-                        sha: "old-sha",
-                        integrity: {},
-                    },
-                },
-            },
         });
 
         expect(result.stats.cloned).toBe(1);
         expect(vi.mocked(gitClone.cloneGitSource)).toHaveBeenCalledWith(
-            expect.objectContaining({ useCache: false }),
+            expect.objectContaining({ ref: "HEAD" }),
         );
     });
 
