@@ -16,9 +16,9 @@ import {
     expandLocalPath,
     FileNotFoundError,
     type FilePlacement,
+    findLockedPackageBySource,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
-    getPackageNameFromSource,
     type LockFile,
     type LockFileEntry,
     loadProjectManifest,
@@ -513,8 +513,7 @@ export const applyCommand = defineCommand({
                     // Use locked SHA for deterministic clone
                     let ref = profileSource.version;
                     if (lockfile) {
-                        const packageName = getPackageNameFromSource(profileSource.source, parsed);
-                        const lockedPkg = lockfile.packages[packageName];
+                        const lockedPkg = findLockedPackageBySource(lockfile, profileSource.source);
                         if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
                             ref = lockedPkg.sha;
                         }

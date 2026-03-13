@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as profileChain from "../inheritance/profile-chain.js";
 import * as utils from "../utils/index.js";
-import { parseSource } from "../utils/index.js";
 import {
     type BatchResolveOptions,
     checkRemoteSha,
-    getPackageNameFromSource,
+    findLockedPackageBySource,
     pLimit,
     resolveSourcesBatch,
 } from "./batch-resolver.js";
@@ -67,34 +66,63 @@ describe("pLimit", () => {
     });
 });
 
-describe("getPackageNameFromSource", () => {
-    it("returns org/repo for github sources", () => {
-        const parsed = parseSource("github:my-org/my-repo/profiles/main");
-        expect(getPackageNameFromSource("github:my-org/my-repo/profiles/main", parsed)).toBe(
-            "my-org/my-repo",
-        );
+describe("findLockedPackageBySource", () => {
+    it("returns matching package when source field matches", () => {
+        const lockfile = {
+            locked_at: "2026-01-01T00:00:00.000Z",
+            packages: {
+                main: {
+                    source: "github:org/repo/profiles/main",
+                    resolved: "https://github.com/org/repo.git",
+                    version: "main",
+                    sha: "abc123",
+                    integrity: {},
+                },
+            },
+        };
+        const result = findLockedPackageBySource(lockfile, "github:org/repo/profiles/main");
+        expect(result).toEqual(lockfile.packages.main);
     });
 
-    it("returns scoped package name for npm sources", () => {
-        const parsed = parseSource("npm:@scope/pkg");
-        expect(getPackageNameFromSource("npm:@scope/pkg", parsed)).toBe("@scope/pkg");
+    it("returns undefined when no source matches", () => {
+        const lockfile = {
+            locked_at: "2026-01-01T00:00:00.000Z",
+            packages: {
+                main: {
+                    source: "github:org/repo/profiles/main",
+                    resolved: "https://github.com/org/repo.git",
+                    version: "main",
+                    sha: "abc123",
+                    integrity: {},
+                },
+            },
+        };
+        const result = findLockedPackageBySource(lockfile, "github:other/repo/profiles/main");
+        expect(result).toBeUndefined();
     });
 
-    it("returns unscoped package name for npm sources", () => {
-        const parsed = parseSource("npm:my-pkg/profiles/base");
-        expect(getPackageNameFromSource("npm:my-pkg/profiles/base", parsed)).toBe("my-pkg");
-    });
-
-    it("returns url for git sources", () => {
-        const parsed = parseSource("https://example.com/repo.git");
-        expect(getPackageNameFromSource("https://example.com/repo.git", parsed)).toBe(
-            "https://example.com/repo.git",
-        );
-    });
-
-    it("returns raw source for local sources", () => {
-        const parsed = parseSource("./profiles/base");
-        expect(getPackageNameFromSource("./profiles/base", parsed)).toBe("./profiles/base");
+    it("returns first match when multiple entries exist", () => {
+        const lockfile = {
+            locked_at: "2026-01-01T00:00:00.000Z",
+            packages: {
+                main: {
+                    source: "github:org/repo/profiles/main",
+                    resolved: "https://github.com/org/repo.git",
+                    version: "main",
+                    sha: "sha-main",
+                    integrity: {},
+                },
+                base: {
+                    source: "github:org/other/profiles/base",
+                    resolved: "https://github.com/org/other.git",
+                    version: "main",
+                    sha: "sha-base",
+                    integrity: {},
+                },
+            },
+        };
+        const result = findLockedPackageBySource(lockfile, "github:org/other/profiles/base");
+        expect(result?.sha).toBe("sha-base");
     });
 });
 
@@ -283,7 +311,7 @@ describe("resolveSourcesBatch", () => {
             lockfile: {
                 locked_at: "2026-01-01T00:00:00.000Z",
                 packages: {
-                    "org/repo": {
+                    main: {
                         source: "github:org/repo/profiles/main",
                         resolved: "https://github.com/org/repo.git",
                         version: "main",
@@ -328,7 +356,7 @@ describe("resolveSourcesBatch", () => {
             lockfile: {
                 locked_at: "2026-01-01T00:00:00.000Z",
                 packages: {
-                    "org/repo": {
+                    main: {
                         source: "github:org/repo/profiles/main",
                         resolved: "https://github.com/org/repo.git",
                         version: "main",
@@ -369,7 +397,7 @@ describe("resolveSourcesBatch", () => {
             lockfile: {
                 locked_at: "2026-01-01T00:00:00.000Z",
                 packages: {
-                    "org/repo": {
+                    main: {
                         source: "github:org/repo/profiles/main",
                         resolved: "https://github.com/org/repo.git",
                         version: "main",
@@ -401,7 +429,7 @@ describe("resolveSourcesBatch", () => {
             lockfile: {
                 locked_at: "2026-01-01T00:00:00.000Z",
                 packages: {
-                    "org/repo": {
+                    main: {
                         source: "github:org/repo/profiles/main",
                         resolved: "https://github.com/org/repo.git",
                         version: "main",
