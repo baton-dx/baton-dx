@@ -1,5 +1,21 @@
 # @baton-dx/core
 
+## 1.0.0-alpha.13
+
+### Patch Changes
+
+- 7c8e094: fix(core): resolve "latest" to HEAD instead of newest semver tag
+
+  `resolveVersion("latest")` previously preferred the highest semver tag, so
+  untagged commits on main were missed during sync. Now "latest" always resolves
+  to HEAD of the default branch. Semver matching only applies to explicit version
+  specs (e.g., `version: ^1.0.0`).
+
+  Also removes `checkRemoteSha` — sync now compares `resolveVersion` output
+  directly against the locked SHA, reducing ls-remote calls from two to one.
+
+  - @baton-dx/ai-tool-paths@1.0.0-alpha.13
+
 ## 1.0.0-alpha.12
 
 ### Patch Changes
