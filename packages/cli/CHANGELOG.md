@@ -1,5 +1,18 @@
 # @baton-dx/cli
 
+## 1.0.0-alpha.10
+
+### Minor Changes
+
+- 85a4df8: feat(cli): add --json output for CI/CD integration + standardize CLI output
+
+  - Global `--json` flag (`-j`) for machine-readable JSON output on all list/scan/sync/apply/diff/config/auth commands
+  - Consistent JSON envelope: `{ success, data, warnings, errors }`
+  - Migrated all `console.log()` in commands to `@clack/prompts` API
+  - Replaced manual ANSI escape codes with `picocolors`
+  - Shared table renderer utility (`renderTable`) for list commands
+  - Global `--verbose` flag wired through `getOutputContext()` helper
+
 ## 1.0.0-alpha.9
 
 ## 1.0.0-alpha.8

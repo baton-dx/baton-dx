@@ -8,6 +8,7 @@
   },
   "changesets": [
     "baton-1-0-release",
+    "cli-output-json",
     "fix-expression-case-sensitivity",
     "fix-preview-no-profiles-resolved",
     "fix-project-prefix-output",
