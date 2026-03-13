@@ -6,12 +6,9 @@ import {
     type AIToolAdapter,
     assembleContentFromDiscovery,
     atomicWriteFile,
-    type CloneContext,
     type CommandEntry,
     checkLockfileVersion,
-    checkSourceBatonRequires,
     cloneGitSource,
-    createGit,
     detectInstalledAITools,
     detectInstalledIdes,
     detectLegacyPaths,
@@ -19,19 +16,16 @@ import {
     expandLocalPath,
     FileNotFoundError,
     type FilePlacement,
-    findSourceManifest,
     getAIToolAdaptersForKeys,
     getAuthenticatedUrl,
-    getAuthSetupInstructions,
+    getPackageNameFromSource,
     type LockFile,
     type LockFileEntry,
-    loadProfileManifest,
     loadProjectManifest,
     type MemoryEntry,
     type MergedSkillItem,
     mergeContentParts,
     normalizeMarkdown,
-    type ParsedSource,
     type ProjectManifest,
     parseBatonFrontmatter,
     parseFrontmatter,
@@ -43,9 +37,10 @@ import {
     readLock,
     resolveAuth,
     resolvePreferences,
-    resolveProfileChain,
+    resolveSourcesBatch,
     type Scope,
     sortProfilesByWeight,
+    VersionRequirementError,
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
@@ -68,20 +63,6 @@ import {
     writeLockData,
     writeStateData,
 } from "./sync-pipeline.js";
-
-/** Extract the package name from a source string for lockfile lookup. */
-function getPackageNameFromSource(source: string, parsed: ParsedSource): string {
-    if (parsed.provider === "github" || parsed.provider === "gitlab") {
-        return `${parsed.org}/${parsed.repo}`;
-    }
-    if (parsed.provider === "npm") {
-        return parsed.scope ? `${parsed.scope}/${parsed.package}` : parsed.package;
-    }
-    if (parsed.provider === "git") {
-        return parsed.url;
-    }
-    return source;
-}
 
 export const applyCommand = defineCommand({
     meta: {
@@ -223,126 +204,47 @@ export const applyCommand = defineCommand({
             const spinner = p.spinner();
             spinner.start("Resolving profile chain...");
 
-            const allProfiles = [];
-            // Track SHA per source for lockfile
-            const sourceShas = new Map<string, string>();
-            // Track authenticated URL + token per source for reuse in Step 5
-            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
-            // Track source roots already checked for baton-cli version requirement
-            const checkedSourceRoots = new Set<string>();
-            for (const profileSource of projectManifest.profiles || []) {
-                try {
-                    if (verbose) {
-                        p.log.info(`Resolving source: ${profileSource.source}`);
-                    }
-                    // Load the profile manifest first
-                    const parsed = parseSource(profileSource.source);
-
-                    let manifestPath: string;
-                    let cloneContext: CloneContext | undefined;
-                    if (parsed.provider === "local" || parsed.provider === "file") {
-                        const absolutePath = expandLocalPath(parsed.path, projectRoot);
-                        manifestPath = resolve(absolutePath, "baton.profile.yaml");
-                        // Try to get SHA from local git repo, fallback to "local"
-                        try {
-                            const git = createGit(absolutePath);
-                            await git.checkIsRepo();
-                            const sha = await git.revparse(["HEAD"]);
-                            sourceShas.set(profileSource.source, sha.trim());
-                        } catch {
-                            sourceShas.set(profileSource.source, "local");
-                        }
-                    } else {
-                        // For remote sources, clone first
-                        const url =
-                            parsed.provider === "github" || parsed.provider === "gitlab"
-                                ? parsed.url
-                                : parsed.provider === "git"
-                                  ? parsed.url
-                                  : "";
-
-                        if (!url) {
-                            throw new Error(`Invalid source: ${profileSource.source}`);
-                        }
-
-                        // Pre-resolve auth via cascade
-                        const hostname = new URL(url).hostname;
-                        const auth = await resolveAuth(hostname);
-                        if (auth.method === "none") {
-                            p.log.warn(
-                                `Skipping ${profileSource.source}: ${getAuthSetupInstructions(hostname, auth.triedMethods)}`,
-                            );
-                            continue;
-                        }
-                        const cloneUrl = await getAuthenticatedUrl(url, auth);
-                        sourceAuth.set(profileSource.source, { cloneUrl, authToken: auth.token });
-
-                        // Determine ref: use locked SHA if available, otherwise profileSource.version
-                        let ref = profileSource.version;
-                        if (lockfile) {
-                            const packageName = getPackageNameFromSource(
-                                profileSource.source,
-                                parsed,
-                            );
-                            const lockedPkg = lockfile.packages[packageName];
-                            if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
-                                ref = lockedPkg.sha;
-                                if (verbose) {
-                                    p.log.info(
-                                        `Using locked SHA for ${profileSource.source}: ${ref.slice(0, 12)}`,
-                                    );
-                                }
-                            }
-                        }
-
-                        const cloned = await cloneGitSource({
-                            url: cloneUrl,
-                            ref,
-                            subpath: "subpath" in parsed ? parsed.subpath : undefined,
-                            useCache: true,
-                            maxCacheAgeMs,
-                            authToken: auth.token,
-                        });
-                        manifestPath = resolve(cloned.localPath, "baton.profile.yaml");
-                        sourceShas.set(profileSource.source, cloned.sha);
-                        cloneContext = {
-                            cachePath: cloned.cachePath,
-                            sparseCheckout: cloned.sparseCheckout,
-                            authToken: auth.token,
-                            cloneUrl,
-                        };
-                    }
-
-                    const manifest = await loadProfileManifest(manifestPath);
-                    const profileDir = dirname(manifestPath);
-
-                    // Check requires["baton-cli"] once per source root
-                    const sourceRoot = resolve(profileDir, "../..");
-                    if (!checkedSourceRoots.has(sourceRoot)) {
-                        checkedSourceRoots.add(sourceRoot);
-                        const sourceMeta = await findSourceManifest(sourceRoot).catch(() => null);
-                        const requiresBatonCli = sourceMeta?.requires?.["baton-cli"];
-                        if (requiresBatonCli) {
-                            const err = checkSourceBatonRequires(requiresBatonCli, currentVersion);
-                            if (err) {
-                                spinner.stop("Version requirement not met");
-                                p.cancel(err);
-                                process.exit(1);
-                            }
-                        }
-                    }
-
-                    const chain = await resolveProfileChain(
-                        manifest,
-                        profileSource.source,
-                        profileDir,
-                        cloneContext,
-                    );
-                    allProfiles.push(...chain);
-                } catch (error) {
-                    spinner.stop(`Failed to resolve profile ${profileSource.source}: ${error}`);
-                    stats.errors++;
+            const concurrency = Math.max(1, Number.parseInt(String(args.concurrency), 10) || 5);
+            let batchResult: import("@baton-dx/core").BatchResolveResult;
+            try {
+                batchResult = await resolveSourcesBatch(projectManifest.profiles || [], {
+                    mode: "apply",
+                    concurrency,
+                    lockfile: lockfile ?? undefined,
+                    projectRoot,
+                    verbose,
+                    logger: {
+                        info: (msg: string) => p.log.info(msg),
+                        warn: (msg: string) => p.log.warn(msg),
+                    },
+                    resolveAuth,
+                    getAuthenticatedUrl,
+                    currentVersion,
+                    maxCacheAgeMs,
+                });
+            } catch (error) {
+                if (error instanceof VersionRequirementError) {
+                    spinner.stop("Version requirement not met");
+                    p.cancel(error.message);
+                    process.exit(1);
                 }
+                throw error;
+            }
+
+            // Extract results into the Maps expected downstream
+            const sourceShas = new Map<string, string>();
+            const sourceAuth = new Map<string, { cloneUrl: string; authToken?: string }>();
+            const allProfiles = [];
+            for (const entry of batchResult.resolved) {
+                sourceShas.set(entry.profileSource.source, entry.sha);
+                if (entry.auth) {
+                    sourceAuth.set(entry.profileSource.source, entry.auth);
+                }
+                allProfiles.push(...entry.profiles);
+            }
+            for (const err of batchResult.errors) {
+                spinner.stop(`Failed to resolve profile ${err.source}: ${err.error}`);
+                stats.errors++;
             }
 
             if (allProfiles.length === 0) {
