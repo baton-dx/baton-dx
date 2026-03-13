@@ -1,5 +1,15 @@
 # @baton-dx/core
 
+## 1.0.0-alpha.12
+
+### Patch Changes
+
+- 083dc16: fix(core): lockfile SHA cache lookup by source field instead of mismatched key
+
+  The lockfile SHA cache was never hit because write used profile name as key but read used `getPackageNameFromSource()` (org/repo). Replaced key-based lookup with `findLockedPackageBySource()` that scans by the `source` field, which is consistent between write and read paths.
+
+  - @baton-dx/ai-tool-paths@1.0.0-alpha.12
+
 ## 1.0.0-alpha.11
 
 ### Patch Changes
