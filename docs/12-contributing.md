@@ -63,7 +63,6 @@ baton-dx/
 │   ├── core/            # @baton-dx/core — Business logic
 │   └── cli/             # @baton-dx/cli — User-facing CLI
 ├── docs/                # Documentation
-├── test-fixtures/       # Shared test fixtures
 └── .claude/             # AI assistant configuration
     ├── skills/          # Development skills
     ├── agents/          # Specialized agents

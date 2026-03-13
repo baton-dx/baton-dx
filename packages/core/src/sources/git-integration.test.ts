@@ -1,5 +1,5 @@
-import { rm } from "node:fs/promises";
-import { homedir } from "node:os";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cloneGitSource } from "./git-clone.js";
@@ -144,12 +144,27 @@ describe("Git Source Provider Integration Tests", () => {
     });
 
     describe("Local source reading", () => {
+        let localFixtureDir: string;
+
+        beforeEach(async () => {
+            localFixtureDir = await mkdtemp(join(tmpdir(), "baton-local-source-"));
+            await mkdir(join(localFixtureDir, "profile"), { recursive: true });
+            await writeFile(
+                join(localFixtureDir, "profile", "baton.profile.yaml"),
+                'name: test-profile\nversion: 1.0.0\n\nai:\n  tools:\n    - "*"\n',
+            );
+        });
+
+        afterEach(async () => {
+            await rm(localFixtureDir, { recursive: true, force: true });
+        });
+
         it("should load fixture profile from filesystem", async () => {
-            const fixturePath = join(process.cwd(), "test-fixtures", "profiles", "minimal");
+            const fixturePath = join(localFixtureDir, "profile");
 
             const result = await loadLocalSource({
                 path: fixturePath,
-                baseDir: process.cwd(),
+                baseDir: localFixtureDir,
             });
 
             // Should return integrity hashes for all files
@@ -164,8 +179,8 @@ describe("Git Source Provider Integration Tests", () => {
 
         it("should resolve relative paths correctly", async () => {
             const result = await loadLocalSource({
-                path: "./test-fixtures/profiles/minimal",
-                baseDir: process.cwd(),
+                path: "./profile",
+                baseDir: localFixtureDir,
             });
 
             expect(result.integrity).toBeDefined();
@@ -176,7 +191,7 @@ describe("Git Source Provider Integration Tests", () => {
             await expect(
                 loadLocalSource({
                     path: "./nonexistent-directory",
-                    baseDir: process.cwd(),
+                    baseDir: localFixtureDir,
                 }),
             ).rejects.toThrow();
         });
