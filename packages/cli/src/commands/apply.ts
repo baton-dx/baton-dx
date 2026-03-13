@@ -269,35 +269,40 @@ export const applyCommand = defineCommand({
                 }
             }
 
-            const discoveryInputs = [];
-            for (const profile of weightSortedProfiles) {
-                const localPath = earlyLocalPaths.get(profile.name);
-                if (!localPath) {
-                    if (verbose) {
-                        p.log.warn(
-                            `Profile "${profile.name}": no local path available — skipping discovery`,
-                        );
-                    }
-                    continue;
-                }
-                try {
-                    const discovery = await discoverProfile(localPath);
-                    discoveryInputs.push({
-                        discovery,
-                        meta: {
-                            name: profile.name,
-                            profileScope: profile.manifest.scope,
-                        },
-                    });
-                    if (discovery.warnings.length > 0 && verbose) {
-                        for (const w of discovery.warnings) {
-                            p.log.info(`  [discovery] ${profile.name}: ${w}`);
+            const discoveryResults = await Promise.all(
+                weightSortedProfiles.map(async (profile) => {
+                    const localPath = earlyLocalPaths.get(profile.name);
+                    if (!localPath) {
+                        if (verbose) {
+                            p.log.warn(
+                                `Profile "${profile.name}": no local path available — skipping discovery`,
+                            );
                         }
+                        return null;
                     }
-                } catch (error) {
-                    p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
-                }
-            }
+                    try {
+                        const discovery = await discoverProfile(localPath);
+                        if (discovery.warnings.length > 0 && verbose) {
+                            for (const w of discovery.warnings) {
+                                p.log.info(`  [discovery] ${profile.name}: ${w}`);
+                            }
+                        }
+                        return {
+                            discovery,
+                            meta: {
+                                name: profile.name,
+                                profileScope: profile.manifest.scope,
+                            },
+                        };
+                    } catch (error) {
+                        p.log.warn(`Discovery failed for profile "${profile.name}": ${error}`);
+                        return null;
+                    }
+                }),
+            );
+            const discoveryInputs = discoveryResults.filter(
+                (r): r is NonNullable<typeof r> => r !== null,
+            );
 
             const assembled = assembleContentFromDiscovery(discoveryInputs);
             const mergedSkills: MergedSkillItem[] = assembled.skills;
@@ -361,24 +366,31 @@ export const applyCommand = defineCommand({
                 const aggregatedSyncedIde = new Set<string>();
                 allIntersections = new Map();
 
-                for (const profileSource of projectManifest.profiles || []) {
-                    try {
-                        const intersection = await buildIntersection(
-                            profileSource.source,
-                            developerTools,
-                            projectRoot,
-                        );
-                        if (intersection) {
-                            allIntersections.set(profileSource.source, intersection);
-                            for (const tool of intersection.aiTools.synced) {
-                                aggregatedSyncedAi.add(tool);
-                            }
-                            for (const platform of intersection.idePlatforms.synced) {
-                                aggregatedSyncedIde.add(platform);
-                            }
+                const intersectionResults = await Promise.all(
+                    (projectManifest.profiles || []).map(async (profileSource) => {
+                        try {
+                            const intersection = await buildIntersection(
+                                profileSource.source,
+                                developerTools,
+                                projectRoot,
+                            );
+                            return intersection
+                                ? { source: profileSource.source, intersection }
+                                : null;
+                        } catch {
+                            // Best-effort — skip if intersection cannot be computed for this profile
+                            return null;
                         }
-                    } catch {
-                        // Best-effort — skip if intersection cannot be computed for this profile
+                    }),
+                );
+                for (const result of intersectionResults) {
+                    if (!result) continue;
+                    allIntersections.set(result.source, result.intersection);
+                    for (const tool of result.intersection.aiTools.synced) {
+                        aggregatedSyncedAi.add(tool);
+                    }
+                    for (const platform of result.intersection.idePlatforms.synced) {
+                        aggregatedSyncedIde.add(platform);
                     }
                 }
 
