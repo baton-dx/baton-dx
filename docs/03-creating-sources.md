@@ -30,13 +30,11 @@ The fastest way to scaffold a new source is with the `baton source create` comma
 baton source create my-team-configs
 ```
 
-This generates a ready-to-use directory with the manifest and an example profile. You can also pass options:
+This generates a ready-to-use directory with the manifest and an example profile. You can also pass a description:
 
 ```bash
 baton source create my-team-configs \
-  --description "Team DX standards" \
-  --profile frontend \
-  --profile backend
+  --description "Team DX standards"
 ```
 
 If you prefer to set things up manually, create a directory, add a `baton.source.yaml` file, and start adding profiles.
