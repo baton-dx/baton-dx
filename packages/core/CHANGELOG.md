@@ -1,5 +1,11 @@
 # @baton-dx/core
 
+## 1.0.0-alpha.7
+
+### Patch Changes
+
+- @baton-dx/ai-tool-paths@1.0.0-alpha.7
+
 ## 1.0.0-alpha.6
 
 ### Patch Changes
