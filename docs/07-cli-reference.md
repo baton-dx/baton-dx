@@ -100,18 +100,6 @@ baton apply --yes
 
 ---
 
-### `baton update` *(deprecated)*
-
-> Use `baton sync` instead.
-
-Shows a deprecation warning and delegates to `baton sync`.
-
-```bash
-baton update        # → shows warning, runs baton sync
-```
-
----
-
 ### `baton diff`
 
 Compare local files with remote source versions. Useful for detecting local modifications to synced files.
@@ -128,6 +116,24 @@ baton diff --name-only
 **Exit codes:**
 - `0` — No differences found
 - `1` — Differences detected
+
+---
+
+### `baton preview`
+
+Preview the processed output for a specific AI tool, with full directive processing applied. Use this to inspect what Baton will write before running `baton sync`.
+
+```bash
+baton preview --tool <key>
+baton preview --tool claude-code --type rules
+baton preview --tool cursor --diff windsurf
+```
+
+| Flag | Description |
+|------|-------------|
+| `--tool <key>` | AI tool key to preview for (e.g. `claude-code`, `cursor`) — **required** |
+| `--type <type>` | Filter to a content type: `memory`, `rules`, `agents`, `skills`, `commands` |
+| `--diff <key>` | Compare output against a second tool side by side |
 
 ---
 
@@ -152,15 +158,32 @@ baton manage
 Show dashboard overview or configure settings.
 
 ```bash
-baton config              # Show dashboard
-baton config list         # List all settings
-baton config get <key>    # Get a setting value
+baton config                    # Show dashboard
 baton config set <key> <value>  # Set a setting value
 ```
 
 **Settings:**
 - `default-scope` — Default scope for new configs (`project` or `global`)
 - `symlink-mode` — Use symlinks instead of copies (`true` or `false`)
+
+---
+
+### `baton self-update`
+
+Update Baton CLI to the latest stable version.
+
+```bash
+baton self-update
+baton self-update --changelog
+baton self-update --dry-run
+baton self-update --yes
+```
+
+| Flag | Description |
+|------|-------------|
+| `--changelog` | Show release notes for the new version |
+| `--dry-run` | Check for updates without installing |
+| `--yes`, `-y` | Skip confirmation prompt |
 
 ---
 
@@ -216,7 +239,7 @@ Register a source repository globally for reuse across projects.
 
 ```bash
 baton source connect github:org/repo --name my-team
-baton source connect file:///path/to/local/source --name local
+baton source connect file:/path/to/local/source --name local
 ```
 
 | Flag | Description |
@@ -226,8 +249,9 @@ baton source connect file:///path/to/local/source --name local
 **Supported URL formats:**
 - `github:org/repo` — GitHub repository
 - `gitlab:org/repo` — GitLab repository
-- `file:///path` — Local directory
-- `git:https://...` — Any Git URL
+- `file:path` — Local directory (relative or absolute)
+- `https://git.example.com/repo.git` — Any HTTPS Git URL
+- `git@host:org/repo.git` — SSH Git URL
 
 ---
 
@@ -240,6 +264,21 @@ baton source disconnect my-team
 ```
 
 Removes the source from `~/.baton/config.yaml`. Does not affect existing projects using this source.
+
+---
+
+### `baton source validate [path]`
+
+Validate a source repository's structure, manifests, profiles, and content layout.
+
+```bash
+baton source validate            # validate cwd
+baton source validate ./my-source
+```
+
+| Argument | Description |
+|----------|-------------|
+| `[path]` | Path to the source directory (default: current directory) |
 
 ---
 
@@ -316,6 +355,23 @@ baton ai-tools list --json
 
 ---
 
+### `baton ai-tools configure`
+
+Manually select which AI tools Baton manages (interactive multi-select).
+
+```bash
+baton ai-tools configure
+baton ai-tools configure --yes
+baton ai-tools configure --project
+```
+
+| Flag | Description |
+|------|-------------|
+| `--yes`, `-y` | Keep current selection unchanged |
+| `--project` | Configure for this project only (writes to `baton.yaml`) |
+
+---
+
 ## IDE Commands
 
 ### `baton ides scan`
@@ -345,3 +401,20 @@ baton ides list --json
 |------|-------------|
 | `--all` | Show all supported platforms (including undetected) |
 | `--json` | Output as JSON (no UI formatting) |
+
+---
+
+### `baton ides configure`
+
+Manually select which IDE platforms Baton manages (interactive multi-select).
+
+```bash
+baton ides configure
+baton ides configure --yes
+baton ides configure --project
+```
+
+| Flag | Description |
+|------|-------------|
+| `--yes`, `-y` | Keep current selection unchanged |
+| `--project` | Configure for this project only (writes to `baton.yaml`) |

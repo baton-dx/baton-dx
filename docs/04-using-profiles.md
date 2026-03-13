@@ -1,6 +1,10 @@
 # Using Profiles
 
-Once a source repository has been published with one or more profiles, you can consume those profiles in any project. This guide covers the full workflow: initializing a project, configuring profiles, syncing, updating, and managing ongoing changes.
+A **profile** is a self-contained bundle of AI tool configurations, file placements, and IDE settings. Profiles live inside source repositories (see [Using Sources](./03-using-sources.md)) and are the primary unit of reuse in Baton. A project applies one or more profiles via `baton sync`, which transforms and places configurations for every targeted AI tool.
+
+Once a source repository has been published with one or more profiles, you can consume those profiles in any project. This guide covers the full workflow: initializing a project, configuring profiles, syncing, and managing ongoing changes.
+
+Ready to publish your own profiles? See [Creating Sources](./05-creating-sources.md).
 
 ---
 
@@ -232,36 +236,6 @@ git commit -m "chore: update baton lockfile"
 | ------------- | ------------------------------------------------------------------ |
 | `baton sync`  | Fetches latest versions, then **writes** the lockfile.             |
 | `baton apply` | **Reads** the lockfile. Uses locked SHAs for deterministic builds. |
-| `baton update`| *(deprecated)* Delegates to `baton sync`.                          |
-
----
-
-## Updating (Deprecated)
-
-> **Note:** `baton update` is deprecated. Use `baton sync` instead.
-
-The `baton update` command now shows a deprecation warning and delegates to `baton sync`.
-
-```bash
-# Deprecated — use baton sync instead
-baton update
-
-# Equivalent:
-baton sync
-```
-
-After syncing, review the changes:
-
-```bash
-baton diff
-```
-
-If everything looks good, commit the updated lockfile:
-
-```bash
-git add baton.lock
-git commit -m "chore: update baton dependencies"
-```
 
 ---
 
@@ -340,5 +314,5 @@ This gives your AI tools full context about `baton init`, `baton sync`, `baton a
 
 ## Next Steps
 
-- [Creating Sources](./03-creating-sources.md) -- learn how to build and publish your own source repositories.
-- [Creating Profiles](./04-creating-profiles.md) -- learn the full profile manifest schema and all configuration options.
+- [Creating Sources](./05-creating-sources.md) — learn how to build and publish your own source repositories.
+- [Creating Profiles](./06-creating-profiles.md) — learn the full profile manifest schema and all configuration options.

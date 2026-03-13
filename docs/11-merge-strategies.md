@@ -1,6 +1,6 @@
 # Merge Strategies
 
-> **Tip:** For content-level composition (conditional blocks, file inclusion), see [Directives](04-creating-profiles.md#directives). Merge strategies control how multiple profile contributions are combined; directives control what each contribution contains.
+> **Tip:** For content-level composition (conditional blocks, file inclusion), see [Directives](06-creating-profiles.md#directives). Merge strategies control how multiple profile contributions are combined; directives control what each contribution contains.
 
 When Baton syncs profiles to your project, it needs to decide how to handle conflicts between incoming content and existing target files. Two strategies are available.
 

@@ -14,7 +14,8 @@ Sources can be hosted on any supported transport:
 | ---------- | ---------------------------------------- | ---------------------------------- |
 | `github:`  | `github:my-org/dx-configs`               | GitHub repository                  |
 | `gitlab:`  | `gitlab:my-org/dx-configs`               | GitLab repository                  |
-| `git:`     | `git:https://git.internal.co/dx-configs` | Any Git remote                     |
+| `https://` | `https://git.internal.co/dx-configs.git` | Any HTTPS Git URL                  |
+| `git@`     | `git@github.com:my-org/dx-configs.git`   | SSH Git URL                        |
 | `npm:`     | `npm:@my-org/dx-configs`                 | npm registry package               |
 | `file:`    | `file:../local-configs`                  | Local filesystem path              |
 
@@ -142,7 +143,7 @@ my-team-configs/
 
 ## Adding Profiles to a Source
 
-Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./04-creating-profiles.md) for the full profile reference.
+Each profile lives in its own directory under `profiles/` and must contain a `baton.profile.yaml` manifest. See [Creating Profiles](./06-creating-profiles.md) for the full profile reference.
 
 To add a new profile, run the following from inside the source directory:
 
@@ -290,5 +291,5 @@ This gives your AI tools context about profile schemas, merge strategies, tool t
 
 ## Next Steps
 
-- [Creating Profiles](./04-creating-profiles.md) -- learn how to define profile manifests and configure AI tools.
-- [Using Profiles](./05-using-profiles.md) -- learn how to consume profiles in your projects.
+- [Creating Profiles](./06-creating-profiles.md) — learn how to define profile manifests and configure AI tools.
+- [Using Profiles](./04-using-profiles.md) — learn how to consume profiles in your projects.

@@ -18,7 +18,7 @@ baton source connect github:your-org/dx-configs --name my-team
 ```
 
 > **Don't have a source yet?** Create one with `baton source create my-configs`.
-> See [Creating Sources](./03-creating-sources.md) for details.
+> See [Creating Sources](./05-creating-sources.md) for details.
 >
 > **Want AI-assisted Baton usage?** Connect the official Baton source and sync the `consumer` profile:
 >
@@ -28,7 +28,7 @@ baton source connect github:your-org/dx-configs --name my-team
 >
 > This gives your AI tools full context about Baton's CLI, sync workflows, and project management.
 
-> **Using a private source?** Baton auto-detects credentials via SSH keys, GitHub CLI, or environment variables. The quickest setup is `gh auth login`. See [Configuration Reference → Environment Variables](./07-configuration-reference.md#environment-variables) for details.
+> **Using a private source?** Baton auto-detects credentials via SSH keys, GitHub CLI, or environment variables. The quickest setup is `gh auth login`. See [Configuration Reference → Environment Variables](./08-configuration-reference.md#environment-variables) for details.
 
 ## Step 3: Initialize Your Project
 
@@ -71,7 +71,8 @@ baton sync  # Apply the same configs
 
 ## What's Next?
 
-- [Creating Sources](./03-creating-sources.md) — Build your own source repository
-- [Creating Profiles](./04-creating-profiles.md) — Design profile manifests
-- [CLI Reference](./06-cli-reference.md) — All available commands
-- [Merge Strategies](./10-merge-strategies.md) — How configs are combined
+- [Using Sources](./03-using-sources.md) — Source URI formats and connection guide
+- [Creating Sources](./05-creating-sources.md) — Build your own source repository
+- [Creating Profiles](./06-creating-profiles.md) — Design profile manifests
+- [CLI Reference](./07-cli-reference.md) — All available commands
+- [Merge Strategies](./11-merge-strategies.md) — How configs are combined

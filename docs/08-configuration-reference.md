@@ -29,6 +29,13 @@ extras:                          # optional: additional metadata
   scripts:
     - name: setup
       command: bun install
+
+gitignore: true                  # optional: manage .gitignore entries
+# or granular form:
+# gitignore:
+#   ai-tools: true               # gitignore AI tool config dirs
+#   ides: false                  # do not gitignore IDE config dirs
+#   files: true                  # gitignore placed custom files
 ```
 
 | Field | Type | Required | Description |
@@ -40,6 +47,7 @@ extras:                          # optional: additional metadata
 | `variables` | object | no | Key-value pairs for template substitution |
 | `overrides.files` | object | no | Per-file merge strategy overrides |
 | `extras` | object | no | Additional project metadata |
+| `gitignore` | boolean \| object | no | Manage `.gitignore` entries. `true` = manage all categories. Object form: `{ ai-tools, ides, files }` each boolean. |
 
 ---
 
@@ -64,10 +72,8 @@ variables:
   project_type: frontend
 
 hooks:
-  pre-sync:
-    - echo "Starting sync..."
-  post-sync:
-    - npm install
+  post-install: "npm install"   # runs after baton init installs this profile
+  post-update: "npm install"    # runs after baton sync updates this profile
 ```
 
 | Field         | Type     | Required | Description                                                      |
@@ -80,7 +86,7 @@ hooks:
 | `scope`       | string   | no       | Default scope for all content (`project` or `global`)            |
 | `ai.tools`    | string[] | no       | AI tools this profile targets (default: all detected)            |
 | `variables`   | object   | no       | Default variable values for template substitution                |
-| `hooks`       | object   | no       | Lifecycle hooks (`pre-sync`, `post-sync`)                        |
+| `hooks`       | object   | no       | Lifecycle hooks (`post-install`, `post-update`)                  |
 
 Content is auto-discovered from:
 

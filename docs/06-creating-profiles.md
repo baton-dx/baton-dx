@@ -1,16 +1,6 @@
 # Creating Profiles
 
-A **profile** is a self-contained bundle of AI tool configurations, file placements, and IDE settings. Profiles live inside source repositories and are the primary unit of reuse in Baton. A single source can export multiple profiles (e.g. `frontend`, `backend`, `data-science`), and a project can compose several profiles together.
-
----
-
-## What is a Profile
-
-A profile answers the question: "What should a developer's AI tooling and project config look like for this kind of work?" It bundles:
-
-- **AI configurations** — skills, rules, agents, memory, commands, MCP servers
-- **File placements** — static config files like `.editorconfig`, `biome.json`, `.prettierrc`
-- **IDE settings** — editor-specific settings, extensions, and workspace configuration
+Profiles live inside source repositories and are the primary unit of reuse in Baton. A single source can export multiple profiles (e.g. `frontend`, `backend`, `data-science`), and a project can compose several profiles together. For how to consume profiles, see [Using Profiles](./04-using-profiles.md).
 
 Baton uses **convention over configuration**: you drop files into the right directories and they are automatically discovered at sync time. The manifest is minimal — you only declare things that can't be inferred from the filesystem.
 
@@ -679,5 +669,5 @@ scope: global
 
 ## Next Steps
 
-- [Using Profiles](./05-using-profiles.md) — learn how to consume profiles in your projects.
-- [Creating Sources](./03-creating-sources.md) — learn how to package profiles into distributable sources.
+- [Using Profiles](./04-using-profiles.md) — learn how to consume profiles in your projects.
+- [Creating Sources](./05-creating-sources.md) — learn how to package profiles into distributable sources.
