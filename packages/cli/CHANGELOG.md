@@ -4,10 +4,6 @@
 
 ### Patch Changes
 
-- 371dd40: fix(cli): show current config state in scan commands
-
-  `ai-tools scan` and `ides scan` now display state-aware labels (`detected`, `saved`, `saved, not detected`) in the interactive multiselect and warn about configured tools/IDEs that were not detected on the system. This helps users understand what will change before confirming, without altering the default pre-selection (still detection-only).
-
 - 6ea4da3: fix(core): support `~/` home-relative paths in local sources
 
   `parseSource()` now accepts `~/…` paths (e.g. `~/Sites/baton/test-v1`) as valid local sources. Previously these threw a `SourceParseError` and were stored raw in `baton.yaml`, causing all subsequent commands to fail.
