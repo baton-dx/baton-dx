@@ -59,6 +59,7 @@ import { defineCommand } from "citty";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
+import { getOutputContext, outputJson, outputJsonError } from "../utils/output.js";
 import { readCurrentVersion } from "../utils/read-current-version.js";
 import { runProfileHook } from "../utils/run-hook.js";
 import {
@@ -115,18 +116,29 @@ export const syncCommand = defineCommand({
         const autoYes = args.yes;
         const verbose = args.verbose;
         const check = args.check;
+        const { json } = getOutputContext(args);
 
         // --check and --dry-run are mutually exclusive
         if (check && dryRun) {
+            if (json) {
+                outputJsonError("INVALID_FLAGS", "--check and --dry-run cannot be used together");
+            }
             p.cancel("--check and --dry-run cannot be used together");
             process.exit(1);
         }
 
         // --check mode: read-only stale detection
         if (check) {
-            p.intro("🔍 Baton Sync Check");
+            if (!json) {
+                p.intro("Baton Sync Check");
+            }
             const projectRoot = process.cwd();
             const result = await checkStale(projectRoot);
+
+            if (json) {
+                outputJson({ stale: result.stale, reasons: result.reasons });
+                process.exit(result.stale ? 1 : 0);
+            }
 
             if (!result.stale) {
                 p.outro("All configurations are in sync");
@@ -1817,6 +1829,20 @@ export const syncCommand = defineCommand({
                 p.outro(
                     `[Dry Run${categoryLabel}] Would sync:\n${parts.join("\n")}\n\nFor ${adapters.length} agent(s): ${syncedAiTools.join(", ")}`,
                 );
+            } else if (json) {
+                const warnings: string[] = [];
+                const errors: string[] = [];
+                if (stats.errors > 0) errors.push(`${stats.errors} error(s) during sync`);
+                outputJson(
+                    {
+                        placed: stats.created + stats.updated,
+                        created: stats.created,
+                        updated: stats.updated,
+                        skipped: stats.skipped,
+                        removed: stats.removed,
+                    },
+                    { warnings, errors },
+                );
             } else {
                 const report = formatSyncReport(stats, verbose);
                 p.outro(`Sync complete: ${report}`);
@@ -1824,6 +1850,12 @@ export const syncCommand = defineCommand({
 
             process.exit(stats.errors > 0 ? 1 : 0);
         } catch (error) {
+            if (json) {
+                outputJsonError(
+                    "SYNC_FAILED",
+                    error instanceof Error ? error.message : String(error),
+                );
+            }
             p.cancel(`Sync failed: ${error}`);
             process.exit(1);
         }

@@ -52,6 +52,7 @@ import { defineCommand } from "citty";
 import { buildIntersection } from "../utils/build-intersection.js";
 import { promptFirstRunPreferences } from "../utils/first-run-preferences.js";
 import { displayIntersection, formatIntersectionSummary } from "../utils/intersection-display.js";
+import { getOutputContext, outputJson, outputJsonError } from "../utils/output.js";
 import { readCurrentVersion } from "../utils/read-current-version.js";
 import { runProfileHook } from "../utils/run-hook.js";
 import {
@@ -121,6 +122,7 @@ export const applyCommand = defineCommand({
         const autoYes = args.yes;
         const verbose = args.verbose;
         const fresh = args.fresh;
+        const { json } = getOutputContext(args);
 
         // Validate --category flag
         let category: SyncCategory | undefined;
@@ -1557,6 +1559,20 @@ export const applyCommand = defineCommand({
                 p.outro(
                     `[Dry Run${categoryLabel}] Would apply:\n${parts.join("\n")}\n\nFor ${adapters.length} agent(s): ${syncedAiTools.join(", ")}`,
                 );
+            } else if (json) {
+                const warnings: string[] = [];
+                const errors: string[] = [];
+                if (stats.errors > 0) errors.push(`${stats.errors} error(s) during apply`);
+                outputJson(
+                    {
+                        placed: stats.created + stats.updated,
+                        created: stats.created,
+                        updated: stats.updated,
+                        skipped: stats.skipped,
+                        removed: stats.removed,
+                    },
+                    { warnings, errors },
+                );
             } else {
                 const categoryLabel = category ? ` (category: ${category})` : "";
                 p.outro(`Apply complete${categoryLabel}: ${formatSyncReport(stats, verbose)}`);
@@ -1564,6 +1580,12 @@ export const applyCommand = defineCommand({
 
             process.exit(stats.errors > 0 ? 1 : 0);
         } catch (error) {
+            if (json) {
+                outputJsonError(
+                    "APPLY_FAILED",
+                    error instanceof Error ? error.message : String(error),
+                );
+            }
             p.cancel(`Apply failed: ${error}`);
             process.exit(1);
         }

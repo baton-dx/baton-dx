@@ -1,6 +1,7 @@
 import { runAuthDiagnostic } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
+import { getOutputContext, outputJson } from "../../utils/output.js";
 
 const METHOD_LABELS: Record<string, string> = {
     env: "Environment variable",
@@ -23,17 +24,38 @@ export const authStatusCommand = defineCommand({
     },
     async run({ args }) {
         const hostname = args.hostname || "github.com";
+        const { json } = getOutputContext(args);
 
-        p.intro(`Auth Status for ${hostname}`);
+        if (!json) {
+            p.intro(`Auth Status for ${hostname}`);
+        }
 
-        const spinner = p.spinner();
-        spinner.start("Running auth cascade...");
+        const spinner = json ? null : p.spinner();
+        spinner?.start("Running auth cascade...");
 
         const steps = await runAuthDiagnostic(hostname);
 
-        spinner.stop("Auth cascade complete");
+        spinner?.stop("Auth cascade complete");
 
-        console.log("");
+        if (json) {
+            const activeMethod = steps.find((s) => s.success);
+            outputJson({
+                hostname,
+                methods: steps.map((s) => ({
+                    method: s.method,
+                    label: METHOD_LABELS[s.method] ?? s.method,
+                    success: s.success,
+                    detail: s.detail,
+                })),
+                activeMethod: activeMethod
+                    ? {
+                          method: activeMethod.method,
+                          label: METHOD_LABELS[activeMethod.method] ?? activeMethod.method,
+                      }
+                    : null,
+            });
+            return;
+        }
 
         const activeMethod = steps.find((s) => s.success);
 
@@ -48,7 +70,6 @@ export const authStatusCommand = defineCommand({
             }
         }
 
-        console.log("");
         if (activeMethod) {
             p.log.success(
                 `Active method: ${activeMethod.method} (${METHOD_LABELS[activeMethod.method] ?? activeMethod.method})`,
@@ -63,7 +84,6 @@ export const authStatusCommand = defineCommand({
         const hasCredential = steps.some((s) => s.method === "git-credential" && s.success);
 
         if (isGitHub && hasGhCli && !hasCredential) {
-            console.log("");
             p.log.info("Tip: Run `gh auth setup-git` to register gh as a git credential helper.");
         }
 

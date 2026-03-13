@@ -35,6 +35,7 @@ import {
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { buildIntersection } from "../utils/build-intersection.js";
+import { pc } from "../utils/output.js";
 
 const VALID_TYPES = ["memory", "rules", "agents", "skills", "commands"] as const;
 type ContentType = (typeof VALID_TYPES)[number];
@@ -516,23 +517,21 @@ export const previewCommand = defineCommand({
                     const onlyInDiff = primaryContent === undefined && diffContent !== undefined;
 
                     if (onlyInPrimary) {
-                        console.log(
-                            `\x1b[33m--- only in ${primaryAdapter.key}: ${filePath} ---\x1b[0m`,
-                        );
-                        console.log(primaryContent);
+                        p.log.info(pc.yellow(`--- only in ${primaryAdapter.key}: ${filePath} ---`));
+                        p.log.message(primaryContent ?? "");
                     } else if (onlyInDiff) {
-                        console.log(
-                            `\x1b[33m--- only in ${diffAdapter.key}: ${filePath} ---\x1b[0m`,
-                        );
-                        console.log(diffContent);
+                        p.log.info(pc.yellow(`--- only in ${diffAdapter.key}: ${filePath} ---`));
+                        p.log.message(diffContent ?? "");
                     } else {
-                        console.log(
-                            `\x1b[33m--- ${primaryAdapter.key} vs ${diffAdapter.key}: ${filePath} ---\x1b[0m`,
+                        p.log.info(
+                            pc.yellow(
+                                `--- ${primaryAdapter.key} vs ${diffAdapter.key}: ${filePath} ---`,
+                            ),
                         );
-                        console.log(`[${primaryAdapter.key}]`);
-                        console.log(primaryContent);
-                        console.log(`[${diffAdapter.key}]`);
-                        console.log(diffContent);
+                        p.log.message(`[${primaryAdapter.key}]`);
+                        p.log.message(primaryContent ?? "");
+                        p.log.message(`[${diffAdapter.key}]`);
+                        p.log.message(diffContent ?? "");
                     }
                 }
 
@@ -544,8 +543,8 @@ export const previewCommand = defineCommand({
             } else {
                 // Standard mode: print sections
                 for (const section of primarySections) {
-                    console.log(`\x1b[2m--- ${section.filePath} ---\x1b[0m`);
-                    console.log(section.content);
+                    p.log.info(pc.dim(`--- ${section.filePath} ---`));
+                    p.log.message(section.content);
                 }
             }
 
