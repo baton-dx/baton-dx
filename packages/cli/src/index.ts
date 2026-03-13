@@ -56,6 +56,11 @@ const main = defineCommand({
             alias: "j",
             description: "Output machine-readable JSON (for CI/CD integration)",
         },
+        concurrency: {
+            type: "string",
+            alias: "c",
+            description: "Max parallel source fetches (default: 5)",
+        },
     },
     subCommands: {
         init: initCommand,
@@ -115,6 +120,7 @@ const main = defineCommand({
             console.log("  --dry-run          Show what would be done without writing files");
             console.log("  --verbose          Enable debug logging");
             console.log("  --json, -j         Output machine-readable JSON");
+            console.log("  --concurrency, -c  Max parallel source fetches (default: 5)");
             return;
         }
     },
