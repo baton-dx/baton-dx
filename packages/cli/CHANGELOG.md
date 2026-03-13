@@ -1,5 +1,16 @@
 # @baton-dx/cli
 
+## 1.0.0-alpha.11
+
+### Patch Changes
+
+- 56d2afd: perf(cli): parallel source fetching with incremental sync
+
+  - Sources are now resolved in parallel with configurable concurrency (`--concurrency N`, default: 5)
+  - Incremental sync: `baton sync` compares remote SHA with lockfile to skip unchanged sources
+  - Discovery and intersection computation parallelized
+  - New `resolveSourcesBatch()` API in `@baton-dx/core`
+
 ## 1.0.0-alpha.10
 
 ### Minor Changes

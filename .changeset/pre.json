@@ -14,6 +14,7 @@
     "fix-project-prefix-output",
     "fix-sparse-checkout-cache-poisoning",
     "fix-sync-apply-bugs",
+    "parallel-source-fetching",
     "scan-show-config-state",
     "strict-expression-syntax-in-operator",
     "tilde-path-support"
