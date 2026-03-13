@@ -1,5 +1,13 @@
 # @baton-dx/cli
 
+## 1.0.0-alpha.4
+
+### Patch Changes
+
+- 371dd40: fix(cli): show current config state in scan commands
+
+  `ai-tools scan` and `ides scan` now display state-aware labels (`detected`, `saved`, `saved, not detected`) in the interactive multiselect and warn about configured tools/IDEs that were not detected on the system. This helps users understand what will change before confirming, without altering the default pre-selection (still detection-only).
+
 ## 1.0.0-alpha.3
 
 ### Patch Changes
