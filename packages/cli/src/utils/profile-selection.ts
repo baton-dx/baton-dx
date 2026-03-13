@@ -1,8 +1,8 @@
-import { resolve } from "node:path";
 import {
     type ClonedSource,
     cloneGitSource,
     discoverProfilesInSourceRepo,
+    expandLocalPath,
     getAuthenticatedUrl,
     getAuthSetupInstructions,
     parseSource,
@@ -122,9 +122,7 @@ export async function selectMultipleProfilesFromSource(
 
     // Local/file sources: discover profiles from local directory
     if (parsedSource.provider === "file" || parsedSource.provider === "local") {
-        const absolutePath = parsedSource.path.startsWith("/")
-            ? parsedSource.path
-            : resolve(process.cwd(), parsedSource.path);
+        const absolutePath = expandLocalPath(parsedSource.path, process.cwd());
 
         const profiles = await discoverProfilesInSourceRepo(absolutePath);
 
