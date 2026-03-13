@@ -8,12 +8,12 @@
   },
   "changesets": [
     "baton-1-0-release",
+    "fix-expression-case-sensitivity",
     "fix-preview-no-profiles-resolved",
     "fix-project-prefix-output",
     "fix-sparse-checkout-cache-poisoning",
     "fix-sync-apply-bugs",
     "scan-show-config-state",
-    "tilde-path-support",
-    "fix-expression-case-sensitivity"
+    "tilde-path-support"
   ]
 }
