@@ -276,7 +276,7 @@ export {
     type BatchResolveOptions,
     type BatchResolveResult,
     checkRemoteSha,
-    getPackageNameFromSource,
+    findLockedPackageBySource,
     type RemoteCheckResult,
     type ResolvedSourceEntry,
     resolveSourcesBatch,

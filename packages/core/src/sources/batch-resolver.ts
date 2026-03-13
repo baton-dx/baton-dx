@@ -2,7 +2,7 @@ import { dirname, resolve } from "node:path";
 import type { CloneContext, ResolvedProfile } from "../inheritance/profile-chain.js";
 import { resolveProfileChain } from "../inheritance/profile-chain.js";
 import { checkSourceBatonRequires } from "../lockfile/version-check.js";
-import type { LockFile } from "../schemas/lockfile.js";
+import type { LockedPackage, LockFile } from "../schemas/lockfile.js";
 import type { ParsedSource } from "../utils/index.js";
 import { expandLocalPath, loadProfileManifest, parseSource } from "../utils/index.js";
 import type { AuthOptions, AuthResult } from "./auth-cascade.js";
@@ -36,18 +36,15 @@ export function pLimit(concurrency: number): <T>(fn: () => Promise<T>) => Promis
         });
 }
 
-/** Extract the package name from a source string for lockfile lookup. */
-export function getPackageNameFromSource(source: string, parsed: ParsedSource): string {
-    if (parsed.provider === "github" || parsed.provider === "gitlab") {
-        return `${parsed.org}/${parsed.repo}`;
+/** Find a locked package entry by matching on its `source` field. */
+export function findLockedPackageBySource(
+    lockfile: LockFile,
+    source: string,
+): LockedPackage | undefined {
+    for (const pkg of Object.values(lockfile.packages)) {
+        if (pkg.source === source) return pkg;
     }
-    if (parsed.provider === "npm") {
-        return parsed.package;
-    }
-    if (parsed.provider === "git") {
-        return parsed.url;
-    }
-    return source;
+    return undefined;
 }
 
 export type RemoteCheckResult =
@@ -222,8 +219,7 @@ async function resolveGitApply(
     let ref = profileSource.version;
 
     if (lockfile) {
-        const packageName = getPackageNameFromSource(profileSource.source, parsed);
-        const lockedPkg = lockfile.packages[packageName];
+        const lockedPkg = findLockedPackageBySource(lockfile, profileSource.source);
         if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
             ref = lockedPkg.sha;
             if (verbose)
@@ -269,13 +265,11 @@ async function resolveGitSync(
     let ref: string | undefined;
 
     if (lockfile) {
-        const packageName = getPackageNameFromSource(profileSource.source, parsed);
-        const lockedPkg = lockfile.packages[packageName];
+        const lockedPkg = findLockedPackageBySource(lockfile, profileSource.source);
         if (lockedPkg?.sha && lockedPkg.sha !== "unknown") {
             const check = await checkRemoteSha(cloneUrl, lockedPkg.sha, authResult.token);
             if (check.type === "auth_error") {
                 if (verbose) ctx.log.warn(`Auth failed for ${profileSource.source}`);
-                // biome-ignore lint/suspicious/noConfusingVoidType: sentinel return
                 return null as unknown as SourceResolution;
             }
             if (check.type === "ok" && !check.changed) {
