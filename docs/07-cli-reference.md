@@ -13,6 +13,52 @@ These flags are available on every command:
 | `--yes` | `-y` | Suppress all interactive prompts (non-interactive mode) |
 | `--dry-run` | | Show what would be done without writing files |
 | `--verbose` | | Enable debug logging |
+| `--json` | `-j` | Output machine-readable JSON (for CI/CD integration) |
+
+### JSON Output
+
+When `--json` is passed, commands output a JSON envelope instead of human-readable text. All interactive UI (spinners, prompts, colored output) is suppressed.
+
+**Envelope format:**
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "warnings": ["optional warning messages"],
+  "errors": ["optional error messages"]
+}
+```
+
+**Supported commands:**
+
+| Command | `data` payload |
+|---------|----------------|
+| `source list` | `{ sources: Source[] }` |
+| `profile list` | `{ profiles: Profile[] }` |
+| `ai-tools list` | `{ tools: ToolStatus[] }` |
+| `ides list` | `{ platforms: PlatformStatus[] }` |
+| `ai-tools scan` | `{ detected: string[], saved: string[] }` |
+| `ides scan` | `{ detected: string[], saved: string[] }` |
+| `config` | `{ sources, aiTools, idePlatforms, project }` |
+| `auth status` | `{ hostname, methods, activeMethod }` |
+| `sync` | `{ placed, created, updated, skipped, removed }` |
+| `sync --check` | `{ stale: boolean, reasons: string[] }` |
+| `apply` | `{ placed, created, updated, skipped, removed }` |
+| `diff` | `{ entries: { file, status }[] }` |
+
+**CI/CD examples:**
+
+```bash
+# Check if configs are stale (exit code 0 = in sync, 1 = stale)
+baton sync --check --json | jq .data.stale
+
+# Sync and capture results
+baton sync --json --yes | jq '.data.placed'
+
+# List AI tools as JSON
+baton ai-tools list --json | jq '.data.tools[].name'
+```
 
 ---
 

@@ -7,6 +7,7 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
+import { getOutputContext, outputJson } from "../../utils/output.js";
 
 export const aiToolsScanCommand = defineCommand({
     meta: {
@@ -21,10 +22,14 @@ export const aiToolsScanCommand = defineCommand({
         },
     },
     async run({ args }) {
-        p.intro("Baton - AI Tool Scanner");
+        const { json } = getOutputContext(args);
 
-        const spinner = p.spinner();
-        spinner.start("Scanning for AI tools...");
+        if (!json) {
+            p.intro("Baton - AI Tool Scanner");
+        }
+
+        const spinner = json ? null : p.spinner();
+        spinner?.start("Scanning for AI tools...");
 
         // Clear cache to force fresh detection
         clearAIToolCache();
@@ -33,7 +38,25 @@ export const aiToolsScanCommand = defineCommand({
         const allAdapters = getAllAIToolAdapters();
         const currentTools = await getGlobalAiTools();
 
-        spinner.stop("Scan complete.");
+        spinner?.stop("Scan complete.");
+
+        // JSON output: report scan results without interactive prompts
+        if (json) {
+            // In JSON mode with --yes, also save results
+            if (args.yes) {
+                const hasChanges =
+                    detectedAITools.length !== currentTools.length ||
+                    detectedAITools.some((key) => !currentTools.includes(key));
+                if (hasChanges) {
+                    await setGlobalAiTools(detectedAITools);
+                }
+            }
+            outputJson({
+                detected: detectedAITools,
+                saved: args.yes ? detectedAITools : currentTools,
+            });
+            return;
+        }
 
         if (detectedAITools.length > 0) {
             p.log.success(

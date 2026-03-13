@@ -185,7 +185,7 @@ async function showOverview(cwd: string): Promise<void> {
         }
 
         if (conflicts.length > 0) {
-            console.log("");
+            p.log.message("");
             p.log.warn("Same-Weight Conflicts:");
             for (const conflict of conflicts) {
                 p.log.warn(conflict);
@@ -201,7 +201,7 @@ async function showOverview(cwd: string): Promise<void> {
 
         if (aiTools.length > 0 || idePlatforms.length > 0) {
             const developerTools = { aiTools, idePlatforms };
-            console.log("");
+            p.log.message("");
             p.log.step("Tool Intersection");
 
             for (const profile of manifest.profiles) {
@@ -224,7 +224,6 @@ async function showOverview(cwd: string): Promise<void> {
     }
 
     // --- Sync Status ---
-    console.log("");
     p.log.step("Sync Status");
     if (synced) {
         p.log.info("  Synced (baton.lock exists)");
@@ -233,7 +232,6 @@ async function showOverview(cwd: string): Promise<void> {
     }
 
     // --- Global Sources ---
-    console.log("");
     p.log.step("Global Sources");
     if (sources.length === 0) {
         p.log.info("  No sources configured. Run: baton source connect <url>");
@@ -741,33 +739,33 @@ export const manageCommand = defineCommand({
             }
 
             if (action === "overview") {
-                console.log("");
+                p.log.message("");
                 await showOverview(cwd);
-                console.log("");
+                p.log.message("");
             } else if (action === "manage-profiles") {
-                console.log("");
+                p.log.message("");
                 await handleManageProfiles(cwd);
-                console.log("");
+                p.log.message("");
             } else if (action === "configure-ai") {
-                console.log("");
+                p.log.message("");
                 await handleConfigureAiTools(cwd);
-                console.log("");
+                p.log.message("");
             } else if (action === "configure-ides") {
-                console.log("");
+                p.log.message("");
                 await handleConfigureIdes(cwd);
-                console.log("");
+                p.log.message("");
             } else if (action === "configure-gitignore") {
-                console.log("");
+                p.log.message("");
                 await handleConfigureGitignore(cwd);
-                console.log("");
+                p.log.message("");
             } else if (action === "remove-baton") {
-                console.log("");
+                p.log.message("");
                 const removed = await handleRemoveBaton(cwd);
                 if (removed) {
                     p.outro("Goodbye!");
                     return;
                 }
-                console.log("");
+                p.log.message("");
             }
         }
     },

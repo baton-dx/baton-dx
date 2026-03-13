@@ -5,6 +5,7 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
+import { getOutputContext, outputJson, pc } from "../../utils/output.js";
 import { formatIdeName } from "./utils.js";
 
 export const idesListCommand = defineCommand({
@@ -18,14 +19,11 @@ export const idesListCommand = defineCommand({
             alias: "a",
             description: "Show all supported platforms, not just saved ones",
         },
-        json: {
-            type: "boolean",
-            description: "Output machine-readable JSON",
-            alias: "j",
-        },
     },
     async run({ args }) {
-        if (!args.json) {
+        const { json } = getOutputContext(args);
+
+        if (!json) {
             p.intro("Baton - IDE Platforms");
         }
 
@@ -53,8 +51,8 @@ export const idesListCommand = defineCommand({
         });
 
         // JSON output
-        if (args.json) {
-            console.log(JSON.stringify(platformStatuses, null, 2));
+        if (json) {
+            outputJson({ platforms: platformStatuses });
             return;
         }
 
@@ -62,31 +60,25 @@ export const idesListCommand = defineCommand({
         if (savedPlatforms.length === 0) {
             p.log.warn("No IDE platforms saved in global config.");
             p.log.info("Run 'baton ides scan' to detect and save your IDE platforms.");
-            console.log("");
             p.log.info(`All ${allIdeKeys.length} supported platforms:`);
             for (const key of allIdeKeys) {
                 const entry = idePlatformRegistry[key];
-                console.log(
-                    `  \x1b[90m- ${formatIdeName(key)} (${entry?.targetDir ?? key})\x1b[0m`,
-                );
+                p.log.info(`  ${pc.dim(`- ${formatIdeName(key)} (${entry?.targetDir ?? key})`)}`);
             }
             p.outro("Run 'baton ides scan' to get started.");
             return;
         }
 
-        console.log(`\nSaved IDE platforms (${savedPlatforms.length}):\n`);
+        p.log.step(`Saved IDE platforms (${savedPlatforms.length}):`);
 
         for (const platform of platformStatuses) {
-            const statusColor = platform.saved ? "\x1b[32m" : "\x1b[90m";
-            const status = platform.saved ? "✓" : "✗";
-            const resetColor = "\x1b[0m";
+            const status = platform.saved
+                ? `${pc.green("✓")} ${platform.name.padEnd(20)} → ${platform.targetDir}`
+                : `${pc.dim("✗")} ${platform.name.padEnd(20)} → ${platform.targetDir}`;
 
-            console.log(
-                `${statusColor}${status}${resetColor} ${platform.name.padEnd(20)} → ${platform.targetDir}`,
-            );
+            p.log.info(status);
         }
 
-        console.log("");
         p.outro("Manage platforms: 'baton ides scan' (detect)");
     },
 });

@@ -12,11 +12,10 @@ import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { buildIntersection } from "../../utils/build-intersection.js";
 import { formatIntersectionSummary } from "../../utils/intersection-display.js";
+import { getOutputContext, outputJson } from "../../utils/output.js";
 import { configSetCommand } from "./set.js";
 
-async function showDashboard(): Promise<void> {
-    p.intro("Baton Dashboard");
-
+async function showDashboard(json: boolean): Promise<void> {
     // Fetch all data in parallel
     const [sources, aiTools, idePlatforms, projectManifest] = await Promise.all([
         getGlobalSources(),
@@ -25,18 +24,31 @@ async function showDashboard(): Promise<void> {
         loadProjectManifestSafe(),
     ]);
 
-    // --- Global Sources ---
-    console.log("");
-    p.log.step("Global Sources");
-    if (sources.length === 0) {
-        p.log.info("  No sources configured. Run: baton source connect <url>");
-    } else {
-        for (const source of sources) {
-            const defaultBadge = source.default ? " (default)" : "";
-            const desc = source.description ? ` — ${source.description}` : "";
-            p.log.info(`  ${source.name}${defaultBadge}: ${source.url}${desc}`);
-        }
+    if (json) {
+        const resolvedPrefs = projectManifest ? await resolvePreferences(process.cwd()) : null;
+
+        outputJson({
+            sources: sources.map((s) => ({
+                name: s.name,
+                url: s.url,
+                default: s.default ?? false,
+                description: s.description ?? null,
+            })),
+            aiTools: resolvedPrefs ? resolvedPrefs.ai.tools : aiTools,
+            idePlatforms: resolvedPrefs ? resolvedPrefs.ide.platforms : idePlatforms,
+            project: projectManifest
+                ? {
+                      profiles: projectManifest.profiles.map((pr) => ({
+                          source: pr.source,
+                          version: pr.version ?? null,
+                      })),
+                  }
+                : null,
+        });
+        return;
     }
+
+    p.intro("Baton Dashboard");
 
     // Resolve effective tools — project preferences override global if set
     let resolvedAiTools: string[];
@@ -51,8 +63,19 @@ async function showDashboard(): Promise<void> {
         resolvedIdePlatforms = idePlatforms;
     }
 
+    // --- Global Sources ---
+    p.log.step("Global Sources");
+    if (sources.length === 0) {
+        p.log.info("  No sources configured. Run: baton source connect <url>");
+    } else {
+        for (const source of sources) {
+            const defaultBadge = source.default ? " (default)" : "";
+            const desc = source.description ? ` — ${source.description}` : "";
+            p.log.info(`  ${source.name}${defaultBadge}: ${source.url}${desc}`);
+        }
+    }
+
     // --- Developer Tools ---
-    console.log("");
     p.log.step("Developer Tools");
 
     if (projectManifest) {
@@ -104,7 +127,6 @@ async function showDashboard(): Promise<void> {
     }
 
     // --- Current Project ---
-    console.log("");
     p.log.step("Current Project");
     if (!projectManifest) {
         p.log.info("  Not inside a Baton project. Run: baton init");
@@ -126,7 +148,6 @@ async function showDashboard(): Promise<void> {
                 aiTools: resolvedAiTools,
                 idePlatforms: resolvedIdePlatforms,
             };
-            console.log("");
             p.log.step("Active Intersections");
 
             for (const profile of projectManifest.profiles) {
@@ -147,7 +168,6 @@ async function showDashboard(): Promise<void> {
         }
     }
 
-    console.log("");
     p.outro("Manage tools: 'baton ai-tools configure' | 'baton ides configure'");
 }
 
@@ -167,7 +187,8 @@ export const configCommand = defineCommand({
     subCommands: {
         set: configSetCommand,
     },
-    async run() {
-        await showDashboard();
+    async run({ args }) {
+        const { json } = getOutputContext(args);
+        await showDashboard(json);
     },
 });

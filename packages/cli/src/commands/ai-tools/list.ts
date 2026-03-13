@@ -3,6 +3,7 @@ import { getAIToolConfig, getAIToolPath, getAllAIToolKeys } from "@baton-dx/ai-t
 import { getGlobalAiTools } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
+import { getOutputContext, outputJson, pc } from "../../utils/output.js";
 
 export const aiToolsListCommand = defineCommand({
     meta: {
@@ -15,14 +16,11 @@ export const aiToolsListCommand = defineCommand({
             alias: "a",
             description: "Show all supported tools, not just saved ones",
         },
-        json: {
-            type: "boolean",
-            description: "Output machine-readable JSON",
-            alias: "j",
-        },
     },
     async run({ args }) {
-        if (!args.json) {
+        const { json } = getOutputContext(args);
+
+        if (!json) {
             p.intro("Baton - AI Tools");
         }
 
@@ -84,8 +82,8 @@ export const aiToolsListCommand = defineCommand({
         );
 
         // JSON output
-        if (args.json) {
-            console.log(JSON.stringify(toolStatuses, null, 2));
+        if (json) {
+            outputJson({ tools: toolStatuses });
             return;
         }
 
@@ -93,24 +91,23 @@ export const aiToolsListCommand = defineCommand({
         if (savedTools.length === 0) {
             p.log.warn("No AI tools saved in global config.");
             p.log.info("Run 'baton ai-tools scan' to detect and save your AI tools.");
-            console.log("");
             p.log.info(`All ${allAIToolKeys.length} supported tools:`);
             for (const key of allAIToolKeys) {
                 const config = getAIToolConfig(key);
-                console.log(`  \x1b[90m- ${config.name}\x1b[0m`);
+                p.log.info(`  ${pc.dim(`- ${config.name}`)}`);
             }
             p.outro("Run 'baton ai-tools scan' to get started.");
             return;
         }
 
-        console.log(`\nSaved AI tools (${savedTools.length}):\n`);
+        p.log.step(`Saved AI tools (${savedTools.length}):`);
 
         for (const agent of toolStatuses) {
-            const statusColor = agent.saved ? "\x1b[32m" : "\x1b[90m";
-            const status = agent.saved ? "✓" : "✗";
-            const resetColor = "\x1b[0m";
+            const status = agent.saved
+                ? `${pc.green("✓")} ${agent.name.padEnd(20)}`
+                : `${pc.dim("✗")} ${agent.name.padEnd(20)}`;
 
-            console.log(`${statusColor}${status}${resetColor} ${agent.name.padEnd(20)}`);
+            p.log.info(status);
 
             if (agent.saved) {
                 const totalConfigs =
@@ -129,11 +126,9 @@ export const aiToolsListCommand = defineCommand({
                     if (agent.counts.commands > 0)
                         details.push(`${agent.counts.commands} commands`);
 
-                    console.log(`  → ${details.join(", ")}`);
+                    p.log.info(`  → ${details.join(", ")}`);
                 }
             }
-
-            console.log("");
         }
 
         p.outro(

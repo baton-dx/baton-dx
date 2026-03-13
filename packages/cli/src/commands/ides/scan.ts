@@ -7,6 +7,7 @@ import {
 } from "@baton-dx/core";
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
+import { getOutputContext, outputJson } from "../../utils/output.js";
 import { formatIdeName } from "./utils.js";
 
 export const idesScanCommand = defineCommand({
@@ -22,10 +23,14 @@ export const idesScanCommand = defineCommand({
         },
     },
     async run({ args }) {
-        p.intro("Baton - IDE Platform Scanner");
+        const { json } = getOutputContext(args);
 
-        const spinner = p.spinner();
-        spinner.start("Scanning for IDE platforms...");
+        if (!json) {
+            p.intro("Baton - IDE Platform Scanner");
+        }
+
+        const spinner = json ? null : p.spinner();
+        spinner?.start("Scanning for IDE platforms...");
 
         // Clear cache to force fresh detection
         clearIdeCache();
@@ -34,7 +39,24 @@ export const idesScanCommand = defineCommand({
         const allIdeKeys = getRegisteredIdePlatforms();
         const currentPlatforms = await getGlobalIdePlatforms();
 
-        spinner.stop("Scan complete.");
+        spinner?.stop("Scan complete.");
+
+        // JSON output: report scan results without interactive prompts
+        if (json) {
+            if (args.yes) {
+                const hasChanges =
+                    detectedIdes.length !== currentPlatforms.length ||
+                    detectedIdes.some((key) => !currentPlatforms.includes(key));
+                if (hasChanges) {
+                    await setGlobalIdePlatforms(detectedIdes);
+                }
+            }
+            outputJson({
+                detected: detectedIdes,
+                saved: args.yes ? detectedIdes : currentPlatforms,
+            });
+            return;
+        }
 
         if (detectedIdes.length > 0) {
             p.log.success(

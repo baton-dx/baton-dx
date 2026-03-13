@@ -51,6 +51,11 @@ const main = defineCommand({
             type: "boolean",
             description: "Enable debug logging",
         },
+        json: {
+            type: "boolean",
+            alias: "j",
+            description: "Output machine-readable JSON (for CI/CD integration)",
+        },
     },
     subCommands: {
         init: initCommand,
@@ -109,6 +114,7 @@ const main = defineCommand({
             console.log("  --yes, -y          Suppress all interactive prompts");
             console.log("  --dry-run          Show what would be done without writing files");
             console.log("  --verbose          Enable debug logging");
+            console.log("  --json, -j         Output machine-readable JSON");
             return;
         }
     },

@@ -29,6 +29,7 @@ import {
 import * as p from "@clack/prompts";
 import { defineCommand } from "citty";
 import { buildIntersection } from "../utils/build-intersection.js";
+import { getOutputContext, outputJson, pc } from "../utils/output.js";
 
 interface DiffEntry {
     /** Relative display path (e.g. ".claude/rules/coding-standards.md") */
@@ -52,7 +53,11 @@ export const diffCommand = defineCommand({
         },
     },
     async run({ args }) {
-        p.intro("🔍 Baton Diff");
+        const { json } = getOutputContext(args);
+
+        if (!json) {
+            p.intro("Baton Diff");
+        }
 
         try {
             const projectRoot = process.cwd();
@@ -60,7 +65,11 @@ export const diffCommand = defineCommand({
             const manifest = await loadProjectManifest(manifestPath);
 
             if (!manifest.profiles || manifest.profiles.length === 0) {
-                p.outro("⚠️  No profiles configured in baton.yaml");
+                if (json) {
+                    outputJson({ entries: [] });
+                    return;
+                }
+                p.outro("No profiles configured in baton.yaml");
                 process.exit(0);
             }
 
@@ -401,9 +410,19 @@ export const diffCommand = defineCommand({
             spinner.stop();
 
             // Step 5: Display results
+            if (json) {
+                outputJson({
+                    entries: diffs.map((d) => ({
+                        file: d.file,
+                        status: d.status,
+                    })),
+                });
+                process.exit(diffs.length > 0 ? 1 : 0);
+            }
+
             if (diffs.length === 0) {
                 p.log.success("No differences found");
-                p.outro("✅ Diff complete - all placed files match remote sources");
+                p.outro("Diff complete - all placed files match remote sources");
                 process.exit(0);
             }
 
@@ -413,9 +432,9 @@ export const diffCommand = defineCommand({
                 if (args.nameOnly) {
                     const statusSymbol =
                         diff.status === "added" ? "+" : diff.status === "removed" ? "-" : "~";
-                    console.log(`  ${statusSymbol} ${diff.file}`);
+                    p.log.info(`  ${statusSymbol} ${diff.file}`);
                 } else {
-                    console.log(`\n  📄 ${diff.file} (${diff.status})`);
+                    p.log.info(`\n  ${diff.file} (${diff.status})`);
 
                     if (diff.status === "modified") {
                         const localLines = (diff.localContent || "").split("\n");
@@ -430,28 +449,28 @@ export const diffCommand = defineCommand({
                             if (localLine !== remoteLine) {
                                 diffLines++;
                                 if (localLine) {
-                                    console.log(`  \x1b[31m- ${localLine}\x1b[0m`);
+                                    p.log.info(`  ${pc.red(`- ${localLine}`)}`);
                                 }
                                 if (remoteLine) {
-                                    console.log(`  \x1b[32m+ ${remoteLine}\x1b[0m`);
+                                    p.log.info(`  ${pc.green(`+ ${remoteLine}`)}`);
                                 }
                             }
                         }
 
                         if (diffLines >= 10) {
-                            console.log("  ... (more differences)");
+                            p.log.info("  ... (more differences)");
                         }
                     } else if (diff.status === "added") {
-                        console.log(
-                            "  \x1b[32m+ New file in remote (not yet placed locally)\x1b[0m",
+                        p.log.info(
+                            `  ${pc.green("+ New file in remote (not yet placed locally)")}`,
                         );
                     } else {
-                        console.log("  \x1b[31m- File exists locally but not in remote\x1b[0m");
+                        p.log.info(`  ${pc.red("- File exists locally but not in remote")}`);
                     }
                 }
             }
 
-            p.outro("✅ Diff complete - differences found. Run `baton sync` to update.");
+            p.outro("Diff complete - differences found. Run `baton sync` to update.");
             process.exit(1);
         } catch (error) {
             p.log.error(
