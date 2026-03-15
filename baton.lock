@@ -1,72 +1,93 @@
-baton_version: 0.14.1
-locked_at: 2026-03-03T10:31:53.379Z
+baton_version: 1.0.0
+locked_at: 2026-03-15T09:28:52.303Z
 packages:
   base:
     source: github:baton-dx/baton-dx-source/profiles/base
     resolved: github:baton-dx/baton-dx-source/profiles/base
-    version: 0.1.0
+    version: 1.0.0
     sha: unknown
     integrity:
       memory/CLAUDE.md:
-        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
       memory/AGENTS.md:
-        hash: 0868c8bba992a03e1c2eba70d6418261ae9e738bf74281d747b2cde0cddb2881
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
       memory/GEMINI.md:
-        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
-      files/.claude/settings.json:
-        hash: 045e9261aafd6b18151327785f20998d5c343d59813a8a0f12e93e0f1813018b
-        type: files
+      memory/copilot-instructions.md:
+        hash: 3ea8e06e3d1022fb26ed1d8b41e8961d08458c3a7322de793dffd70b5b2a3c4e
+        type: memory
+      rules/baton-terminology:
+        hash: 87ff52c24278b6ffaa83c128bbd9fdc76c99271d7b44f858df2c2cf393bee093
+        type: rules
+      rules/yaml-conventions:
+        hash: 3b03375e057f179d9bbd69db740e549906be1d9d3955e55bbc9c072deb3bad8e
+        type: rules
   maintainer:
     source: github:baton-dx/baton-dx-source/profiles/maintainer
     resolved: github:baton-dx/baton-dx-source/profiles/maintainer
-    version: 0.1.0
-    sha: 8d278d2a3a39d1a583405064cff021772d5419d4
+    version: 1.0.0
+    sha: 7aefd90372047b45d374c738153b97840f12ed74
     integrity:
       skills/add-adapter:
-        hash: 1b40ee3de7c8382516c99fc024e1786f830230ea9991928e3248d5fbb7f9bb01
+        hash: 2fe7e305a0f5f9393857c824e64b78c3f7aa235d0d73e6706fe1b8362279bb3d
         type: skills
       skills/add-ide-platform:
-        hash: 822ea42e4b85ee091e41925eb52a51776ca55612c815ff9580e8066ff885100f
-        type: skills
-      skills/review-code:
-        hash: 2f34495567cb7cdbb1ff078bec3600fee06e647d0da369fb065bddbdcbc8b70e
-        type: skills
-      skills/find-dead-code:
-        hash: 3198f585b3bbcdbd346107469084ded62f8fea695147b385dc556b9b72817773
-        type: skills
-      skills/find-redundancy:
-        hash: e58487d7dc42ec27e9c3dde24dacdc3426f9d4bac8c60890906bb8dc6e193569
-        type: skills
-      skills/create-pr:
-        hash: 069d0e8c2933cdb693c46357f13df47b410e708b561ed271c230e75863b86931
-        type: skills
-      skills/run-release:
-        hash: 46549ced3b877755a11afefcc9b4ca69bfde40c8400363c2dc7f7c17ca592d28
-        type: skills
-      skills/run-review:
-        hash: a8b20739fde01d16a8b4f2d0511c008b86d0286eeb69b311f4499d7dde8be936
+        hash: 40e725a23227f68fdad80aa22ff9b10d220ad78d726eb30f5d5a636fc22f0b31
         type: skills
       skills/build:
-        hash: 44575cf5b28512d75644bf54a517dcef304ff809fd511747621b4d64f19aac66
+        hash: c68f3b0d344fe2a8bf66600b2d8ab87d66c4b7d3010629940c3bbdf9dd19e665
+        type: skills
+      skills/create-pr:
+        hash: 3ae0cfd76cf2d8c78c80e463805c96b388567db9e52c7cc61d96441072022827
+        type: skills
+      skills/find-dead-code:
+        hash: 4a5321f4758357c6700a8ca72a785c47539615a203d7214a657bc40947eb0ac1
+        type: skills
+      skills/find-redundancy:
+        hash: c7becf015c768deb9bed52bd70f8e8427c234974417605c8286737006f251fa1
         type: skills
       skills/quality:
-        hash: acef2c15bcd349db900dffece73e1256e881c4416fc1f2d3a494640183490d9a
+        hash: e74d2e96e24724bd1331a6cb6739be3f2f749b0cb4f2018ef68cf2dddeed1825
+        type: skills
+      skills/review-code:
+        hash: 50bf25f9f6bab0c35882ef8b870eca0600aedf3c8520dbbceea5da8d1125f12b
+        type: skills
+      skills/run-release:
+        hash: 322a7dbb55bf3addbda3687d876a9fe1be3fd9aee74ee6d191a8dd92405c560d
+        type: skills
+      skills/run-review:
+        hash: b8465f48640e93c66d380ba3c8ae5bb3a2c25d3c4d72213461f61496a36f6410
         type: skills
       skills/verify:
-        hash: a12dd3a7fd3203a452eb34d91a9be20569d5e337a3384347068895c07f3e0c5a
+        hash: 99868e2100040351c70c3752db50cf3dcda4a5aa3d5ebfbe6ef9a789016c3f90
         type: skills
       memory/CLAUDE.md:
-        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
       memory/AGENTS.md:
-        hash: 0868c8bba992a03e1c2eba70d6418261ae9e738bf74281d747b2cde0cddb2881
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
       memory/GEMINI.md:
-        hash: 6abe054a84023a954dd33abfd179ef48fa39f1a750f6b1b2eb8cbaf320be13b6
+        hash: 5d027de119b1d1b75968d0fe6c54d57416c533756161e34afe1391b9a8a09cb5
         type: memory
-      files/biome.json:
-        hash: 1e4f7a3494fcfdc4c8bb66bd27e9461102fc798ae2d99736d952b710776951c4
-        type: files
+      memory/copilot-instructions.md:
+        hash: 3ea8e06e3d1022fb26ed1d8b41e8961d08458c3a7322de793dffd70b5b2a3c4e
+        type: memory
+      rules/api-conventions:
+        hash: eeaa500974591c8aa625c44076c8b1c457598c1bd3538014526f535bd9a868ba
+        type: rules
+      rules/coding-style:
+        hash: 8d296b927cc2b23eb17ee7d651340edf5559b33f934d1de033a393ba0952843e
+        type: rules
+      rules/general:
+        hash: 0f5d105dea56cf64a1ce3d1cb84068d53512752889e85f1091fb29cb4e4d326a
+        type: rules
+      agents/code-quality-auditor:
+        hash: 3549461c319c9f6d65537faf2560d0e1d62e5473b9f3b0272ea4cabe8eae4cc1
+        type: agents
+      agents/consolidation-scout:
+        hash: bc5bef934e8aeb7ac40b703f95400b1fa06d4009f26b790b9863ef10a518b7ff
+        type: agents
