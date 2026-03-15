@@ -73,7 +73,7 @@
   **Expression-based conditions:**
 
   ```markdown
-  <!-- baton:if expr="tool('claude-code') AND scope('project')" -->
+  <!-- baton:if condition="tool=='claude-code' AND scope=='project'" -->
   ```
 
   Supported operators: `AND`, `OR`, `NOT`, parentheses. Condition types: `tool`, `ide`, `scope`, `type`, `file`, `has`, `variable`
