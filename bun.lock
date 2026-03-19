@@ -5,14 +5,14 @@
     "": {
       "name": "baton-dx-monorepo",
       "devDependencies": {
-        "@biomejs/biome": "^2.4.7",
+        "@biomejs/biome": "^2.4.8",
         "@changesets/changelog-github": "^0.6.0",
         "@changesets/cli": "^2.30.0",
         "@types/node": "^25.5.0",
         "@vitest/coverage-v8": "^4.1.0",
         "husky": "^9.1.7",
-        "knip": "^5.86.0",
-        "tsdown": "^0.21.2",
+        "knip": "^5.88.0",
+        "tsdown": "^0.21.4",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3",
         "vitest": "^4.1.0",
@@ -20,11 +20,11 @@
     },
     "packages/ai-tool-paths": {
       "name": "@baton-dx/ai-tool-paths",
-      "version": "1.0.1",
+      "version": "1.0.2",
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
@@ -44,7 +44,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
@@ -519,7 +519,7 @@
 
     "jsonfile": ["jsonfile@4.0.0", "", { "optionalDependencies": { "graceful-fs": "^4.1.6" } }, "sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg=="],
 
-    "knip": ["knip@5.88.0", "", { "dependencies": { "@nodelib/fs.walk": "^1.2.3", "fast-glob": "^3.3.3", "formatly": "^0.3.0", "jiti": "^2.6.0", "minimist": "^1.2.8", "oxc-resolver": "^11.19.1", "picocolors": "^1.1.1", "picomatch": "^4.0.1", "smol-toml": "^1.5.2", "strip-json-comments": "5.0.3", "unbash": "^2.2.0", "yaml": "^2.8.2", "zod": "^4.1.11" }, "peerDependencies": { "@types/node": ">=18", "typescript": ">=5.0.4 <7" }, "bin": { "knip": "bin/knip.js", "knip-bun": "bin/knip-bun.js" } }, "sha512-FZjQYLYwUbVrtC3C1cKyEMMqR4K2ZlkQLZszJgF5cfDo4GUSBZAdAV0P3eyzZrkssRoghLJQA9HTQUW7G+Tc8Q=="],
+    "knip": ["knip@5.88.1", "", { "dependencies": { "@nodelib/fs.walk": "^1.2.3", "fast-glob": "^3.3.3", "formatly": "^0.3.0", "jiti": "^2.6.0", "minimist": "^1.2.8", "oxc-resolver": "^11.19.1", "picocolors": "^1.1.1", "picomatch": "^4.0.1", "smol-toml": "^1.5.2", "strip-json-comments": "5.0.3", "unbash": "^2.2.0", "yaml": "^2.8.2", "zod": "^4.1.11" }, "peerDependencies": { "@types/node": ">=18", "typescript": ">=5.0.4 <7" }, "bin": { "knip": "bin/knip.js", "knip-bun": "bin/knip-bun.js" } }, "sha512-tpy5o7zu1MjawVkLPuahymVJekYY3kYjvzcoInhIchgePxTlo+api90tBv2KfhAIe5uXh+mez1tAfmbv8/TiZg=="],
 
     "lightningcss": ["lightningcss@1.30.2", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-android-arm64": "1.30.2", "lightningcss-darwin-arm64": "1.30.2", "lightningcss-darwin-x64": "1.30.2", "lightningcss-freebsd-x64": "1.30.2", "lightningcss-linux-arm-gnueabihf": "1.30.2", "lightningcss-linux-arm64-gnu": "1.30.2", "lightningcss-linux-arm64-musl": "1.30.2", "lightningcss-linux-x64-gnu": "1.30.2", "lightningcss-linux-x64-musl": "1.30.2", "lightningcss-win32-arm64-msvc": "1.30.2", "lightningcss-win32-x64-msvc": "1.30.2" } }, "sha512-utfs7Pr5uJyyvDETitgsaqSyjCb2qNRAtuqUeWIAKztsOYdcACf2KtARYXg2pSvhkt+9NfoaNY7fxjl6nuMjIQ=="],
 
