@@ -94,10 +94,58 @@ async function isSparseCheckout(git: SimpleGit): Promise<boolean> {
     return result.trim() === "true";
 }
 
+/** Returns true if ref looks like a commit SHA (7-40 hex characters). */
+function isShaRef(ref: string | undefined): boolean {
+    return !!ref && /^[0-9a-f]{7,40}$/i.test(ref);
+}
+
 /**
- * Clones a Git repository with shallow clone and optional sparse checkout
+ * Fetches the target ref and resets to it.
+ * Handles both branch/tag refs (`origin/<ref>`) and SHA refs (`fetch <sha>` + `reset FETCH_HEAD`).
+ */
+async function fetchAndReset(git: SimpleGit, ref: string | undefined): Promise<void> {
+    if (isShaRef(ref)) {
+        await git.fetch(["--depth=1", "origin", ref as string]);
+        await git.raw(["reset", "--hard", "FETCH_HEAD"]);
+    } else {
+        await git.fetch(["--depth=1", "origin"]);
+        await git.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
+    }
+}
+
+/**
+ * Per-cachePath lock to serialize concurrent clone operations.
+ * Prevents race conditions when multiple profiles share the same source repo.
+ */
+const cacheLocks = new Map<string, Promise<ClonedSource>>();
+
+/**
+ * Clones a Git repository with shallow clone and optional sparse checkout.
+ * Serializes concurrent operations targeting the same cache path.
  */
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
+    const cachePath = getCachePath(options.url, options.ref);
+
+    // Wait for any in-flight operation on this cache path to finish before proceeding.
+    // We don't reuse the result because each caller may need a different subpath.
+    const inflight = cacheLocks.get(cachePath);
+    if (inflight) {
+        await inflight.catch(() => {});
+    }
+
+    const promise = cloneGitSourceImpl(options, cachePath);
+    cacheLocks.set(cachePath, promise);
+    try {
+        return await promise;
+    } finally {
+        // Only delete if this is still our promise (no newer operation replaced it)
+        if (cacheLocks.get(cachePath) === promise) {
+            cacheLocks.delete(cachePath);
+        }
+    }
+}
+
+async function cloneGitSourceImpl(options: CloneOptions, cachePath: string): Promise<ClonedSource> {
     const { url, ref, subpath, useCache = true, maxCacheAgeMs, interactive, authToken } = options;
     const safeUrl = redactUrl(url);
     const baseFactory = interactive ? createInteractiveGit : createGit;
@@ -107,7 +155,6 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     };
 
     // Check cache first
-    const cachePath = getCachePath(url, ref);
     if (useCache && (await isCacheValid(cachePath))) {
         const git = makeGit(cachePath);
         try {
@@ -117,12 +164,11 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
             if (stale) {
                 // Stale cache: aggressive refresh with fetch + reset
                 try {
-                    await git.fetch(["--depth=1", "origin"]);
                     // If no subpath requested but cache is sparse, restore full checkout
                     if (!subpath && (await isSparseCheckout(git))) {
                         await git.raw(["sparse-checkout", "disable"]);
                     }
-                    await git.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
+                    await fetchAndReset(git, ref);
                 } catch {
                     // Fetch failed (network issue), fall back to pull
                     try {
@@ -175,12 +221,11 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     if (await isCacheValid(cachePath)) {
         const cachedGit = makeGit(cachePath);
         try {
-            await cachedGit.fetch(["--depth=1", "origin"]);
             // If no subpath requested but cache is sparse, restore full checkout
             if (!subpath && (await isSparseCheckout(cachedGit))) {
                 await cachedGit.raw(["sparse-checkout", "disable"]);
             }
-            await cachedGit.raw(["reset", "--hard", `origin/${ref || "HEAD"}`]);
+            await fetchAndReset(cachedGit, ref);
             if (subpath) {
                 await expandSparseCheckout(cachePath, [subpath]);
             }
@@ -225,10 +270,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     try {
         // Clone with shallow depth
         const cloneOptions: string[] = ["--depth=1"];
-        const isSha = ref && /^[0-9a-f]{7,40}$/i.test(ref);
+        const sha_ref = isShaRef(ref);
 
         // If ref is a branch/tag name (not a SHA), pass it to --branch
-        if (ref && !isSha && ref !== "main" && ref !== "master") {
+        if (ref && !sha_ref && ref !== "main" && ref !== "master") {
             cloneOptions.push("--branch", ref);
         }
 
@@ -241,8 +286,8 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         const repoGit = makeGit(cachePath);
 
         // For SHA refs: fetch the specific commit then checkout
-        if (isSha) {
-            await repoGit.fetch(["--depth=1", "origin", ref]);
+        if (sha_ref) {
+            await repoGit.fetch(["--depth=1", "origin", ref as string]);
             await repoGit.checkout("FETCH_HEAD");
         }
 
@@ -250,10 +295,10 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
         if (subpath) {
             await repoGit.raw(["sparse-checkout", "init", "--cone"]);
             await repoGit.raw(["sparse-checkout", "set", subpath]);
-            if (!isSha) {
+            if (!sha_ref) {
                 await repoGit.checkout(ref || "HEAD");
             }
-        } else if (ref && !isSha && ref !== "main" && ref !== "master") {
+        } else if (ref && !sha_ref && ref !== "main" && ref !== "master") {
             // Checkout specific ref if needed (branch/tag, not SHA or sparse)
             await repoGit.checkout(ref);
         }
