@@ -1,5 +1,12 @@
 # @baton-dx/core
 
+## 1.0.4
+
+### Patch Changes
+
+- c5c3652: Fix ENOTEMPTY race condition in git cache cleanup on macOS
+  - @baton-dx/ai-tool-paths@1.0.4
+
 ## 1.0.3
 
 ### Patch Changes
