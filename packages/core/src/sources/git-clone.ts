@@ -244,15 +244,12 @@ async function cloneGitSourceImpl(options: CloneOptions, cachePath: string): Pro
 
     // Clean up old cache directory before cloning
     try {
-        await rm(cachePath, { recursive: true, force: true });
+        await rmRobust(cachePath);
     } catch (error) {
-        // Ignore errors if directory doesn't exist
-        if (error instanceof Error && "code" in error && error.code !== "ENOENT") {
-            throw new GitSourceError(
-                `Failed to clean up cache directory: ${error instanceof Error ? error.message : String(error)}`,
-                error,
-            );
-        }
+        throw new GitSourceError(
+            `Failed to clean up cache directory: ${error instanceof Error ? error.message : String(error)}`,
+            error,
+        );
     }
 
     // Ensure cache directory exists
@@ -321,6 +318,31 @@ async function cloneGitSourceImpl(options: CloneOptions, cachePath: string): Pro
             `Failed to clone Git repository from ${safeUrl}: ${error instanceof Error ? error.message : String(error)}`,
             error,
         );
+    }
+}
+
+/**
+ * Removes a directory tree with retry logic for macOS ENOTEMPTY race condition.
+ * Node's fs.rm can fail when the kernel hasn't finished unlinking children
+ * before rmdir is called on the parent.
+ */
+async function rmRobust(target: string, retries = 3, delayMs = 100): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await rm(target, { recursive: true, force: true });
+            return;
+        } catch (error) {
+            const code =
+                error instanceof Error && "code" in error
+                    ? (error as NodeJS.ErrnoException).code
+                    : undefined;
+            if (code === "ENOENT") return; // Already gone
+            if (code === "ENOTEMPTY" && attempt < retries) {
+                await new Promise((r) => setTimeout(r, delayMs));
+                continue;
+            }
+            throw error;
+        }
     }
 }
 
