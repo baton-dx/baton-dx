@@ -319,21 +319,31 @@ export const applyCommand = defineCommand({
             }
             const mergedCommandCount = commandMap.size;
 
-            // Files and IDE configs are no longer declared in manifests.
-            // These empty maps keep the placement phase structurally intact.
             const fileMap = new Map<
                 string,
                 { source: string; target: string; profileName: string }
             >();
+            for (const f of assembled.files) {
+                fileMap.set(f.target, f);
+            }
             const mergedFileCount = fileMap.size;
+
             const ideMap = new Map<
                 string,
                 { ideKey: string; fileName: string; targetDir: string; profileName: string }
             >();
+            for (const ide of assembled.ide) {
+                ideMap.set(`${ide.targetDir}/${ide.fileName}`, ide);
+            }
             const mergedIdeCount = ideMap.size;
 
+            const extras: string[] = [];
+            if (mergedFileCount > 0) extras.push(`${mergedFileCount} files`);
+            if (mergedIdeCount > 0) extras.push(`${mergedIdeCount} IDE configs`);
+            const extraSuffix = extras.length > 0 ? `, ${extras.join(", ")}` : "";
+
             spinner.stop(
-                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands`,
+                `Merged: ${mergedSkills.length} skills, ${mergedRules.length} rules, ${mergedAgents.length} agents, ${mergedMemory.length} memory files, ${mergedCommandCount} commands${extraSuffix}`,
             );
 
             // Step 3: Determine which AI tools and IDE platforms to sync (intersection-based)

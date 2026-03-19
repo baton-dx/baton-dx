@@ -202,7 +202,16 @@ export const previewCommand = defineCommand({
             const mergedCommands = assembled.commands;
             const sourceFilePaths = assembled.sourceFilePaths;
 
-            spinner.stop("Configurations merged");
+            const parts = [
+                `${mergedSkills.length} skills`,
+                `${mergedRules.length} rules`,
+                `${mergedAgents.length} agents`,
+                `${mergedMemory.length} memory`,
+                `${mergedCommands.length} commands`,
+            ];
+            if (assembled.files.length > 0) parts.push(`${assembled.files.length} files`);
+            if (assembled.ide.length > 0) parts.push(`${assembled.ide.length} IDE configs`);
+            spinner.stop(`Configurations merged (${parts.join(", ")})`);
 
             // Step 3: Compute tool intersection, find matching adapters
             spinner.start("Computing tool intersection...");
