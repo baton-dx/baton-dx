@@ -1,5 +1,12 @@
 # @baton-dx/core
 
+## 1.0.5
+
+### Patch Changes
+
+- b495d60: Fix hard failure on transient ENOENT during cached repo read by falling through to re-clone instead of throwing
+  - @baton-dx/ai-tool-paths@1.0.5
+
 ## 1.0.4
 
 ### Patch Changes
