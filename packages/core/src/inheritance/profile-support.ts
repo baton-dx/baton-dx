@@ -26,8 +26,7 @@ export interface ResolvedProfileSupport {
  * AI tools resolution (in order):
  *   1. profile `ai.tools` — explicit list or `["*"]` wildcard
  *   2. source `ai.tools`  — fallback, explicit list or `["*"]` wildcard
- *   3. implicit wildcard   — all tools, when profile has AI content but no tools declared
- *   4. empty array         — no AI content anywhere
+ *   3. implicit wildcard   — all tools (content is auto-discovered from filesystem)
  *
  * IDE platforms resolution:
  * - If the profile defines an `ide` section (keys = platform names), use those keys
@@ -57,16 +56,16 @@ export function resolveProfileSupport(
  * Resolve AI tools: prefer profile's ai.tools, fall back to source's ai.tools.
  *
  * Both profile and source support `["*"]` as an explicit wildcard that expands
- * to all registered AI tool keys. Omitting `ai.tools` entirely is an implicit
- * wildcard when the profile has AI content (skills, rules, agents, memory, mcp,
- * or commands). This prevents profiles from being silently filtered out of the
- * intersection just because the author omitted the optional `ai.tools` field.
+ * to all registered AI tool keys.
  *
  * Resolution order:
  *   1. profile ai.tools (explicit list or `["*"]`)
  *   2. source ai.tools  (fallback, explicit list or `["*"]`)
- *   3. implicit wildcard (all tools) — when profile has AI content
- *   4. empty array       — no AI content anywhere
+ *   3. implicit wildcard — all tools
+ *
+ * In Baton 1.0, content is auto-discovered from the filesystem, so the
+ * absence of `ai.tools` means "no restriction" rather than "no support".
+ * To explicitly opt out of all AI tools, set `ai.tools: []`.
  */
 function resolveAiTools(
     profileManifest: ProfileManifest,
@@ -82,12 +81,8 @@ function resolveAiTools(
         return expandWildcard(sourceManifest.ai.tools);
     }
 
-    // If profile has AI content but no explicit tools list, support all tools
-    if (hasAiContent(profileManifest)) {
-        return allToolKeys();
-    }
-
-    return [];
+    // No explicit ai.tools anywhere → support all tools (implicit wildcard).
+    return allToolKeys();
 }
 
 /**
@@ -105,15 +100,6 @@ function expandWildcard(tools: string[]): string[] {
  */
 function allToolKeys(): string[] {
     return getAllAIToolAdapters().map((a) => a.key);
-}
-
-/**
- * Check whether the profile manifest has an AI section defined.
- * Content is auto-discovered from the filesystem, so the presence of
- * an `ai` section (even if empty) indicates the profile targets AI tools.
- */
-function hasAiContent(profileManifest: ProfileManifest): boolean {
-    return profileManifest.ai !== undefined;
 }
 
 /**
