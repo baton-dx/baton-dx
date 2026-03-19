@@ -210,10 +210,11 @@ async function cloneGitSourceImpl(options: CloneOptions, cachePath: string): Pro
                 sparseCheckout: !!subpath,
             };
         } catch (error) {
-            throw new GitSourceError(
-                `Failed to read cached repository: ${error instanceof Error ? error.message : String(error)}`,
-                error,
-            );
+            if (isAuthError(error)) {
+                throw new GitAuthenticationError(`Authentication required for ${safeUrl}`, error);
+            }
+            // Cache read failed (corrupted cache, missing cwd, transient error) — fall through to re-clone
+            console.warn(`[baton] Cached repository unusable for ${safeUrl}, will re-clone`);
         }
     }
 

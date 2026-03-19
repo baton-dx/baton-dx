@@ -558,6 +558,83 @@ describe("cache cleanup retry (rmRobust)", () => {
     });
 });
 
+describe("cache-hit fallthrough on transient error", () => {
+    const mockRm = vi.mocked(rm);
+    let mockCheckIsRepo: ReturnType<typeof vi.fn>;
+    let mockPull: ReturnType<typeof vi.fn>;
+    let mockRevparse: ReturnType<typeof vi.fn>;
+    let mockClone: ReturnType<typeof vi.fn>;
+    let mockRaw: ReturnType<typeof vi.fn>;
+    let mockCheckout: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        mockCheckIsRepo = vi
+            .fn()
+            .mockResolvedValueOnce(true) // 1st isCacheValid → cache hit
+            .mockRejectedValueOnce(new Error("not a git repo")); // 2nd isCacheValid → cache gone
+        mockPull = vi.fn().mockResolvedValue(undefined);
+        mockRevparse = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("spawn git ENOENT")) // cache-hit revparse fails
+            .mockResolvedValue("abc123def456abc123def456abc123def456abc123"); // fresh clone revparse
+        mockClone = vi.fn().mockResolvedValue(undefined);
+        mockRaw = vi.fn().mockResolvedValue("");
+        mockCheckout = vi.fn().mockResolvedValue(undefined);
+
+        const mockGit = {
+            checkIsRepo: mockCheckIsRepo,
+            pull: mockPull,
+            revparse: mockRevparse,
+            clone: mockClone,
+            raw: mockRaw,
+            checkout: mockCheckout,
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.isAuthError).mockReturnValue(false);
+        mockRm.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("falls through to fresh clone when cache-hit git operation fails with ENOENT", async () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+        const result = await cloneGitSource({
+            url: "https://example.com/enoent-cache.git",
+            useCache: true,
+        });
+
+        // Should warn about unusable cache
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Cached repository unusable"));
+        // Should recover via fresh clone
+        expect(result.fromCache).toBe(false);
+        expect(result.sha).toBeDefined();
+        expect(mockClone).toHaveBeenCalled();
+
+        warnSpy.mockRestore();
+    });
+
+    it("still throws GitAuthenticationError on auth failure in cache-hit path", async () => {
+        mockCheckIsRepo.mockReset();
+        mockCheckIsRepo.mockResolvedValueOnce(true);
+
+        mockRevparse.mockReset();
+        mockRevparse.mockRejectedValueOnce(new Error("terminal prompts disabled"));
+        vi.mocked(gitUtils.isAuthError).mockReturnValue(true);
+
+        await expect(
+            cloneGitSource({
+                url: "https://example.com/private-repo.git",
+                useCache: true,
+            }),
+        ).rejects.toThrow(GitAuthenticationError);
+    });
+});
+
 describe("concurrent clone serialization", () => {
     afterEach(() => {
         vi.clearAllMocks();
