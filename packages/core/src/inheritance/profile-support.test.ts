@@ -30,6 +30,8 @@ function makeSource(overrides: Partial<SourceManifest> = {}): SourceManifest {
 }
 
 describe("resolveProfileSupport", () => {
+    const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
+
     describe("AI tools inheritance", () => {
         it("returns profile ai.tools when profile defines them", () => {
             const profile = makeProfile({ ai: { tools: ["cursor", "claude-code"] } });
@@ -67,22 +69,23 @@ describe("resolveProfileSupport", () => {
             expect(result.aiTools).toEqual([]);
         });
 
-        it("returns empty array when neither profile nor source define tools", () => {
+        it("returns all tools when neither profile nor source define ai.tools", () => {
             const profile = makeProfile();
             const source = makeSource();
 
             const result = resolveProfileSupport(profile, source);
 
-            expect(result.aiTools).toEqual([]);
+            // Implicit wildcard: content is auto-discovered from filesystem
+            expect(result.aiTools).toEqual(allToolKeys);
         });
 
-        it("returns empty array when source has ai section but no tools", () => {
+        it("returns all tools when source has ai section but no tools", () => {
             const profile = makeProfile();
             const source = makeSource({ ai: {} });
 
             const result = resolveProfileSupport(profile, source);
 
-            expect(result.aiTools).toEqual([]);
+            expect(result.aiTools).toEqual(allToolKeys);
         });
 
         it("allows profile to have a subset of source tools", () => {
@@ -98,8 +101,6 @@ describe("resolveProfileSupport", () => {
     });
 
     describe("AI tools wildcard inference", () => {
-        const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
-
         it("returns all tool keys when profile has ai section but no ai.tools", () => {
             // Having an `ai` section (even empty) indicates AI content
             const profile = makeProfile({ ai: {} });
@@ -132,8 +133,6 @@ describe("resolveProfileSupport", () => {
     });
 
     describe('explicit "*" wildcard in ai.tools', () => {
-        const allToolKeys = getAllAIToolAdapters().map((a) => a.key);
-
         it('expands profile ai.tools: ["*"] to all tool keys', () => {
             const profile = makeProfile({ ai: { tools: ["*"] } });
             const source = makeSource();
@@ -231,13 +230,15 @@ describe("resolveProfileSupport", () => {
             expect(result.idePlatforms).toEqual(["vscode", "jetbrains"]);
         });
 
-        it("returns empty arrays when both profile and source are minimal", () => {
+        it("returns all AI tools and empty IDE platforms when both profile and source are minimal", () => {
             const profile = makeProfile();
             const source = makeSource();
 
             const result: ResolvedProfileSupport = resolveProfileSupport(profile, source);
 
-            expect(result.aiTools).toEqual([]);
+            // AI tools: implicit wildcard (content is auto-discovered from filesystem)
+            expect(result.aiTools).toEqual(allToolKeys);
+            // IDE platforms: empty (no source-level declaration)
             expect(result.idePlatforms).toEqual([]);
         });
     });
