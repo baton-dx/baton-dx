@@ -11,6 +11,7 @@ import * as gitUtils from "./git-utils.js";
 vi.mock("node:fs/promises", async (importOriginal) => ({
     ...(await importOriginal<typeof import("node:fs/promises")>()),
     stat: vi.fn(),
+    rm: vi.fn(),
 }));
 
 const CACHE_DIR = join(homedir(), ".baton", "cache");
@@ -476,6 +477,84 @@ describe("cache staleness", () => {
         expect(mockFetch).toHaveBeenCalledWith(["--depth=1", "origin", sha]);
         // Should reset to FETCH_HEAD, not origin/<sha>
         expect(mockRaw).toHaveBeenCalledWith(["reset", "--hard", "FETCH_HEAD"]);
+    });
+});
+
+describe("cache cleanup retry (rmRobust)", () => {
+    const mockRm = vi.mocked(rm);
+
+    let mockCheckIsRepo: ReturnType<typeof vi.fn>;
+    let mockClone: ReturnType<typeof vi.fn>;
+    let mockRevparse: ReturnType<typeof vi.fn>;
+    let mockRaw: ReturnType<typeof vi.fn>;
+    let mockCheckout: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        // Both isCacheValid checks must fail so we reach the rm + fresh clone path
+        mockCheckIsRepo = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("not a git repo"))
+            .mockRejectedValueOnce(new Error("not a git repo"));
+        mockClone = vi.fn().mockResolvedValue(undefined);
+        mockRevparse = vi.fn().mockResolvedValue("abc123def456abc123def456abc123def456abc123");
+        mockRaw = vi.fn().mockResolvedValue("");
+        mockCheckout = vi.fn().mockResolvedValue(undefined);
+
+        const mockGit = {
+            checkIsRepo: mockCheckIsRepo,
+            clone: mockClone,
+            revparse: mockRevparse,
+            raw: mockRaw,
+            checkout: mockCheckout,
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("retries rm on ENOTEMPTY and succeeds", async () => {
+        const enotempty = Object.assign(new Error("ENOTEMPTY"), { code: "ENOTEMPTY" });
+        mockRm.mockRejectedValueOnce(enotempty).mockResolvedValueOnce(undefined);
+
+        const result = await cloneGitSource({
+            url: "https://example.com/enotempty-retry.git",
+            useCache: false,
+        });
+
+        expect(mockRm).toHaveBeenCalledTimes(2);
+        expect(result.sha).toBeDefined();
+    });
+
+    it("throws GitSourceError when rm exhausts retries", async () => {
+        const enotempty = Object.assign(new Error("ENOTEMPTY"), { code: "ENOTEMPTY" });
+        mockRm
+            .mockRejectedValueOnce(enotempty)
+            .mockRejectedValueOnce(enotempty)
+            .mockRejectedValueOnce(enotempty);
+
+        await expect(
+            cloneGitSource({
+                url: "https://example.com/enotempty-fail.git",
+                useCache: false,
+            }),
+        ).rejects.toThrow(GitSourceError);
+    });
+
+    it("treats ENOENT as success (directory already gone)", async () => {
+        const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+        mockRm.mockRejectedValueOnce(enoent);
+
+        const result = await cloneGitSource({
+            url: "https://example.com/enoent-ok.git",
+            useCache: false,
+        });
+
+        expect(mockRm).toHaveBeenCalledTimes(1);
+        expect(result.sha).toBeDefined();
     });
 });
 
