@@ -1,4 +1,5 @@
 import type { Scope } from "@baton-dx/ai-tool-paths";
+import { getIdePlatformTargetDir } from "../ide/platform-registry.js";
 import type { AgentEntry } from "../merge/agents.js";
 import type { MemoryContribution, MemoryEntry } from "../merge/memory.js";
 import type { RuleEntry } from "../merge/rules.js";
@@ -36,6 +37,8 @@ export interface AssembledContent {
     skills: MergedSkillItem[];
     memory: MemoryEntry[];
     commands: CommandEntry[];
+    files: FileEntry[];
+    ide: IdeEntry[];
     warnings: string[];
     /**
      * Maps canonical keys ("rules/<name>", "agents/<name>") to absolute source file paths.
@@ -54,6 +57,26 @@ export interface CommandEntry {
     name: string;
     profileName: string;
     scope: Scope;
+}
+
+/** A file entry from the profile's files/ directory. */
+export interface FileEntry {
+    /** Relative path within files/ dir (same as target) */
+    source: string;
+    /** Target path relative to project root */
+    target: string;
+    profileName: string;
+}
+
+/** An IDE config file entry from the profile's ide/ directory. */
+export interface IdeEntry {
+    /** IDE platform key (e.g. "vscode") */
+    ideKey: string;
+    /** Relative path within the platform directory */
+    fileName: string;
+    /** Project target dir from registry (e.g. ".vscode") */
+    targetDir: string;
+    profileName: string;
 }
 
 const VALID_MERGE_STRATEGIES: readonly string[] = ["concat", "replace"];
@@ -100,6 +123,49 @@ function assembleMemory(
     }
 }
 
+/** Merge a single profile's files into the accumulator map. */
+function assembleFiles(
+    fileMap: Map<string, FileEntry>,
+    sourceFilePaths: Map<string, string>,
+    discovery: ProfileDiscoveryResult,
+    meta: DiscoveryProfileMeta,
+): void {
+    for (const file of discovery.files) {
+        fileMap.set(file.targetRelative, {
+            source: file.targetRelative,
+            target: file.targetRelative,
+            profileName: meta.name,
+        });
+        sourceFilePaths.set(`files/${file.targetRelative}`, file.sourcePath);
+    }
+}
+
+/** Merge a single profile's IDE configs into the accumulator map. */
+function assembleIde(
+    ideMap: Map<string, IdeEntry>,
+    sourceFilePaths: Map<string, string>,
+    warnings: string[],
+    discovery: ProfileDiscoveryResult,
+    meta: DiscoveryProfileMeta,
+): void {
+    for (const ide of discovery.ide) {
+        const targetDir = getIdePlatformTargetDir(ide.platform);
+        if (!targetDir) {
+            warnings.push(
+                `Unknown IDE platform "${ide.platform}" in profile "${meta.name}" — skipping ${ide.targetRelative}`,
+            );
+            continue;
+        }
+        ideMap.set(`${targetDir}/${ide.targetRelative}`, {
+            ideKey: ide.platform,
+            fileName: ide.targetRelative,
+            targetDir,
+            profileName: meta.name,
+        });
+        sourceFilePaths.set(`ide/${ide.platform}/${ide.targetRelative}`, ide.sourcePath);
+    }
+}
+
 /**
  * Assemble content from filesystem discovery results into merge-compatible structures.
  *
@@ -119,6 +185,8 @@ export function assembleContentFromDiscovery(inputs: DiscoveryInput[]): Assemble
     const skillMap = new Map<string, MergedSkillItem>();
     const memoryMap = new Map<string, MemoryEntry>();
     const commandMap = new Map<string, CommandEntry>();
+    const fileMap = new Map<string, FileEntry>();
+    const ideMap = new Map<string, IdeEntry>();
     const sourceFilePaths = new Map<string, string>();
     const warnings: string[] = [];
 
@@ -164,6 +232,9 @@ export function assembleContentFromDiscovery(inputs: DiscoveryInput[]): Assemble
             });
             sourceFilePaths.set(`commands/${cmd.name}`, cmd.filePath);
         }
+
+        assembleFiles(fileMap, sourceFilePaths, discovery, meta);
+        assembleIde(ideMap, sourceFilePaths, warnings, discovery, meta);
     }
 
     return {
@@ -172,6 +243,8 @@ export function assembleContentFromDiscovery(inputs: DiscoveryInput[]): Assemble
         skills: Array.from(skillMap.values()),
         memory: Array.from(memoryMap.values()),
         commands: Array.from(commandMap.values()),
+        files: Array.from(fileMap.values()),
+        ide: Array.from(ideMap.values()),
         sourceFilePaths,
         warnings,
     };

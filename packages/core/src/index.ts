@@ -87,6 +87,8 @@ export {
     type DiscoveryInput,
     type DiscoveryProfileMeta,
     discoverProfile,
+    type FileEntry,
+    type IdeEntry,
     type ProfileDiscoveryResult,
 } from "./discovery/index.js";
 // Export all error classes

@@ -212,13 +212,25 @@ Use the `merge` frontmatter key in a sidecar `.baton.yaml` file, or use the defa
 
 ### IDE Settings (`ide/{platform}/**`)
 
-Files under `ide/vscode/` are placed into the project's `.vscode/` directory.
+Files under `ide/{platform}/` are placed into the corresponding IDE configuration directory in the project. The platform key must match one of the registered platforms below.
+
+| Platform key    | Target directory  | IDE                          |
+| --------------- | ----------------- | ---------------------------- |
+| `vscode`        | `.vscode/`        | Visual Studio Code           |
+| `jetbrains`     | `.idea/`          | JetBrains IDEs (IntelliJ, WebStorm, etc.) |
+| `cursor`        | `.cursor/`        | Cursor                       |
+| `windsurf`      | `.windsurf/`      | Windsurf                     |
+| `antigravity`   | `.antigravity/`   | Antigravity                  |
+| `zed`           | `.config/zed/`    | Zed                          |
 
 ```
 ide/
-└── vscode/
-    ├── settings.json      # → .vscode/settings.json
-    └── extensions.json    # → .vscode/extensions.json
+├── vscode/
+│   ├── settings.json      # → .vscode/settings.json
+│   └── extensions.json    # → .vscode/extensions.json
+└── jetbrains/
+    └── codeStyles/
+        └── Project.xml    # → .idea/codeStyles/Project.xml
 ```
 
 ---

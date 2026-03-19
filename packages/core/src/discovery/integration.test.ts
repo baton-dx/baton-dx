@@ -448,3 +448,169 @@ describe("sourceFilePaths (discovery path resolution bug fix)", () => {
         );
     });
 });
+
+describe("files and IDE assembly", () => {
+    it("assembles files from a single profile", async () => {
+        const profileDir = await createProfile("files-single", {
+            "baton.profile.yaml": "name: files-single\nversion: 1.0.0\n",
+            "files/.editorconfig": "root = true",
+            "files/biome.json": "{}",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([
+            { discovery, meta: { name: "files-single" } },
+        ]);
+
+        expect(result.files).toHaveLength(2);
+        const targets = result.files.map((f) => f.target).sort();
+        expect(targets).toEqual([".editorconfig", "biome.json"]);
+        expect(result.files[0].profileName).toBe("files-single");
+    });
+
+    it("assembles nested files preserving relative paths", async () => {
+        const profileDir = await createProfile("files-nested", {
+            "baton.profile.yaml": "name: files-nested\nversion: 1.0.0\n",
+            "files/.github/workflows/ci.yml": "name: CI",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([
+            { discovery, meta: { name: "files-nested" } },
+        ]);
+
+        expect(result.files).toHaveLength(1);
+        expect(result.files[0].target).toBe(".github/workflows/ci.yml");
+        expect(result.files[0].source).toBe(".github/workflows/ci.yml");
+    });
+
+    it("deduplicates files across profiles (last wins)", async () => {
+        const baseDir = await createProfile("files-base", {
+            "baton.profile.yaml": "name: files-base\nversion: 1.0.0\n",
+            "files/.editorconfig": "base config",
+            "files/biome.json": "base biome",
+        });
+        const overrideDir = await createProfile("files-override", {
+            "baton.profile.yaml": "name: files-override\nversion: 1.0.0\n",
+            "files/.editorconfig": "override config",
+        });
+
+        const baseDisc = await discoverProfile(baseDir);
+        const overrideDisc = await discoverProfile(overrideDir);
+
+        const result = assembleContentFromDiscovery([
+            { discovery: baseDisc, meta: { name: "files-base" } },
+            { discovery: overrideDisc, meta: { name: "files-override" } },
+        ]);
+
+        expect(result.files).toHaveLength(2);
+        const editorconfig = result.files.find((f) => f.target === ".editorconfig");
+        expect(editorconfig?.profileName).toBe("files-override");
+        const biome = result.files.find((f) => f.target === "biome.json");
+        expect(biome?.profileName).toBe("files-base");
+    });
+
+    it("assembles IDE files from a single profile", async () => {
+        const profileDir = await createProfile("ide-single", {
+            "baton.profile.yaml": "name: ide-single\nversion: 1.0.0\n",
+            "ide/vscode/settings.json": "{}",
+            "ide/vscode/extensions.json": "{}",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([{ discovery, meta: { name: "ide-single" } }]);
+
+        expect(result.ide).toHaveLength(2);
+        const fileNames = result.ide.map((i) => i.fileName).sort();
+        expect(fileNames).toEqual(["extensions.json", "settings.json"]);
+        expect(result.ide[0].ideKey).toBe("vscode");
+        expect(result.ide[0].targetDir).toBe(".vscode");
+    });
+
+    it("resolves IDE target dirs from platform registry", async () => {
+        const profileDir = await createProfile("ide-multi", {
+            "baton.profile.yaml": "name: ide-multi\nversion: 1.0.0\n",
+            "ide/vscode/settings.json": "{}",
+            "ide/jetbrains/codeStyles/Project.xml": "<xml/>",
+            "ide/zed/settings.json": "{}",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([{ discovery, meta: { name: "ide-multi" } }]);
+
+        expect(result.ide).toHaveLength(3);
+        const vscode = result.ide.find((i) => i.ideKey === "vscode");
+        expect(vscode?.targetDir).toBe(".vscode");
+        const jb = result.ide.find((i) => i.ideKey === "jetbrains");
+        expect(jb?.targetDir).toBe(".idea");
+        expect(jb?.fileName).toBe("codeStyles/Project.xml");
+        const zed = result.ide.find((i) => i.ideKey === "zed");
+        expect(zed?.targetDir).toBe(".config/zed");
+    });
+
+    it("warns and skips unknown IDE platforms", async () => {
+        const profileDir = await createProfile("ide-unknown", {
+            "baton.profile.yaml": "name: ide-unknown\nversion: 1.0.0\n",
+            "ide/unknown-editor/config.json": "{}",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([{ discovery, meta: { name: "ide-unknown" } }]);
+
+        expect(result.ide).toHaveLength(0);
+        expect(result.warnings.some((w) => w.includes("Unknown IDE platform"))).toBe(true);
+        expect(result.warnings.some((w) => w.includes("unknown-editor"))).toBe(true);
+    });
+
+    it("deduplicates IDE files across profiles (last wins)", async () => {
+        const baseDir = await createProfile("ide-base", {
+            "baton.profile.yaml": "name: ide-base\nversion: 1.0.0\n",
+            "ide/vscode/settings.json": "base settings",
+        });
+        const overrideDir = await createProfile("ide-override", {
+            "baton.profile.yaml": "name: ide-override\nversion: 1.0.0\n",
+            "ide/vscode/settings.json": "override settings",
+        });
+
+        const baseDisc = await discoverProfile(baseDir);
+        const overrideDisc = await discoverProfile(overrideDir);
+
+        const result = assembleContentFromDiscovery([
+            { discovery: baseDisc, meta: { name: "ide-base" } },
+            { discovery: overrideDisc, meta: { name: "ide-override" } },
+        ]);
+
+        expect(result.ide).toHaveLength(1);
+        expect(result.ide[0].profileName).toBe("ide-override");
+    });
+
+    it("tracks sourceFilePaths for files and IDE entries", async () => {
+        const profileDir = await createProfile("paths-files-ide", {
+            "baton.profile.yaml": "name: paths-test\nversion: 1.0.0\n",
+            "files/.editorconfig": "root = true",
+            "ide/vscode/settings.json": "{}",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([{ discovery, meta: { name: "paths-test" } }]);
+
+        expect(result.sourceFilePaths.get("files/.editorconfig")).toBe(
+            join(profileDir, "files", ".editorconfig"),
+        );
+        expect(result.sourceFilePaths.get("ide/vscode/settings.json")).toBe(
+            join(profileDir, "ide", "vscode", "settings.json"),
+        );
+    });
+
+    it("empty profile has empty files and ide arrays", async () => {
+        const profileDir = await createProfile("empty-files-ide", {
+            "baton.profile.yaml": "name: empty\nversion: 1.0.0\n",
+        });
+
+        const discovery = await discoverProfile(profileDir);
+        const result = assembleContentFromDiscovery([{ discovery, meta: { name: "empty" } }]);
+
+        expect(result.files).toHaveLength(0);
+        expect(result.ide).toHaveLength(0);
+    });
+});
