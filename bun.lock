@@ -11,7 +11,7 @@
         "@types/node": "^25.5.0",
         "@vitest/coverage-v8": "^4.1.0",
         "husky": "^9.1.7",
-        "knip": "^5.88.0",
+        "knip": "^5.88.1",
         "tsdown": "^0.21.4",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3",
@@ -20,11 +20,11 @@
     },
     "packages/ai-tool-paths": {
       "name": "@baton-dx/ai-tool-paths",
-      "version": "1.0.2",
+      "version": "1.0.3",
     },
     "packages/cli": {
       "name": "@baton-dx/cli",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "bin": {
         "baton": "./dist/index.mjs",
         "baton-dx": "./dist/index.mjs",
@@ -44,7 +44,7 @@
     },
     "packages/core": {
       "name": "@baton-dx/core",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "dependencies": {
         "@baton-dx/ai-tool-paths": "workspace:*",
         "handlebars": "^4.7.8",
