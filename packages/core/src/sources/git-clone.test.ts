@@ -457,4 +457,84 @@ describe("cache staleness", () => {
         expect(mockFetch).not.toHaveBeenCalled();
         expect(mockPull).toHaveBeenCalledWith(["--depth=1"]);
     });
+
+    it("fetches specific SHA and resets to FETCH_HEAD when ref is a commit SHA", async () => {
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+        mockStat.mockResolvedValueOnce({
+            mtimeMs: twoHoursAgo,
+        } as Awaited<ReturnType<typeof stat>>);
+
+        const sha = "abc1234567890def1234567890abcdef12345678";
+        await cloneGitSource({
+            url: "https://example.com/sha-ref.git",
+            ref: sha,
+            useCache: true,
+            maxCacheAgeMs: 60 * 60 * 1000,
+        });
+
+        // SHA ref: should fetch the specific commit, not just origin
+        expect(mockFetch).toHaveBeenCalledWith(["--depth=1", "origin", sha]);
+        // Should reset to FETCH_HEAD, not origin/<sha>
+        expect(mockRaw).toHaveBeenCalledWith(["reset", "--hard", "FETCH_HEAD"]);
+    });
+});
+
+describe("concurrent clone serialization", () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("serializes concurrent clones to the same cache path", async () => {
+        let cloneResolve!: () => void;
+        const delayedClone = new Promise<void>((resolve) => {
+            cloneResolve = resolve;
+        });
+
+        const mockClone = vi.fn().mockImplementationOnce(() => delayedClone);
+        const mockFetch = vi.fn().mockResolvedValue(undefined);
+        const mockRaw = vi.fn().mockResolvedValue("");
+        const mockRevparse = vi
+            .fn()
+            .mockResolvedValue("abc123def456abc123def456abc123def456abc123");
+        const mockCheckout = vi.fn().mockResolvedValue(undefined);
+        const mockPull = vi.fn().mockResolvedValue(undefined);
+        const mockCheckIsRepo = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("not a git repo")) // call 1: no cache
+            .mockResolvedValue(true); // call 2 onwards: cache populated by call 1
+
+        const mockGit = {
+            checkIsRepo: mockCheckIsRepo,
+            clone: mockClone,
+            fetch: mockFetch,
+            raw: mockRaw,
+            revparse: mockRevparse,
+            checkout: mockCheckout,
+            pull: mockPull,
+        } as unknown as SimpleGit;
+
+        vi.mocked(gitUtils.createGit).mockReturnValue(mockGit);
+        vi.mocked(gitUtils.createInteractiveGit).mockReturnValue(mockGit);
+
+        // Start both calls concurrently — same URL, different subpaths
+        const call1 = cloneGitSource({
+            url: "https://example.com/concurrent.git",
+            useCache: false,
+        });
+        const call2 = cloneGitSource({
+            url: "https://example.com/concurrent.git",
+            useCache: false,
+            subpath: "profiles/other",
+        });
+
+        // Let the first clone complete
+        cloneResolve();
+
+        const [result1, result2] = await Promise.all([call1, call2]);
+
+        // Both should succeed and share the same cache path
+        expect(result1.cachePath).toBe(result2.cachePath);
+        // Only one git.clone call — second call reused cache via fetch+reset
+        expect(mockClone).toHaveBeenCalledTimes(1);
+    });
 });
