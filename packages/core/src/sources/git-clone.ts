@@ -130,7 +130,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     // We re-check in a loop because when 3+ callers wait on the same promise,
     // they all resume in one microtask batch — only the first through should proceed.
     while (cacheLocks.has(cachePath)) {
-        await cacheLocks.get(cachePath)!.catch(() => {});
+        await cacheLocks.get(cachePath)?.catch(() => {});
     }
 
     const promise = cloneGitSourceImpl(options, cachePath);
