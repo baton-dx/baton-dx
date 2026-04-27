@@ -126,11 +126,11 @@ const cacheLocks = new Map<string, Promise<ClonedSource>>();
 export async function cloneGitSource(options: CloneOptions): Promise<ClonedSource> {
     const cachePath = getCachePath(options.url, options.ref);
 
-    // Wait for any in-flight operation on this cache path to finish before proceeding.
-    // We don't reuse the result because each caller may need a different subpath.
-    const inflight = cacheLocks.get(cachePath);
-    if (inflight) {
-        await inflight.catch(() => {});
+    // Wait until no other operation is in-flight for this cache path.
+    // We re-check in a loop because when 3+ callers wait on the same promise,
+    // they all resume in one microtask batch — only the first through should proceed.
+    while (cacheLocks.has(cachePath)) {
+        await cacheLocks.get(cachePath)!.catch(() => {});
     }
 
     const promise = cloneGitSourceImpl(options, cachePath);
@@ -145,6 +145,7 @@ export async function cloneGitSource(options: CloneOptions): Promise<ClonedSourc
     }
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: multi-step clone/cache/fallback pipeline — splitting would obscure the sequential flow
 async function cloneGitSourceImpl(options: CloneOptions, cachePath: string): Promise<ClonedSource> {
     const { url, ref, subpath, useCache = true, maxCacheAgeMs, interactive, authToken } = options;
     const safeUrl = redactUrl(url);
